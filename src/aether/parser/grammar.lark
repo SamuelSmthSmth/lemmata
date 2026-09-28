@@ -1,0 +1,157 @@
+// Aether Controlled Natural Language (CNL) grammar for proof documents.
+// Parser: Lark LALR + contextual lexer, postlex: AetherIndenter
+//
+// Design notes:
+//   - STEP_KW is a bare keyword; the colon is an explicit literal in rules.
+//   - All infix operators are named terminals (ADDOP, MULOP, etc.) so LALR
+//     includes them in the parse tree rather than silently discarding them.
+//   - arith_expr/term/power/rel_expr are NOT ?-inlined so the transformer
+//     gets stable Tree nodes with children [left, op, right].
+
+start: (_NL | item)*
+
+item: theorem_stmt
+    | proof_stmt
+    | line_stmt
+
+// -----------------------------------------------------------------------
+// Theorem / proof structure
+// -----------------------------------------------------------------------
+
+theorem_stmt: THEOREM_KW (CNAME | STRING)? ":" (CNAME | STRING)? _NL (claim_stmt)? (proof_stmt)?
+claim_stmt:   CLAIM_KW ":" expr _NL
+proof_stmt:   PROOF_KW ":"? _NL _INDENT line_stmt+ _DEDENT (QED_KW _NL)?
+
+line_stmt:  simple_stmt _NL
+          | block_stmt
+
+block_stmt: (CASE_KW expr | CNAME) ":" _NL _INDENT line_stmt+ _DEDENT
+
+// -----------------------------------------------------------------------
+// Simple (single-line) proof statements
+// -----------------------------------------------------------------------
+
+simple_stmt: var_decl
+           | assume_stmt
+           | obtain_stmt
+           | step_stmt
+           | deduce_stmt
+           | QED_KW
+
+var_decl: VAR_INTRO var_list ":" type_name ("with" expr)?  -> var_decl_typed
+        | VAR_INTRO CNAME REL_OP arith_expr                -> var_decl_cond
+
+assume_stmt: ASSUME_KW (CNAME ":")? expr
+
+obtain_stmt: OBTAIN_KW CNAME (":" type_name)? SUCH_THAT expr ("from" CNAME)?
+
+// step_chained: Step: rel rhs   — starts with REL_OP (no lhs, chains from previous step)
+// step_single:  Step: expr      — full expression, including relations like 'n^2 = 4*k^2'
+// LALR can distinguish these because step_chained starts with a REL_OP token.
+step_stmt: STEP_KW ":" REL_OP arith_expr justification?  -> step_chained
+         | STEP_KW ":" expr   justification?             -> step_single
+
+deduce_stmt: DEDUCE_KW REL_OP arith_expr justification?             -> deduce_chained
+           | DEDUCE_KW expr justification? witness_clause?          -> deduce_expr
+
+justification: "[" JUST_TEXT "]"
+             | ("using"i | "by"i) JUST_TEXT
+
+witness_clause: "[" "witness"i ":" expr "]"
+
+var_list:  CNAME ("," CNAME)*
+type_name: CNAME
+         | "\\" "mathbb" "{" CNAME "}"
+
+// -----------------------------------------------------------------------
+// Expression / proposition hierarchy
+// Operators are named terminals so they survive in the LALR parse tree.
+// -----------------------------------------------------------------------
+
+?expr: quant_expr
+
+?quant_expr: QUANT_EXISTS CNAME (":" type_name)? "," quant_expr -> exists_expr
+           | QUANT_FORALL CNAME (":" type_name)? "," quant_expr -> forall_expr
+           | iff_expr
+
+// Logic levels — kept as non-? rules so children include the operator tokens
+iff_expr:  impl_expr (IFF_OP  impl_expr)*
+impl_expr: or_expr   (IMPL_OP or_expr)*
+or_expr:   and_expr  (OR_OP   and_expr)*
+and_expr:  not_expr  (AND_OP  not_expr)*
+
+?not_expr: NOT_OP not_expr  -> not_op
+         | rel_expr
+
+// ?rel_expr: transparent — when it has 3 children (a REL_OP b), the parent
+// and_expr/or_expr/etc. rule sees them directly. The transformer handles
+// RelationNode construction at the arith_expr level when REL_OP is present.
+?rel_expr: arith_expr REL_OP arith_expr -> rel_expr_bin
+         | arith_expr
+
+REL_OP: "<=" | ">=" | "!=" | "/=" | "\\neq" | "\\le" | "\\leq"
+      | "\\ge" | "\\geq" | "<" | ">" | "=" | "\\in" | "in"i
+
+// arith_expr / term: left-recursive named rules so op is always present
+arith_expr: arith_expr ADDOP term
+           | term
+
+term: term MULOP power
+    | power
+
+// power is right-recursive; keep as non-? so transformer sees [base, POW_OP, exp]
+power: atom POW_OP power
+     | atom
+
+?atom: NUMBER                              -> number
+     | CNAME "(" (expr ("," expr)*)? ")"  -> func_call
+     | GREEK_LETTER                       -> greek_symbol
+     | CNAME                              -> symbol
+     | "(" expr ")"
+     | "$" /[^$]+/ "$"                   -> raw_math
+
+// -----------------------------------------------------------------------
+// Operator terminals
+// -----------------------------------------------------------------------
+
+ADDOP:   "+" | "-"
+MULOP:   "*" | "/"
+POW_OP:  "^" | "**"
+IFF_OP:  "<=>" | /iff/i
+IMPL_OP: "=>"
+OR_OP:   /or/i | "\\lor" | "\\/"
+AND_OP:  /and/i | "\\land" | "/\\"
+NOT_OP:  /not/i | "~" | "\\neg"
+
+// -----------------------------------------------------------------------
+// Statement keywords (priority 2 so they beat CNAME)
+// -----------------------------------------------------------------------
+
+QUANT_EXISTS.2: /exists/i | "\\exists"
+QUANT_FORALL.2: /forall/i | "\\forall"
+THEOREM_KW.2:   /theorem/i | /lemma/i | /proposition/i
+CLAIM_KW.2:     /claim/i
+PROOF_KW.2:     /proof/i
+QED_KW.2:       /qed/i
+VAR_INTRO.2:    /let/i | /given/i | /fix/i | /take/i
+ASSUME_KW.2:    /assume/i | /suppose/i | /hypothesize/i
+OBTAIN_KW.2:    /obtain/i | /choose/i | /pick/i
+SUCH_THAT.2:    /such that/i | /where/i | /satisfying/i
+STEP_KW.2:      /step/i
+DEDUCE_KW.2:    /therefore/i | /thus/i | /hence/i | /so/i | /then/i | /conclude/i
+CASE_KW.2:      /case/i
+
+// JUST_TEXT matches words separated by spaces (won't consume brackets/newlines)
+JUST_TEXT: /[a-zA-Z0-9_,.^+*\-\\\/()]+(\s+[a-zA-Z0-9_,.^+*\-\\\/()]+)*/
+
+NUMBER:       /[0-9]+(\.[0-9]+)?/
+STRING:       /\"[^\"]*\"/
+GREEK_LETTER: /\\(alpha|beta|gamma|delta|epsilon|varepsilon|zeta|eta|theta|iota|kappa|lambda|mu|nu|xi|pi|rho|sigma|tau|upsilon|phi|chi|psi|omega|Delta|Gamma|Theta|Lambda|Xi|Pi|Sigma|Phi|Psi|Omega)/
+CNAME:        /[a-zA-Z_][a-zA-Z0-9_]*/
+
+_NL:    /(\r?\n[\t ]*)+/
+%declare _INDENT _DEDENT
+%ignore " "
+%ignore /\t/
+%ignore /(#[^\n]*)/
+%ignore /(--[^\n]*)/

@@ -1,0 +1,22 @@
+[project]
+name = "aether"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+authors = [
+    { name = "Samuel Okwuonu", email = "s.okwuonu07@gmail.com" }
+]
+requires-python = ">=3.12"
+dependencies = [
+    "lark>=1.3.1",
+    "pytest>=9.1.1",
+    "sympy>=1.14.0",
+    "z3-solver>=5.1.0.0",
+]
+
+[project.scripts]
+aether = "aether:main"
+
+[build-system]
+requires = ["uv_build>=0.12.16,<0.13.0"]
+build-backend = "uv_build"
