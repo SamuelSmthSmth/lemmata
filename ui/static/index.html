@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Aether · Proof Intern</title>
+    <script>
+      // Resolve the theme before first paint so there is no flash of the
+      // wrong palette. js/main.js reads this attribute and owns the toggle.
+      (function () {
+        var theme;
+        try {
+          theme = localStorage.getItem("aether-theme");
+        } catch (err) {
+          theme = null;
+        }
+        if (theme !== "light" && theme !== "dark") {
+          theme = window.matchMedia("(prefers-color-scheme: light)").matches
+            ? "light"
+            : "dark";
+        }
+        document.documentElement.dataset.theme = theme;
+      })();
+    </script>
+    <link rel="stylesheet" href="/static/styles.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-text">
+          <h1>Aether</h1>
+          <p>Controlled-natural-language proof intern</p>
+        </div>
+      </div>
+
+      <div class="verdict-block" role="status" aria-live="polite">
+        <span id="verdict" class="verdict verdict--idle">Ready</span>
+        <span id="verdict-meta" class="verdict-meta"></span>
+      </div>
+
+      <label class="switch" for="strict">
+        <input type="checkbox" id="strict" />
+        <span class="switch-track" aria-hidden="true"><span class="switch-thumb"></span></span>
+        <span class="switch-text">
+          <span class="switch-title">Strict domain checking</span>
+          <span class="switch-sub">Unguarded divisions become hard errors</span>
+        </span>
+      </label>
+
+      <button
+        id="theme-toggle"
+        class="icon-button"
+        type="button"
+        title="Switch between light and dark"
+        aria-label="Switch between light and dark theme"
+      >
+        <svg
+          class="icon icon--sun"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          aria-hidden="true"
+        >
+          <circle cx="12" cy="12" r="4"></circle>
+          <path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"></path>
+        </svg>
+        <svg
+          class="icon icon--moon"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          aria-hidden="true"
+        >
+          <path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"></path>
+        </svg>
+      </button>
+    </header>
+
+    <main class="layout">
+      <section class="pane pane--editor" aria-labelledby="editor-heading">
+        <div class="pane-head">
+          <h2 id="editor-heading">Proof source</h2>
+          <div class="pane-tools">
+            <label class="select-wrap">
+              <span class="sr-only">Load an example proof</span>
+              <select id="examples">
+                <option value="">Load an example&hellip;</option>
+              </select>
+            </label>
+
+            <div class="menu">
+              <button
+                id="export-latex"
+                class="icon-button"
+                type="button"
+                title="Export proof to LaTeX / PDF"
+                aria-label="Export proof to LaTeX / PDF"
+              >
+                <svg
+                  class="icon"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  aria-hidden="true"
+                >
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                  <polyline points="14 2 14 8 20 8"></polyline>
+                  <line x1="16" y1="13" x2="8" y2="13"></line>
+                  <line x1="16" y1="17" x2="8" y2="17"></line>
+                  <polyline points="10 9 9 9 8 9"></polyline>
+                </svg>
+              </button>
+
+              <button
+                id="download-proof"
+                class="icon-button"
+                type="button"
+                title="Download this proof as a .aether file"
+                aria-label="Download this proof as a .aether file"
+              >
+                <svg
+                  class="icon"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  aria-hidden="true"
+                >
+                  <path d="M12 3v12m0 0l4-4m-4 4l-4-4"></path>
+                  <path d="M4 20h16"></path>
+                </svg>
+              </button>
+
+              <button
+                id="history-toggle"
+                class="icon-button"
+                type="button"
+                title="Workspace: history, snapshots and reset"
+                aria-label="Workspace: history, snapshots and reset"
+                aria-expanded="false"
+                aria-controls="history-panel"
+              >
+                <svg
+                  class="icon"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  aria-hidden="true"
+                >
+                  <circle cx="12" cy="12" r="8.5"></circle>
+                  <path d="M12 7.5V12l3 1.8"></path>
+                </svg>
+              </button>
+
+              <div id="history-panel" class="history-panel" hidden>
+                <div class="history-head">
+                  <h3>Workspace</h3>
+                  <button
+                    id="history-close"
+                    class="icon-button icon-button--slim"
+                    type="button"
+                    aria-label="Close the workspace panel"
+                  >
+                    <svg
+                      class="icon"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      stroke-linecap="round"
+                      aria-hidden="true"
+                    >
+                      <path d="M6 6l12 12M18 6L6 18"></path>
+                    </svg>
+                  </button>
+                </div>
+
+                <div class="history-block">
+                  <h4>Session timeline</h4>
+                  <div id="timeline" class="timeline"></div>
+                  <p id="timeline-note" class="history-note"></p>
+                </div>
+
+                <div class="history-block">
+                  <h4>Snapshots</h4>
+                  <div id="snapshots" class="snapshots"></div>
+                </div>
+
+                <div class="history-actions">
+                  <button id="snapshot-now" class="mini" type="button">Snapshot now</button>
+                  <button id="copy-link" class="mini" type="button">Copy link</button>
+                  <button id="reset-workspace" class="mini" type="button">Reset to example</button>
+                  <button id="clear-history" class="mini mini--danger" type="button">Clear history &amp; snapshots</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <p id="example-blurb" class="blurb" hidden></p>
+        <div id="editor" class="editor" aria-label="Aether proof source editor"></div>
+        <div id="drop-overlay" class="drop-overlay" hidden>
+          <p>Drop a <code>.aether</code> file to load it</p>
+        </div>
+      </section>
+
+      <section class="pane pane--audit" aria-labelledby="audit-heading">
+        <div class="pane-head">
+          <h2 id="audit-heading">Auditor</h2>
+          <p class="pane-note">Click a step, or use <kbd>&#8593;</kbd><kbd>&#8595;</kbd> to inspect it</p>
+        </div>
+        <div id="audit" class="audit scroll"></div>
+      </section>
+
+      <section class="pane pane--context" aria-labelledby="context-heading">
+        <div class="pane-head">
+          <h2 id="context-heading">Context &amp; state</h2>
+          <p id="context-sub" class="pane-note">What the intern knows</p>
+        </div>
+        <div id="context" class="context scroll"></div>
+      </section>
+    </main>
+
+    <dialog id="latex-dialog" class="dialog">
+      <div class="dialog-content">
+        <div class="dialog-head">
+          <h3>Export to LaTeX &amp; PDF</h3>
+          <button
+            id="latex-dialog-close"
+            class="icon-button icon-button--slim"
+            type="button"
+            aria-label="Close export dialog"
+          >
+            <svg
+              class="icon"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              aria-hidden="true"
+            >
+              <path d="M6 6l12 12M18 6L6 18"></path>
+            </svg>
+          </button>
+        </div>
+        <div class="dialog-body">
+          <div class="dialog-options">
+            <label class="switch switch--inline" for="latex-standalone">
+              <input type="checkbox" id="latex-standalone" checked />
+              <span class="switch-track" aria-hidden="true"><span class="switch-thumb"></span></span>
+              <span class="switch-text">
+                <span class="switch-title">Standalone document</span>
+                <span class="switch-sub">Include preamble, \documentclass and packages</span>
+              </span>
+            </label>
+          </div>
+          <textarea
+            id="latex-output"
+            class="latex-textarea"
+            readonly
+            spellcheck="false"
+            placeholder="Generating LaTeX..."
+          ></textarea>
+        </div>
+        <div class="dialog-actions">
+          <button id="copy-latex" class="btn" type="button">Copy LaTeX</button>
+          <button id="download-tex" class="btn" type="button">Download .tex</button>
+          <button id="download-pdf" class="btn btn--primary" type="button">Download PDF</button>
+        </div>
+      </div>
+    </dialog>
+
+    <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+
+    <script type="module" src="/static/js/main.js"></script>
+  </body>
+</html>

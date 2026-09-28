@@ -7,7 +7,7 @@ class AetherIndenter(Indenter):
     """Postlex indenter that tracks Python-style whitespace indentation in Aether proofs."""
 
     NL_type = "_NL"
-    OPEN_PAREN_types = ["LPAR"]
+    OPEN_PAREN_types = ["LPAR", "MOD_PAR_KW"]
     CLOSE_PAREN_types = ["RPAR"]
     INDENT_type = "_INDENT"
     DEDENT_type = "_DEDENT"

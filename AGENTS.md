@@ -1,0 +1,135 @@
+# AGENTS.md — Aether Project Guide for UI Development
+
+## ⚠️ Critical Rules for Agents
+
+1. **Separation of Concerns (Engine vs. UI):**
+   - **When working on the UI (`ui/`):** Do **not** edit, move, or delete any files inside `src/aether/core/`, `src/aether/parser/`, `src/aether/engine/`, or `tests/`. All UI code, assets, and entry points must live in the dedicated top-level `ui/` directory.
+   - **When working on the Engine (`src/aether/`, `tests/`):** You **may** edit and add files in `src/aether/` and `tests/`. Do **not** modify `ui/`, and always preserve backwards compatibility with the public Python API (`ProofChecker`, `ProofReport`, `StepResult`, `StepStatus`, `ParseError`) verified by `uv run python ui/verify_examples.py`.
+2. **Use `uv` for Python environment management.**
+   Run commands and scripts via `uv run ...` (the virtual environment is already configured in `.venv` with Python 3.12, `lark`, `sympy`, and `z3-solver`).
+
+---
+
+## 1. What Aether Is
+
+**Aether** is a lightweight, Controlled Natural Language (CNL) "Proof Intern" / step-by-step mathematical proof checker designed for undergraduate pure mathematics (such as Real Analysis and Abstract Algebra).
+
+Instead of requiring users to learn complex formal type-theory compilers (like Lean 4), Aether lets users write structured, human-readable mathematical proofs using natural deduction keywords (`Let`, `Given`, `Assume`, `Obtain`, `Step:`, `Therefore`, `Hence`, `QED`) combined with standard mathematical expressions.
+
+### How the Engine Works Under the Hood
+- **Parser (`aether.parser`)**: Uses a Lark LALR grammar with Python-style indentation tracking (`AetherIndenter`) to parse proof documents into typed AST nodes (`DocumentNode`, `TheoremNode`, `VarDeclNode`, `AssumeNode`, `ObtainNode`, `StepNode`, `DeduceNode`, `SubProofNode`).
+- **Scope & Context Manager (`aether.engine.context`)**: Tracks nested proof scopes, variable types (`Nat`, `Int`, `Rat`, `Real`, `Complex`, `Bool`), active hypotheses, and equational/inequality chains. Enforces guardrails against:
+  - **Strict Monotonicity Violations**: Rejecting conflicting inequality directions in a chain (e.g., mixing `<=` and `>=`).
+  - **Implicit Variable Capture**: Preventing existential witnesses (`Obtain k ...`) from shadowing variables already in scope.
+  - **Illegal Universal Generalization**: Preventing `forall x` conclusions while `x` is constrained by an undischarged assumption.
+- **SymPy Algebraic Backend (`aether.engine.algebra`)**:
+  - Verifies algebraic rewrite steps (`lhs = rhs`) by checking whether `lhs - rhs` simplifies to `0` (including substituting active context equalities like `n = 2 * k`).
+  - Extracts **Domain Obligations** prior to simplification (e.g., non-zero denominators `B != 0` in `A / B`, and non-negative radicands `A >= 0` in `sqrt(A)`).
+  - Generates **concrete numeric counterexamples** when an algebraic step is false (e.g., `Counterexample at x=3: LHS = 24, RHS = 23`).
+- **Z3 SMT & Logic Backend (`aether.engine.logic`)**:
+  - Verifies inequalities (`<`, `<=`, `>`, `>=`, `!=`), logical deductions, quantifiers (`exists`, `forall`), existential witnesses (`[witness: ...]`), and built-in prelude predicates (`Even(x)`, `Odd(x)`, `MultipleOf(a, b)`, `Divides(a, b)`, `Positive(x)`, `NonNegative(x)`).
+  - Checks whether extracted domain obligations are guaranteed by active assumptions, and extracts counterexample assignments when obligations or deductions fail.
+
+---
+
+## 2. Example Aether Proof Syntax
+
+```text
+Theorem: "Even square theorem"
+Proof:
+    Given n : Int
+    Assume h1: Even(n)
+    Obtain k : Int such that n = 2 * k from h1
+    Step: n^2 = (2 * k)^2
+    Step: = 4 * k^2
+    Step: = 2 * (2 * k^2)
+    Therefore exists m : Int, n^2 = 4 * m [witness: k^2]
+    Hence MultipleOf(n^2, 4)
+QED
+```
+
+Top-level scratchpad scripts (without a `Theorem:` / `Proof:` wrapper) are also valid:
+
+```text
+Let x, y : Real
+Assume x > 2
+Step: (x^2 - 4) / (x - 2) = x + 2
+Step: > 4
+```
+
+---
+
+## 3. Engine Python API Reference (How the UI Calls the Backend)
+
+Import `ProofChecker`, `StepStatus`, and `ParseError` directly from `aether`:
+
+```python
+from aether import ProofChecker, ProofReport, StepResult, StepStatus, ParseError
+
+# strict_domains=False (default): unguarded domain obligations produce StepStatus.WARNING
+# strict_domains=True: unguarded domain obligations produce StepStatus.INVALID
+checker = ProofChecker(strict_domains=False)
+
+try:
+    reports: list[ProofReport] = checker.check_source(source_text)
+except ParseError as err:
+    # err.message: str
+    # err.line: int | None
+    # err.col: int | None
+    ...
+```
+
+### Data Structures Returned by `checker.check_source(source_text)`
+
+#### `ProofReport`
+- `theorem_name: str | None` — Name of the theorem (or `None` for top-level scratchpad statements).
+- `results: list[StepResult]` — Ordered list of verification results for each statement in the proof.
+- `is_valid: bool` — `True` if no step has `StepStatus.INVALID`.
+- `has_warnings: bool` — `True` if any step has `StepStatus.WARNING` or unresolved `domain_warnings`.
+- `format_report() -> str` — Returns a plain-text formatted audit log.
+
+#### `StepResult`
+Each item in `report.results` corresponds to one parsed statement and contains:
+- `statement: StatementNode` — The AST node (`str(step.statement)` gives the canonical readable statement).
+- `line: int | None` — 1-based source line number in the input document.
+- `status: StepStatus` — Enum value:
+  - `StepStatus.VALID` (`"VALID"`)
+  - `StepStatus.WARNING` (`"WARNING"`)
+  - `StepStatus.INVALID` (`"INVALID"`)
+- `message: str` — Human-readable explanation of the verification result or failure reason.
+- `backend: str` — Which engine component verified or rejected the step (e.g., `"Context"`, `"SymPy"`, `"SymPy (Witness)"`, `"SymPy+Logic"`, `"Z3"`, `"Definition+Z3"`, `"ChainGuard"`, `"ScopeGuard"`, `"SubProof"`).
+- `scope_depth: int` — Nesting depth of the statement (`0` for top-level, `1+` for subproofs).
+- `active_variables: dict[str, str]` — Snapshot of declared variables and their canonical types at this point in the proof (e.g., `{"n": "Int", "k": "Int"}`).
+- `active_hypotheses: list[str]` — Snapshot of active assumptions and derived facts in scope at this point (e.g., `["h1: Even(n)", "n = (2 * k)"]`).
+- `domain_warnings: list[str]` — List of unresolved domain obligation messages triggered on this line (e.g., `["Unresolved domain obligation: requires non-zero denominator ((x - 2) != 0) in (((x ^ 2) - 4) / (x - 2)) (violated at x=2)."]`).
+- `counterexample: str | None` — Concrete counterexample assignment if the step failed and one was found (e.g., `"Counterexample at x=3: LHS = 24, RHS = 23"` or `"x=1"`).
+
+---
+
+## 4. What Needs to Be Present in the UI
+
+The UI should expose the full capabilities of the Aether engine to the user. It must include the following functional elements and information readouts:
+
+1. **Proof Input / Editor Area**
+   - Multi-line text input where the user writes or edits Aether CNL proof scripts.
+   - Support for loading pre-built example proofs (e.g., valid Even Square theorem, Odd Square theorem, an algebraic blunder with a counterexample, an unguarded division-by-zero example, and a guarded domain example) so users can test features immediately.
+
+2. **Overall Proof Verdict & Controls**
+   - Overall proof status readout (`VALID`, `VALID (with domain warnings)`, `INVALID`, or `PARSE ERROR`).
+   - A toggle for **Strict Domain Checking** (`strict_domains=True` vs `strict_domains=False`), controlling whether unguarded divisions/square roots are treated as warnings or hard errors.
+   - Parse error display showing line number, column number, and error message whenever `ParseError` is raised.
+
+3. **Step-by-Step Auditor Readout**
+   For each statement (`StepResult`) in the proof, display:
+   - **Line number** (`result.line`) and **statement text** (`str(result.statement)`).
+   - **Verification status** (`VALID`, `WARNING`, `INVALID`).
+   - **Backend badge / label** (`result.backend`, e.g., `SymPy`, `Z3`, `Context`, `Definition+Z3`, `ChainGuard`, `ScopeGuard`).
+   - **Verification message** (`result.message`).
+   - **Concrete counterexample** (`result.counterexample`), highlighted clearly whenever a step fails.
+   - **Domain obligation warnings** (`result.domain_warnings`), whenever division by zero or negative square-root radicands are not ruled out by the context.
+
+4. **Context & State Inspector**
+   Allow the user to see what the "Proof Intern" knows (either for the selected step or at the current point in the proof):
+   - **Declared Variables & Types** (`result.active_variables`, e.g., `n : Int`, `x : Real`).
+   - **Active Hypotheses & Derived Facts** (`result.active_hypotheses`, e.g., `h1: Even(n)`, `n = (2 * k)`).
+   - **Scope Depth** (`result.scope_depth`).

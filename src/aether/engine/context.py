@@ -15,6 +15,8 @@ from aether.core.ast import (
     RelationNode,
     QuantifierNode,
     RawMathNode,
+    IntegralNode,
+    LimitNode,
 )
 from aether.core.types import MathType, normalize_type_name
 
@@ -52,6 +54,7 @@ _REL_CANONICAL: dict[str, str] = {
     ">=": ">=",
     "\\ge": ">=",
     "\\geq": ">=",
+    "\\equiv": "=",
     "in": "in",
     "\\in": "in",
 }
@@ -115,7 +118,92 @@ def collect_free_symbols(expr: ExprNode, bound: Optional[set[str]] = None) -> se
         return out
     if isinstance(expr, QuantifierNode):
         return collect_free_symbols(expr.formula, bound | {expr.var})
+    if isinstance(expr, IntegralNode):
+        out = collect_free_symbols(expr.body, bound | {expr.var})
+        if expr.lower is not None:
+            out |= collect_free_symbols(expr.lower, bound)
+        if expr.upper is not None:
+            out |= collect_free_symbols(expr.upper, bound)
+        return out
+    if isinstance(expr, LimitNode):
+        return collect_free_symbols(expr.body, bound | {expr.var}) | collect_free_symbols(expr.target, bound)
     return set()
+
+
+def substitute_mapping(
+    expr: ExprNode,
+    mapping: dict[str, ExprNode],
+    bound: Optional[set[str]] = None,
+) -> ExprNode:
+    """Simultaneously replace free variables in *expr* according to *mapping*."""
+    if bound is None:
+        bound = set()
+    if isinstance(expr, SymbolNode):
+        if expr.name not in bound and expr.name in mapping:
+            return mapping[expr.name]
+        return expr
+    if isinstance(expr, GreekSymbolNode):
+        if expr.name not in bound and expr.name in mapping:
+            return mapping[expr.name]
+        return expr
+    if isinstance(expr, UnaryOpNode):
+        return UnaryOpNode(
+            op=expr.op,
+            operand=substitute_mapping(expr.operand, mapping, bound),
+            line=expr.line,
+            col=expr.col,
+        )
+    if isinstance(expr, BinaryOpNode):
+        return BinaryOpNode(
+            op=expr.op,
+            left=substitute_mapping(expr.left, mapping, bound),
+            right=substitute_mapping(expr.right, mapping, bound),
+            line=expr.line,
+            col=expr.col,
+        )
+    if isinstance(expr, RelationNode):
+        return RelationNode(
+            op=expr.op,
+            left=substitute_mapping(expr.left, mapping, bound),
+            right=substitute_mapping(expr.right, mapping, bound),
+            line=expr.line,
+            col=expr.col,
+        )
+    if isinstance(expr, FunctionCallNode):
+        return FunctionCallNode(
+            func=expr.func,
+            args=[substitute_mapping(a, mapping, bound) for a in expr.args],
+            line=expr.line,
+            col=expr.col,
+        )
+    if isinstance(expr, QuantifierNode):
+        return QuantifierNode(
+            quantifier=expr.quantifier,
+            var=expr.var,
+            var_type=expr.var_type,
+            formula=substitute_mapping(expr.formula, mapping, bound | {expr.var}),
+            line=expr.line,
+            col=expr.col,
+        )
+    if isinstance(expr, IntegralNode):
+        return IntegralNode(
+            body=substitute_mapping(expr.body, mapping, bound | {expr.var}),
+            var=expr.var,
+            lower=substitute_mapping(expr.lower, mapping, bound) if expr.lower is not None else None,
+            upper=substitute_mapping(expr.upper, mapping, bound) if expr.upper is not None else None,
+            line=expr.line,
+            col=expr.col,
+        )
+    if isinstance(expr, LimitNode):
+        return LimitNode(
+            body=substitute_mapping(expr.body, mapping, bound | {expr.var}),
+            var=expr.var,
+            target=substitute_mapping(expr.target, mapping, bound),
+            direction=expr.direction,
+            line=expr.line,
+            col=expr.col,
+        )
+    return expr
 
 
 @dataclass
@@ -126,6 +214,17 @@ class VarInfo:
     math_type: MathType
     scope_depth: int
     is_witness: bool = False
+    condition: Optional[ExprNode] = None
+
+
+@dataclass
+class FuncDefInfo:
+    """Metadata for a user-defined mathematical function (e.g. Let f(x) = ...)."""
+
+    name: str
+    params: list[str]
+    body: ExprNode
+    scope_depth: int = 0
 
 
 @dataclass
@@ -163,8 +262,10 @@ class _ScopeFrame:
 
     depth: int
     variables: dict[str, VarInfo] = field(default_factory=dict)
+    functions: dict[str, FuncDefInfo] = field(default_factory=dict)
     hypotheses: list[HypothesisInfo] = field(default_factory=list)
     chain: Optional[ChainState] = None
+    cases: list[tuple[ExprNode, ExprNode]] = field(default_factory=list)
 
 
 class ProofContext:
@@ -202,7 +303,7 @@ class ProofContext:
         return self._frames.pop()
 
     # -------------------------------------------------------------------
-    # Variables
+    # Variables & User Functions
     # -------------------------------------------------------------------
 
     def get_var(self, name: str) -> Optional[VarInfo]:
@@ -216,6 +317,107 @@ class ProofContext:
         for frame in self._frames:
             merged.update(frame.variables)
         return merged
+
+    def get_function(self, name: str) -> Optional[FuncDefInfo]:
+        for frame in reversed(self._frames):
+            if name in frame.functions:
+                return frame.functions[name]
+        return None
+
+    def all_functions(self) -> dict[str, FuncDefInfo]:
+        merged: dict[str, FuncDefInfo] = {}
+        for frame in self._frames:
+            merged.update(frame.functions)
+        return merged
+
+    def declare_function(
+        self,
+        name: str,
+        params: list[str],
+        body: ExprNode,
+    ) -> FuncDefInfo:
+        """Register a user-defined function ``f(x1, ...) = body`` in the current scope."""
+        if self.get_var(name) is not None or self.get_function(name) is not None:
+            raise VariableCaptureError(
+                f"Implicit variable capture: function '{name}' cannot shadow an existing symbol in scope."
+            )
+        info = FuncDefInfo(
+            name=name,
+            params=params,
+            body=body,
+            scope_depth=self.scope_depth,
+        )
+        self.current_frame.functions[name] = info
+        return info
+
+    def expand_user_functions(self, expr: Optional[ExprNode]) -> Optional[ExprNode]:
+        """Recursively inline any calls to user-defined functions ``f(args)`` in *expr*."""
+        if expr is None:
+            return None
+        if isinstance(expr, UnaryOpNode):
+            return UnaryOpNode(
+                op=expr.op,
+                operand=self.expand_user_functions(expr.operand),  # type: ignore[arg-type]
+                line=expr.line,
+                col=expr.col,
+            )
+        if isinstance(expr, BinaryOpNode):
+            return BinaryOpNode(
+                op=expr.op,
+                left=self.expand_user_functions(expr.left),  # type: ignore[arg-type]
+                right=self.expand_user_functions(expr.right),  # type: ignore[arg-type]
+                line=expr.line,
+                col=expr.col,
+            )
+        if isinstance(expr, RelationNode):
+            return RelationNode(
+                op=expr.op,
+                left=self.expand_user_functions(expr.left),  # type: ignore[arg-type]
+                right=self.expand_user_functions(expr.right),  # type: ignore[arg-type]
+                line=expr.line,
+                col=expr.col,
+            )
+        if isinstance(expr, QuantifierNode):
+            return QuantifierNode(
+                quantifier=expr.quantifier,
+                var=expr.var,
+                var_type=expr.var_type,
+                formula=self.expand_user_functions(expr.formula),  # type: ignore[arg-type]
+                line=expr.line,
+                col=expr.col,
+            )
+        if isinstance(expr, FunctionCallNode):
+            expanded_args = [self.expand_user_functions(a) for a in expr.args]
+            fn_info = self.get_function(expr.func)
+            if fn_info is not None and len(expanded_args) == len(fn_info.params):
+                mapping = {p: a for p, a in zip(fn_info.params, expanded_args) if a is not None}
+                inlined = substitute_mapping(fn_info.body, mapping)
+                return self.expand_user_functions(inlined)
+            return FunctionCallNode(
+                func=expr.func,
+                args=[a for a in expanded_args if a is not None],
+                line=expr.line,
+                col=expr.col,
+            )
+        if isinstance(expr, IntegralNode):
+            return IntegralNode(
+                body=self.expand_user_functions(expr.body),  # type: ignore[arg-type]
+                var=expr.var,
+                lower=self.expand_user_functions(expr.lower) if expr.lower is not None else None,
+                upper=self.expand_user_functions(expr.upper) if expr.upper is not None else None,
+                line=expr.line,
+                col=expr.col,
+            )
+        if isinstance(expr, LimitNode):
+            return LimitNode(
+                body=self.expand_user_functions(expr.body),  # type: ignore[arg-type]
+                var=expr.var,
+                target=self.expand_user_functions(expr.target),  # type: ignore[arg-type]
+                direction=expr.direction,
+                line=expr.line,
+                col=expr.col,
+            )
+        return expr
 
     def declare_variable(
         self,
@@ -242,6 +444,7 @@ class ProofContext:
             math_type=math_type,
             scope_depth=self.scope_depth,
             is_witness=is_witness,
+            condition=condition,
         )
         self.current_frame.variables[name] = info
 
@@ -288,6 +491,13 @@ class ProofContext:
         for h in self.all_hypotheses():
             if isinstance(h.proposition, RelationNode) and canonical_rel(h.proposition.op) == "=":
                 subs.append((h.proposition.left, h.proposition.right))
+        for v in self.all_variables().values():
+            if (
+                v.condition is not None
+                and isinstance(v.condition, RelationNode)
+                and canonical_rel(v.condition.op) == "="
+            ):
+                subs.append((v.condition.left, v.condition.right))
         if self.chain is not None and self.chain.effective_relation == "=":
             subs.append((self.chain.head_lhs, self.chain.current_rhs))
         return subs

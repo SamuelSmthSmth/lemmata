@@ -5,6 +5,8 @@ Entry point for the `aether` CLI command (defined in pyproject.toml).
 
 from aether.parser.parser import AetherParser, ParseError
 from aether.engine.checker import ProofChecker, ProofReport, StepResult, StepStatus
+from aether.core.latex_export import export_to_latex
+from aether.core.ast import ImportNode
 
 __all__ = [
     "AetherParser",
@@ -13,6 +15,8 @@ __all__ = [
     "ProofReport",
     "StepResult",
     "StepStatus",
+    "ImportNode",
+    "export_to_latex",
     "main",
 ]
 
@@ -20,10 +24,16 @@ __all__ = [
 def main() -> None:
     import sys
 
+    args = sys.argv[1:]
+    latex_mode = False
+    if "--latex" in args:
+        latex_mode = True
+        args.remove("--latex")
+
     checker = ProofChecker()
 
-    if len(sys.argv) > 1:
-        path = sys.argv[1]
+    if args:
+        path = args[0]
         try:
             with open(path, encoding="utf-8") as f:
                 source = f.read()
@@ -35,6 +45,11 @@ def main() -> None:
         source = sys.stdin.read()
 
     try:
+        if latex_mode:
+            latex_out = export_to_latex(source)
+            print(latex_out)
+            return
+
         reports = checker.check_source(source)
         all_valid = True
         for report in reports:

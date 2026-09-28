@@ -1,0 +1,86 @@
+# Aether — The Mathematical Proof Intern
+
+**Aether** is a lightweight, Controlled Natural Language (CNL) step-by-step mathematical proof checker designed for undergraduate pure mathematics (Real Analysis, Abstract Algebra, Number Theory, and Combinatorics).
+
+Instead of requiring formal type-theory compilers (like Lean 4 or Coq), Aether lets users write structured, human-readable mathematical proofs using natural deduction keywords (`Let`, `Given`, `Assume`, `Obtain`, `Step:`, `Therefore`, `Hence`, `Base case:`, `Inductive step:`, `QED`) paired with standard algebraic and logic expressions.
+
+Behind the scenes, Aether orchestrates:
+- **SymPy**: Algebraic equivalence verification, pre-simplification domain obligation extraction (denominators $\neq 0$, radicands $\ge 0$), and concrete numeric counterexample search.
+- **Z3 SMT Solver**: Inequality verification, propositional and predicate logic, existential witness checks, exhaustiveness of case splits, and refutation models.
+- **Scope & Context Guardrails**: Enforcing strict monotonicity in inequality chains, preventing implicit existential variable capture, and forbidding illegal universal generalization over undischarged hypotheses.
+
+---
+
+## 📚 Documentation
+
+We provide two dedicated guides tailored for different audiences:
+
+1. **[User Guide & Cheat Sheet (`USER_GUIDE.md`)](file:///home/samuel/Documents/GitHub/aether/USER_GUIDE.md)**
+   - **For Humans**: Designed for students and mathematicians writing proofs.
+   - Contains the 30-second mental model, keyword cheat sheet, notation reference, top 6 copy-paste proof templates (direct proof, mathematical induction, $\varepsilon$-$\delta$ continuity, proof by contradiction, cases, custom predicates), and common gotchas.
+
+2. **[AI & System Architecture Reference (`AI_REFERENCE.md`)](file:///home/samuel/Documents/GitHub/aether/AI_REFERENCE.md)**
+   - **For AI & Engine Developers**: Exhaustive technical documentation.
+   - Complete formal grammar (Lark EBNF), AST dataclass taxonomy, scope manager mechanics, SymPy & Z3 solver algorithms, error taxonomy, Python public API, and REST API JSON schemas.
+
+---
+
+## 🚀 Quick Start
+
+### Installation & Environment Setup
+Aether uses `uv` for Python virtual environment management:
+
+```bash
+# Clone the repository
+git clone https://github.com/username/aether.git
+cd aether
+
+# Verify dependencies (Python 3.12, lark, sympy, z3-solver, fastapi, uvicorn)
+uv sync
+```
+
+### Running the CLI
+Verify a `.aether` proof file directly:
+
+```bash
+uv run aether test.aether
+```
+
+Or pass a proof via standard input:
+
+```bash
+uv run aether << 'EOF'
+Let x : Real
+Assume h: x > 2
+Step: (x^2 - 4) / (x - 2) = x + 2
+Step: > 4
+EOF
+```
+
+### Running the Web UI
+Aether includes a full web application featuring a CodeMirror 6 editor, real-time step auditor, state inspector, LaTeX/PDF exporter, and pre-built proof library:
+
+```bash
+uv run python -m ui
+```
+Open your browser at `http://127.0.0.1:8000`.
+
+---
+
+## 🧪 Verification & Testing
+
+Run all automated test suites:
+
+```bash
+# Run engine unit and integration tests (82 tests)
+uv run pytest -v
+
+# Verify bundled UI examples match engine verdicts (19 examples)
+uv run python ui/verify_examples.py
+
+# Verify FastAPI server and export endpoints (including PDF compilation)
+uv run python ui/verify_server.py
+
+# Verify CodeMirror tokenizer and frontend assets
+node ui/verify_frontend.mjs
+```

@@ -148,6 +148,75 @@ class RawMathNode(ExprNode):
         return f"${self.raw_text}$"
 
 
+@dataclass
+class VectorNode(ExprNode):
+    """Vector literal: e.g. [1, 2, 3]."""
+
+    elements: list[ExprNode] = field(default_factory=list)
+
+    def __str__(self) -> str:
+        return f"[{', '.join(str(e) for e in self.elements)}]"
+
+
+@dataclass
+class MatrixNode(ExprNode):
+    """Matrix literal: e.g. [[1, 2], [3, 4]]."""
+
+    rows: list[list[ExprNode]] = field(default_factory=list)
+
+    def __str__(self) -> str:
+        row_strs = [f"[{', '.join(str(e) for e in r)}]" for r in self.rows]
+        return f"[{', '.join(row_strs)}]"
+
+
+@dataclass
+class EmptySetNode(ExprNode):
+    """Empty set constant: \\emptyset or EmptySet."""
+
+    def __str__(self) -> str:
+        return "\\emptyset"
+
+
+@dataclass
+class IntegralNode(ExprNode):
+    """Integral expression: e.g. integrate(f, x) or integrate(f, x, a, b) or \\int_{a}^{b} f dx."""
+
+    body: ExprNode = field(default_factory=ExprNode)
+    var: str = "x"
+    lower: Optional[ExprNode] = None
+    upper: Optional[ExprNode] = None
+
+    def __str__(self) -> str:
+        if self.lower is not None and self.upper is not None:
+            return f"integrate({self.body}, {self.var}, {self.lower}, {self.upper})"
+        return f"integrate({self.body}, {self.var})"
+
+
+@dataclass
+class LimitNode(ExprNode):
+    """Limit expression: e.g. lim(f, x, a) or \\lim_{x -> a} f."""
+
+    body: ExprNode = field(default_factory=ExprNode)
+    var: str = "x"
+    target: ExprNode = field(default_factory=ExprNode)
+    direction: str = "+-"  # "+-", "+", "-"
+
+    def __str__(self) -> str:
+        if self.direction != "+-":
+            return f"lim({self.body}, {self.var}, {self.target}, {self.direction!r})"
+        return f"lim({self.body}, {self.var}, {self.target})"
+
+
+@dataclass
+class StringLiteralNode(ExprNode):
+    """String literal: e.g. "+" or "-". """
+
+    value: str = ""
+
+    def __str__(self) -> str:
+        return f'"{self.value}"'
+
+
 # ---------------------------------------------------------------------------
 # Statement nodes
 # ---------------------------------------------------------------------------
@@ -249,6 +318,39 @@ class DeduceNode(StatementNode):
         return base
 
 
+@dataclass
+class FuncDefNode(StatementNode):
+    """Function definition: e.g. 'Let f(x) = (x^2 - 4) / (x - 2)'."""
+
+    name: str = ""
+    params: list[str] = field(default_factory=list)
+    body: ExprNode = field(default_factory=ExprNode)
+
+    def __str__(self) -> str:
+        params_str = ", ".join(self.params)
+        return f"Let {self.name}({params_str}) = {self.body}"
+
+
+@dataclass
+class QEDNode(StatementNode):
+    """Proof completion / goal check node at QED."""
+
+    claim: Optional[ExprNode] = None
+
+    def __str__(self) -> str:
+        return f"QED ({self.claim})" if self.claim else "QED"
+
+
+@dataclass
+class ImportNode(StatementNode):
+    """Import statement: e.g. 'import "lemmas.aether"'. """
+
+    path: str = ""
+
+    def __str__(self) -> str:
+        return f'import "{self.path}"'
+
+
 # ---------------------------------------------------------------------------
 # Proof structure
 # ---------------------------------------------------------------------------
@@ -259,8 +361,16 @@ class SubProofNode(StatementNode):
     """Indented subproof block (creates a fresh nested scope)."""
 
     statements: list[StatementNode] = field(default_factory=list)
+    case_condition: Optional[ExprNode] = None
+    label: Optional[str] = None
 
     def __str__(self) -> str:
+        if self.label and self.case_condition is not None:
+            return f"{self.label} {self.case_condition}: ({len(self.statements)} stmts)"
+        if self.case_condition is not None:
+            return f"Case {self.case_condition}: ({len(self.statements)} stmts)"
+        if self.label is not None:
+            return f"{self.label}: ({len(self.statements)} stmts)"
         return f"SubProof({len(self.statements)} stmts)"
 
 
@@ -295,3 +405,4 @@ class DocumentNode:
 
     theorems: list[TheoremNode] = field(default_factory=list)
     statements: list[StatementNode] = field(default_factory=list)
+    imports: list[ImportNode] = field(default_factory=list)

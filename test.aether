@@ -1,0 +1,4 @@
+Let x, y : Real
+Assume x > 2
+Step: (x^2 - 4) / (x - 2) = x + 2
+Step: > 4

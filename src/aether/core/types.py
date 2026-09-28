@@ -10,6 +10,9 @@ class MathType(str, Enum):
     Real = "Real"
     Complex = "Complex"
     Bool = "Bool"
+    Vector = "Vector"
+    Matrix = "Matrix"
+    Set = "Set"
 
 
 # Aliases accepted by the parser → canonical MathType name.
@@ -51,6 +54,15 @@ _ALIASES: dict[str, MathType] = {
     "bool": MathType.Bool,
     "boolean": MathType.Bool,
     "prop": MathType.Bool,
+    # Vector
+    "vector": MathType.Vector,
+    "vectors": MathType.Vector,
+    # Matrix
+    "matrix": MathType.Matrix,
+    "matrices": MathType.Matrix,
+    # Set
+    "set": MathType.Set,
+    "sets": MathType.Set,
 }
 
 
