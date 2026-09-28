@@ -5,6 +5,9 @@
 // other.  Everything that needs the editor, the auditor and the workspace at
 // once lives here; the individual panes stay independent.
 
+// Side-effect import: defines every <wa-*> custom element. Imported first so
+// nothing below can touch an element that has not been upgraded yet.
+import "./components.js";
 import { checkProof, exportLatex, exportPdf, fetchExamples } from "./api.js";
 import { initAuditNav, selectStepForLine } from "./audit.js";
 import { renderContext } from "./context.js";
@@ -154,8 +157,9 @@ async function loadExamples() {
     const examples = await fetchExamples();
     for (const example of examples) {
       examplesById.set(example.id, example);
-      const option = el("option", null, example.name);
+      const option = document.createElement("wa-option");
       option.value = example.id;
+      option.textContent = example.name;
       dom.examples.append(option);
     }
     return examples;
@@ -246,33 +250,19 @@ async function refreshLatexExport() {
 }
 
 function openLatexDialog() {
-  if (typeof dom.latexDialog.showModal === "function") {
-    dom.latexDialog.showModal();
-  } else {
-    dom.latexDialog.setAttribute("open", "");
-  }
+  dom.latexDialog.open = true;
   refreshLatexExport();
 }
 
-function closeLatexDialog() {
+dom.exportLatex.addEventListener("click", openLatexDialog);
+
+// <wa-dialog light-dismiss> owns the close button, the backdrop and Escape, so
+// there is nothing to wire up for dismissing it. The one thing it cannot know
+// is that a LaTeX export may still be in flight, so abandon that once it hides.
+dom.latexDialog.addEventListener("wa-after-hide", () => {
   if (latexAbortController) {
     latexAbortController.abort();
     latexAbortController = null;
-  }
-  if (typeof dom.latexDialog.close === "function") {
-    dom.latexDialog.close();
-  } else {
-    dom.latexDialog.removeAttribute("open");
-  }
-}
-
-dom.exportLatex.addEventListener("click", openLatexDialog);
-dom.latexDialogClose.addEventListener("click", closeLatexDialog);
-
-// Light dismiss: clicking dialog backdrop closes it
-dom.latexDialog.addEventListener("click", (event) => {
-  if (event.target === dom.latexDialog) {
-    closeLatexDialog();
   }
 });
 

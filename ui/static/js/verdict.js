@@ -1,7 +1,7 @@
 // The verdict pill in the topbar.
 
 import { dom } from "./dom.js";
-import { verdictClass } from "./format.js";
+import { el, verdictClass } from "./format.js";
 
 // The pill keeps showing the previous verdict for the length of the debounce,
 // which for 300 ms is actively misleading: the proof on screen is no longer the
@@ -43,6 +43,7 @@ export function renderVerdict(data) {
 export function setPending() {
   clearStale();
   dom.verdict.className = "verdict verdict--pending";
-  dom.verdict.textContent = "Checking…";
+  // renderVerdict() writes textContent, which clears the spinner again.
+  dom.verdict.replaceChildren(el("wa-spinner"), document.createTextNode("Checking…"));
   dom.verdictMeta.textContent = "";
 }

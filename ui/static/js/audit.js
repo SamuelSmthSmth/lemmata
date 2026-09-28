@@ -5,7 +5,7 @@
 
 import { dom } from "./dom.js";
 import { state } from "./state.js";
-import { badge, el, note } from "./format.js";
+import { backendBadge, badge, el, note } from "./format.js";
 import { renderContext } from "./context.js";
 
 function reportHeader(report) {
@@ -52,7 +52,7 @@ function stepRow(entry, index) {
 
   const top = el("div", "step-top");
   top.append(el("span", "step-line", `L${result.line ?? "?"}`), badge(result.status));
-  top.append(el("span", "backend", result.backend));
+  top.append(backendBadge(result.backend));
   if (result.scope_depth > 0) top.append(el("span", "depth", `depth ${result.scope_depth}`));
   row.append(top);
 

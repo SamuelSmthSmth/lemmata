@@ -3,8 +3,8 @@
 A dual-purpose web front end for the Aether proof checker:
 
 - a **FastAPI** backend that exposes the engine over a small JSON API
-- a **dependency-free static frontend** (vanilla JS + CodeMirror 6) served by
-  that same process
+- a **dependency-free static frontend** (vanilla JS, Web Awesome components
+  and CodeMirror 6) served by that same process
 
 No `npm`, no build step, and no network access at runtime. The whole thing
 starts with one command.
@@ -161,9 +161,10 @@ Liveness probe.
 ```
 ui/
   app.py                   FastAPI app, pydantic contract, routes
-  examples.py              the 8 bundled example proofs
+  examples.py              the 19 bundled example proofs
   __main__.py              `python -m ui` entry point
-  vendor_codemirror.py     regenerates static/vendor/
+  vendor_codemirror.py     regenerates static/vendor/esm/
+  vendor_webawesome.py     regenerates static/vendor/webawesome/
   verify_examples.py       asserts every example matches its blurb
   verify_frontend.mjs      asserts imports resolve + tokenizer output
   verify_server.py         HTTP smoke test (endpoints, MIME types)
@@ -174,6 +175,7 @@ ui/
     aether-language.js     Aether syntax mode (DOM-free, testable)
     js/
       main.js              entry point: wiring, debounce, boot
+      components.js        registers the Web Awesome custom elements
       editor.js            CodeMirror setup, themes, key bindings
       api.js               fetch wrappers
       render.js            applying a check response to all three panes
@@ -188,7 +190,9 @@ ui/
       files.js             download, clipboard, drag-and-drop
       history.js           the workspace panel
       toast.js             transient notifications
-    vendor/                generated CodeMirror 6 graph (committed)
+    vendor/
+      esm/                 generated CodeMirror 6 graph (committed)
+      webawesome/          generated Web Awesome components (committed)
 ```
 
 ## Testing it yourself
@@ -249,12 +253,17 @@ Why each one earns its place:
   UI. This fails loudly if an engine change silently turns a blurb into a lie.
 - **`verify_server.py`** — includes the check that every vendored module is
   served as a JavaScript MIME type. Get that wrong and browsers silently refuse
-  to load the editor, with a blank pane as the only symptom.
+  to load the editor, with a blank pane as the only symptom. It now covers the
+  Web Awesome graph too, and separately that its stylesheets are served as
+  `text/css` — a stylesheet served as anything else is ignored outright.
 - **`verify_browser.py`** — the only check that can catch a key-binding
   regression. It exists because `Tab` was inserting a literal tab character
   (CodeMirror's `insertTab` ignores `indentUnit`), which no static check noticed.
 - **`verify_frontend.mjs`** — catches the failure mode where a name is imported
-  from the wrong vendored package and silently resolves to `undefined`.
+  from the wrong vendored package and silently resolves to `undefined`. Web
+  Awesome cannot be imported here at all (it needs a DOM), so its tree is
+  checked structurally instead: the entry still exports what `components.js`
+  imports, and no vendored module imports over the network.
 
 Two things in `verify_browser.py` look odd and are load-bearing. Its
 `reset_page` navigates to `/?r=<nonce>#p=…`: a navigation that only changes the
@@ -285,3 +294,59 @@ Note that `static/js/editor.js` imports each symbol from its *owning* package,
 not from the `codemirror` meta-package. That package star-exports all of its dependencies,
 which makes shared names like `EditorView` ambiguous across star-exports and
 therefore omitted.
+
+## About `static/vendor/webawesome/`
+
+The controls — the strict-domain switch, the example menu, the icon buttons,
+tooltips, the workspace popover, the export dialog, the toasts and the status
+badges — are [Web Awesome](https://webawesome.com) components, vendored the
+same way CodeMirror is.
+
+Web Awesome ships `dist-cdn/`, a pre-bundled build meant to be loaded directly
+in the browser with no bundler, and it never bundles a dependency twice: every
+file imports its siblings by *relative, content-hashed* path
+(`components/switch/switch.js -> ../../chunks/chunk.SVFNJFHB.js`), so a dozen
+components converge on one shared chunk and exactly one copy of Lit is ever
+loaded. Because those paths are already relative, the graph can be copied
+verbatim — no import rewriting, just the tree it lives in.
+
+Only the reachable subgraph is copied. The full `dist-cdn` tree is 13 MB across
+~1,200 files (it also carries React wrappers, type declarations and docs); the
+12 components this UI uses come to 138 files and about 1 MB.
+`vendor_webawesome.py` reads the package tarball straight from the npm registry
+— so still no `npm` — and walks the imports to work out what is reachable:
+
+```bash
+uv run python ui/vendor_webawesome.py
+```
+
+### Three things that are easy to get wrong
+
+- **Never use `name` on `<wa-icon>`.** Web Awesome's default icon library is
+  Font Awesome, and it fetches each icon from `ka-f.fontawesome.com` at
+  runtime; the package ships no SVG assets of its own. Slot an inline `<svg>`
+  instead. This was checked with a network probe: a named icon makes a
+  cross-origin request, a slotted one makes none. `<wa-select>` and
+  `<wa-option>` are safe as they are — their internal caret and checkmark are
+  embedded `data:` URIs.
+- **Only part of `styles/webawesome.css` is loaded.** That file also pulls in
+  `styles/native.css`, a global reset that restyles every native element on the
+  page — including `button`, which it gives a fixed
+  `height: var(--wa-form-control-height)`. That silently squashed the auditor's
+  step rows, which are native `<button>`s (they were 35px tall while their
+  content needed 70px, so the text overflowed and collided). `index.html`
+  therefore links only the token layer plus the two helpers the components
+  rely on, `visually-hidden.css` and `scroll-lock.css`.
+- **Component internals cannot be reached from `styles.css`.** They live in
+  shadow DOM. Density is expressed through the token layer instead: the theme
+  sets the four scale knobs (`--wa-font-size-scale`, `--wa-space-scale`,
+  `--wa-border-radius-scale`, `--wa-line-height-normal`) and the semantic
+  palette, and the rest of the stylesheet reads its own names as aliases of
+  those — so the shell and the components share one palette rather than
+  keeping two. `::part()` is used only where a component actually exposes a
+  part, and `editor.js` reads the CodeMirror colours from the same tokens
+  instead of repeating them as hex.
+
+Because the token layer is what styles everything, `styles.css` is *unlayered*
+while Web Awesome's CSS lives in cascade layers — and unlayered CSS outranks
+layered CSS, so the app's own rules win wherever the two overlap.

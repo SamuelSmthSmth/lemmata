@@ -17,43 +17,33 @@ import { aetherHighlightStyles, aetherLanguage } from "../aether-language.js";
 // Mirrors aether.parser.indenter.AetherIndenter.tab_len = 4.
 export const INDENT = "    ";
 
-const CM_PALETTES = {
-  light: {
-    bg: "#ffffff",
-    text: "#1f2328",
-    caret: "#0969da",
-    // Line numbers are secondary, but must stay readable (~3.7:1 on white).
-    gutterFg: "#7d858f",
-    gutterBorder: "#eaedf1",
-    activeGutterBg: "#f2f4f7",
-    activeGutterFg: "#5c6570",
-    activeLine: "#f7f8fa",
-    selection: "#cfe3ff",
-    selectionFocused: "#aed2fc",
-    placeholder: "#a8b0b9",
-    tooltipBg: "#ffffff",
-    tooltipBorder: "#dfe3e8",
-  },
-  dark: {
-    bg: "#0f1115",
-    text: "#e7e9ee",
-    caret: "#7dd3fc",
-    // ~3.9:1 on the dark background.
-    gutterFg: "#6a737f",
-    gutterBorder: "#1e222a",
-    activeGutterBg: "#171a21",
-    activeGutterFg: "#98a2b1",
-    activeLine: "#15181e",
-    selection: "#2b4a63",
-    selectionFocused: "#2f5b7a",
-    placeholder: "#4a515e",
-    tooltipBg: "#1b1f26",
-    tooltipBorder: "#272c35",
-  },
-};
+// CodeMirror needs literal colours, but the palette lives in styles.css, so we
+// resolve it from the custom properties instead of repeating hex values here.
+// `[data-theme]` is set before first paint and main.js switches it before
+// calling setTheme(), so these are always the colours of the active theme.
+// The literals are only a fallback for the pathological case where the
+// stylesheet has not applied yet.
+function token(name, fallback) {
+  const value = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  return value || fallback;
+}
 
 function editorTheme(name) {
-  const p = CM_PALETTES[name];
+  const p = {
+    bg: token("--cm-bg", "#ffffff"),
+    text: token("--cm-text", "#1f2328"),
+    caret: token("--cm-caret", "#0969da"),
+    gutterFg: token("--cm-gutter-fg", "#7d858f"),
+    gutterBorder: token("--cm-gutter-border", "#eaedf1"),
+    activeGutterBg: token("--cm-gutter-active-bg", "#f2f4f7"),
+    activeGutterFg: token("--cm-gutter-active-fg", "#5c6570"),
+    activeLine: token("--cm-active-line", "#f7f8fa"),
+    selection: token("--cm-selection", "#cfe3ff"),
+    selectionFocused: token("--cm-selection-focused", "#aed2fc"),
+    placeholder: token("--cm-placeholder", "#a8b0b9"),
+    tooltipBg: token("--cm-tooltip-bg", "#ffffff"),
+    tooltipBorder: token("--cm-tooltip-border", "#dfe3e8"),
+  };
   return EditorView.theme(
     {
       "&": { color: p.text, backgroundColor: p.bg, height: "100%" },

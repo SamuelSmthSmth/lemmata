@@ -9,6 +9,7 @@ Run with:  uv run python ui/verify_server.py
 from __future__ import annotations
 
 import json
+import re
 import socket
 import subprocess
 import sys
@@ -174,6 +175,49 @@ def main() -> int:
                 bad_mime.append(f"{rel} -> {ctype or 'none'}")
         check(not bad_status, f"all {len(modules)} modules returned 200 {bad_status[:2]}")
         check(not bad_mime, f"all modules served as JavaScript MIME {bad_mime[:2]}")
+
+        print("== vendored Web Awesome graph over HTTP ==")
+        wa_js = sorted((STATIC / "vendor" / "webawesome").rglob("*.js"))
+        wa_css = sorted((STATIC / "vendor" / "webawesome").rglob("*.css"))
+        check(len(wa_js) > 80, f"found {len(wa_js)} vendored component modules on disk")
+        check(len(wa_css) > 20, f"found {len(wa_css)} vendored stylesheets on disk")
+
+        wa_bad_status, wa_bad_js_mime, wa_bad_css = [], [], []
+        for path in wa_js:
+            rel = path.relative_to(STATIC).as_posix()
+            status, ctype, _ = server.request(f"/static/{rel}")
+            if status != 200:
+                wa_bad_status.append(f"{rel} -> {status}")
+            if not any(t in ctype for t in ("javascript", "ecmascript")):
+                wa_bad_js_mime.append(f"{rel} -> {ctype or 'none'}")
+        for path in wa_css:
+            rel = path.relative_to(STATIC).as_posix()
+            status, ctype, _ = server.request(f"/static/{rel}")
+            if status != 200 or "css" not in ctype:
+                wa_bad_css.append(f"{rel} -> {status} {ctype or 'none'}")
+        check(not wa_bad_status, f"all {len(wa_js)} component modules returned 200 {wa_bad_status[:2]}")
+        check(not wa_bad_js_mime, f"all component modules served as JavaScript {wa_bad_js_mime[:2]}")
+        # A stylesheet served as anything but text/css is ignored outright.
+        check(not wa_bad_css, f"all {len(wa_css)} stylesheets served as CSS {wa_bad_css[:2]}")
+
+        # The app overrides --wa-* tokens from styles.css, so if the vendored
+        # theme ever stops shipping them the palette silently falls apart.
+        _, _, theme_css = server.request("/static/vendor/webawesome/styles/themes/default.css")
+        check(
+            b"--wa-color-surface-default" in theme_css and b"--wa-form-control-height" in theme_css,
+            "the vendored theme still defines the tokens the app overrides",
+        )
+
+        # Offline guarantee: every import in the vendored tree is relative.
+        # (A runtime fetch("https://ka-f.fontawesome.com/...") is a string, not
+        # an import, which is exactly why the UI never uses <wa-icon name=...>.)
+        import_re = re.compile(r'(?:from|import)\s*\(?\s*"(https?://[^"]+)"')
+        remote = [
+            f"{path.name} -> {spec}"
+            for path in wa_js
+            for spec in import_re.findall(path.read_text(encoding="utf-8"))
+        ]
+        check(not remote, f"no vendored module imports over the network {remote[:2]}")
 
     print()
     if failures:

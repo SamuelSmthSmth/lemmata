@@ -2,6 +2,7 @@
 //
 //   1. every relative import in every static module resolves, and every named
 //      import from the vendored CodeMirror graph actually exists
+//   1b. the vendored Web Awesome tree is intact and imports nothing remotely
 //   2. every tag in AETHER_TOKENS resolves to a real @lezer/highlight tag
 //   3. the Aether tokenizer produces the expected token stream
 //
@@ -54,7 +55,10 @@ for (const rel of MODULE_FILES) {
   }
 
   for (const [, names, spec] of source.matchAll(namedImportRe)) {
-    if (!spec.includes("/vendor/")) continue;
+    // Only the CodeMirror graph is imported here. Every Web Awesome entry
+    // touches `document`/`customElements` at module scope and cannot be loaded
+    // in Node at all; that tree is checked structurally further down instead.
+    if (!spec.includes("/vendor/esm/")) continue;
     vendorImports += 1;
     const mod = await import(new URL(spec, fileUrl).href);
     for (const name of names.split(",").map(exportName).filter(Boolean)) {
@@ -83,6 +87,48 @@ for (const [spec, names] of VENDOR_API) {
     check(name in mod, `vendor/esm/${spec} does not export ${name}`);
   }
 }
+
+// --- 1b. the vendored Web Awesome tree --------------------------------------
+//
+// Checked structurally, on purpose. Its entries need a DOM, so they cannot be
+// imported here. What matters instead is that the entry still exports what
+// components.js imports, and that nothing in the tree imports over the network
+// -- the whole point of vendoring it is that the UI runs offline.
+
+const WA_ROOT = new URL("vendor/webawesome/", STATIC);
+
+const waEntry = readFileSync(new URL("webawesome.js", WA_ROOT), "utf8");
+for (const name of ["setBasePath", "allDefined"]) {
+  check(
+    new RegExp(`\\b${name}\\b`).test(waEntry),
+    `the Web Awesome entry does not mention ${name}, which components.js imports`,
+  );
+}
+
+const waModules = [];
+(function walk(dir, prefix = "") {
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    const rel = prefix ? `${prefix}/${entry.name}` : entry.name;
+    if (entry.isDirectory()) walk(new URL(`${entry.name}/`, dir), rel);
+    else if (entry.name.endsWith(".js")) waModules.push({ url: new URL(entry.name, dir), rel });
+  }
+})(WA_ROOT);
+
+// 93 today: 12 components plus the chunks they share. The floor is only there
+// to catch a vendor run that resolved almost nothing.
+check(waModules.length > 80, `expected a vendored Web Awesome graph, found ${waModules.length}`);
+
+const remoteSpecRe = /(?:from|import)\s*\(?\s*"(https?:\/\/[^"]+)"/g;
+const remote = [];
+for (const { url, rel } of waModules) {
+  for (const [, spec] of readFileSync(url, "utf8").matchAll(remoteSpecRe)) {
+    remote.push(`${rel} -> ${spec}`);
+  }
+}
+check(
+  remote.length === 0,
+  `vendored Web Awesome must not import over the network: ${remote.slice(0, 2).join(", ")}`,
+);
 
 // --- 2. language module + tags ---------------------------------------------
 

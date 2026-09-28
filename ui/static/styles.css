@@ -1,71 +1,163 @@
-/* Light is the base palette; the dark palette overrides it via [data-theme].
-   The attribute is set before first paint by the inline script in index.html,
-   so there is no flash of the wrong theme. */
+/* ===========================================================================
+   Aether — dense theme on top of the Web Awesome token layer.
+
+   Web Awesome is vendored (ui/vendor_webawesome.py) and its stylesheet defines
+   every colour and dimension as a `--wa-*` custom property inside cascade
+   layers.  This file is *unlayered*, and unlayered CSS outranks layered CSS,
+   so everything below both overrides Web Awesome's defaults and stays the
+   single source of truth for the app's palette.
+
+   The upshot: the shell and the Web Awesome components share one palette,
+   because the app's own names are aliases of the `--wa-*` semantics rather
+   than a second, parallel set of hex values.
+
+   Component internals live in shadow DOM and cannot be reached from here at
+   all.  Density is therefore expressed through the token layer (the four scale
+   knobs below) and through ::part() where the component exposes one -- never
+   by trying to restyle internals.
+   =========================================================================== */
 
 :root {
   color-scheme: light;
 
-  --bg: #ffffff;
-  --panel: #f6f7f9;
-  --panel-2: #f0f2f5;
-  --panel-3: #e7eaee;
-  --border: #dfe3e8;
-  --text: #1f2328;
-  --muted: #5c6570;
-  --muted-dim: #878e98;
+  /* --- Density knobs -----------------------------------------------------
+     These are why the components look like part of a tool rather than a
+     marketing page.  Each one scales a whole family of component tokens at
+     once, so the components get denser without a line of shadow-DOM CSS. */
+  --wa-font-size-scale: 0.8125; /* 16px -> 13px base */
+  --wa-space-scale: 0.7; /* tighter padding inside components */
+  --wa-border-radius-scale: 0.55; /* crisper corners */
+  --wa-line-height-normal: 1.45;
+  --wa-focus-ring-width: 0.125rem;
+  --wa-focus-ring-offset: 0.0625rem;
 
-  --valid: #1a7f37;
-  --valid-bg: rgba(26, 127, 55, 0.1);
-  --warning: #8a5c00;
-  --warning-bg: rgba(138, 92, 0, 0.12);
-  --invalid: #cf222e;
-  --invalid-bg: rgba(207, 34, 46, 0.09);
-  --accent: #0969da;
-  --accent-bg: rgba(9, 105, 218, 0.1);
+  --wa-font-family-body: var(--sans);
+  --wa-font-family-code: var(--mono);
 
-  --danger-text: #a40e26;
-  --note-cex-text: #a40e26;
-  --note-dom-text: #7d4e00;
-  --switch-track: #cfd4db;
-  --switch-thumb: #ffffff;
-  --switch-on: rgba(9, 105, 218, 0.4);
-  --selected-border: #b9c0c9;
-  --selected-ring: rgba(9, 105, 218, 0.28);
+  /* --- Palette: light --------------------------------------------------- */
+  --wa-color-surface-default: #ffffff;
+  --wa-color-surface-raised: #f6f7f9;
+  --wa-color-surface-lowered: #eceff3;
+  --wa-color-surface-border: #dfe3e8;
 
-  --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
-  --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-  --radius: 8px;
+  --wa-color-text-normal: #1f2328;
+  --wa-color-text-quiet: #5c6570;
+  --wa-color-text-link: #0969da;
+
+  --wa-color-focus: #0969da;
+  --wa-color-overlay-modal: rgba(31, 35, 40, 0.42);
+
+  --wa-color-brand-fill-loud: #0969da;
+  --wa-color-brand-on-loud: #ffffff;
+  --wa-color-brand-fill-quiet: rgba(9, 105, 218, 0.1);
+  --wa-color-brand-on-quiet: #0969da;
+
+  --wa-color-success-fill-quiet: rgba(26, 127, 55, 0.1);
+  --wa-color-success-on-quiet: #1a7f37;
+  --wa-color-success-fill-loud: #1a7f37;
+
+  --wa-color-warning-fill-quiet: rgba(138, 92, 0, 0.12);
+  --wa-color-warning-on-quiet: #7d4e00;
+  --wa-color-warning-fill-loud: #8a5c00;
+
+  --wa-color-danger-fill-quiet: rgba(207, 34, 46, 0.09);
+  --wa-color-danger-on-quiet: #cf222e;
+  --wa-color-danger-fill-loud: #cf222e;
+
+  --wa-color-neutral-fill-quiet: rgba(31, 35, 40, 0.06);
+  --wa-color-neutral-on-quiet: #5c6570;
+  --wa-color-neutral-border-normal: #dfe3e8;
 }
 
 [data-theme="dark"] {
   color-scheme: dark;
 
-  --bg: #0f1115;
-  --panel: #16181d;
-  --panel-2: #1b1f26;
-  --panel-3: #22262e;
-  --border: #272c35;
-  --text: #e7e9ee;
-  --muted: #8b94a3;
-  --muted-dim: #626b79;
+  --wa-color-surface-default: #0f1115;
+  --wa-color-surface-raised: #16181d;
+  --wa-color-surface-lowered: #1c2027;
+  --wa-color-surface-border: #272c35;
 
-  --valid: #3fb950;
-  --valid-bg: rgba(63, 185, 80, 0.1);
-  --warning: #d6a01f;
-  --warning-bg: rgba(214, 160, 31, 0.12);
-  --invalid: #f2534a;
-  --invalid-bg: rgba(242, 83, 74, 0.12);
-  --accent: #58a6ff;
-  --accent-bg: rgba(88, 166, 255, 0.1);
+  --wa-color-text-normal: #e7e9ee;
+  --wa-color-text-quiet: #8b94a3;
+  --wa-color-text-link: #58a6ff;
 
-  --danger-text: #ffb3ad;
-  --note-cex-text: #ffb3ad;
-  --note-dom-text: #f0d08a;
-  --switch-track: #343b46;
-  --switch-thumb: #aeb7c4;
-  --switch-on: rgba(88, 166, 255, 0.45);
-  --selected-border: #3b414d;
-  --selected-ring: rgba(88, 166, 255, 0.25);
+  --wa-color-focus: #58a6ff;
+  --wa-color-overlay-modal: rgba(0, 0, 0, 0.6);
+
+  --wa-color-brand-fill-loud: #1f6feb;
+  --wa-color-brand-on-loud: #ffffff;
+  --wa-color-brand-fill-quiet: rgba(88, 166, 255, 0.12);
+  --wa-color-brand-on-quiet: #58a6ff;
+
+  --wa-color-success-fill-quiet: rgba(63, 185, 80, 0.12);
+  --wa-color-success-on-quiet: #3fb950;
+  --wa-color-success-fill-loud: #238636;
+
+  --wa-color-warning-fill-quiet: rgba(214, 160, 31, 0.14);
+  --wa-color-warning-on-quiet: #d6a01f;
+  --wa-color-warning-fill-loud: #9e6a03;
+
+  --wa-color-danger-fill-quiet: rgba(242, 83, 74, 0.12);
+  --wa-color-danger-on-quiet: #f2534a;
+  --wa-color-danger-fill-loud: #da3633;
+
+  --wa-color-neutral-fill-quiet: rgba(231, 233, 238, 0.07);
+  --wa-color-neutral-on-quiet: #8b94a3;
+  --wa-color-neutral-border-normal: #272c35;
+}
+
+/* --- App aliases ----------------------------------------------------------
+   The rest of this file reads in the app's own vocabulary, but every value is
+   derived from the Web Awesome token layer above, so there is exactly one
+   place a colour is decided. */
+:root {
+  --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+
+  --bg: var(--wa-color-surface-default);
+  --panel: var(--wa-color-surface-raised);
+  --panel-2: var(--wa-color-surface-lowered);
+  /* A third, subtler step (chips, keys) that still tracks the theme. */
+  --panel-3: color-mix(in oklab, var(--wa-color-text-normal) 7%, var(--wa-color-surface-default));
+  --border: var(--wa-color-surface-border);
+  --text: var(--wa-color-text-normal);
+  --muted: var(--wa-color-text-quiet);
+  --muted-dim: color-mix(in oklab, var(--wa-color-text-quiet) 62%, var(--wa-color-surface-default));
+
+  --valid: var(--wa-color-success-on-quiet);
+  --valid-bg: var(--wa-color-success-fill-quiet);
+  --warning: var(--wa-color-warning-on-quiet);
+  --warning-bg: var(--wa-color-warning-fill-quiet);
+  --invalid: var(--wa-color-danger-on-quiet);
+  --invalid-bg: var(--wa-color-danger-fill-quiet);
+  --accent: var(--wa-color-text-link);
+  --accent-bg: var(--wa-color-brand-fill-quiet);
+
+  --danger-text: var(--wa-color-danger-on-quiet);
+  --note-cex-text: var(--wa-color-danger-on-quiet);
+  --note-dom-text: var(--wa-color-warning-on-quiet);
+  --selected-border: color-mix(in oklab, var(--accent) 45%, var(--border));
+  --selected-ring: color-mix(in oklab, var(--accent) 26%, transparent);
+
+  --radius: 6px;
+  --radius-sm: 4px;
+
+  /* Editor surface. CodeMirror cannot read CSS variables itself, so editor.js
+     reads these through getComputedStyle: that makes the palette single-source
+     rather than duplicated as literals in JavaScript. */
+  --cm-bg: var(--wa-color-surface-default);
+  --cm-text: var(--wa-color-text-normal);
+  --cm-caret: var(--accent);
+  --cm-gutter-fg: var(--muted-dim);
+  --cm-gutter-border: color-mix(in oklab, var(--wa-color-text-normal) 8%, var(--wa-color-surface-default));
+  --cm-gutter-active-fg: var(--muted);
+  --cm-gutter-active-bg: color-mix(in oklab, var(--wa-color-text-normal) 4%, var(--wa-color-surface-default));
+  --cm-active-line: color-mix(in oklab, var(--wa-color-text-normal) 3%, var(--wa-color-surface-default));
+  --cm-selection: color-mix(in oklab, var(--accent) 22%, transparent);
+  --cm-selection-focused: color-mix(in oklab, var(--accent) 34%, transparent);
+  --cm-placeholder: color-mix(in oklab, var(--wa-color-text-quiet) 55%, var(--wa-color-surface-default));
+  --cm-tooltip-bg: var(--wa-color-surface-raised);
+  --cm-tooltip-border: var(--wa-color-surface-border);
 }
 
 * {
@@ -82,7 +174,8 @@ body {
   background: var(--bg);
   color: var(--text);
   font-family: var(--sans);
-  font-size: 14px;
+  font-size: 13px;
+  line-height: 1.45;
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -100,13 +193,116 @@ body {
   border: 0;
 }
 
-/* ---------------------------------------------------------------- topbar */
+/* =========================================================================
+   Web Awesome host shims
+   The components cannot be styled inside, but their host element and the
+   parts they expose are ours.
+   ========================================================================= */
+
+wa-button.icon-button {
+  width: 26px;
+  height: 26px;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+wa-button.icon-button::part(button) {
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  justify-content: center;
+}
+
+wa-button.icon-button:hover {
+  color: var(--text);
+}
+
+wa-button.icon-button--slim {
+  width: 22px;
+  height: 22px;
+  font-size: 11px;
+}
+
+wa-icon {
+  display: inline-flex;
+  width: 1em;
+  height: 1em;
+}
+
+wa-icon svg {
+  width: 100%;
+  height: 100%;
+}
+
+/* Show the theme you would switch *to*. */
+[data-theme="light"] .icon--sun,
+[data-theme="dark"] .icon--moon {
+  display: none;
+}
+
+.strict-switch {
+  --wa-form-control-label-color: var(--text);
+  font-size: 12px;
+  margin-left: 4px;
+}
+
+.strict-switch::part(label) {
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.strict-switch::part(hint) {
+  font-size: 10.5px;
+  color: var(--muted-dim);
+}
+
+.examples-select {
+  width: 190px;
+  /* The select renders no visible label; the hint line is not wanted here. */
+  --wa-form-control-hint-color: var(--muted-dim);
+}
+
+wa-badge {
+  font-family: var(--sans);
+}
+
+wa-badge::part(badge) {
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  padding: 1px 5px;
+  border-radius: var(--radius-sm);
+}
+
+/* The backend badge stays monospace: it names a component of the engine. */
+wa-badge.backend {
+  font-family: var(--mono);
+}
+
+wa-badge.backend::part(badge) {
+  font-size: 9.5px;
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+wa-spinner {
+  width: 11px;
+  height: 11px;
+  font-size: 11px;
+  vertical-align: -1px;
+}
+
+/* =========================================================================
+   Layout
+   ========================================================================= */
 
 .topbar {
   display: flex;
   align-items: center;
-  gap: 20px;
-  padding: 12px 18px;
+  gap: 14px;
+  padding: 7px 12px;
   background: var(--panel);
   border-bottom: 1px solid var(--border);
   flex: 0 0 auto;
@@ -115,20 +311,26 @@ body {
 .brand {
   display: flex;
   align-items: center;
-  gap: 11px;
+  gap: 10px;
   min-width: 0;
+}
+
+.brand-text {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
 }
 
 .brand-text h1 {
   margin: 0;
-  font-size: 15px;
-  font-weight: 650;
-  letter-spacing: 0.2px;
+  font-size: 13.5px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
 }
 
 .brand-text p {
-  margin: 1px 0 0;
-  font-size: 11.5px;
+  margin: 0;
+  font-size: 11px;
   color: var(--muted-dim);
 }
 
@@ -136,15 +338,15 @@ body {
   margin-left: auto;
   display: flex;
   align-items: baseline;
-  gap: 10px;
+  gap: 9px;
   min-width: 0;
 }
 
 .verdict {
-  font-size: 12.5px;
-  font-weight: 650;
-  letter-spacing: 0.4px;
-  padding: 5px 11px;
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  padding: 3px 9px;
   border-radius: 999px;
   border: 1px solid transparent;
   white-space: nowrap;
@@ -158,153 +360,41 @@ body {
 
 .verdict--valid {
   color: var(--valid);
-  border-color: rgba(63, 185, 80, 0.4);
+  border-color: color-mix(in oklab, var(--valid) 40%, transparent);
   background: var(--valid-bg);
 }
 
 .verdict--warning {
   color: var(--warning);
-  border-color: rgba(214, 160, 31, 0.4);
+  border-color: color-mix(in oklab, var(--warning) 40%, transparent);
   background: var(--warning-bg);
 }
 
 .verdict--invalid,
 .verdict--parse-error {
   color: var(--invalid);
-  border-color: rgba(242, 83, 74, 0.45);
+  border-color: color-mix(in oklab, var(--invalid) 45%, transparent);
   background: var(--invalid-bg);
 }
 
 .verdict--pending {
   color: var(--accent);
-  border-color: rgba(88, 166, 255, 0.4);
-  background: rgba(88, 166, 255, 0.1);
+  border-color: color-mix(in oklab, var(--accent) 40%, transparent);
+  background: var(--accent-bg);
 }
 
 /* An edit has landed and the debounced re-check has not answered yet, so the
    verdict on screen describes the previous buffer. */
 .verdict.is-stale {
-  opacity: 0.55;
+  opacity: 0.5;
 }
 
 .verdict-meta {
-  font-size: 11.5px;
+  font-size: 11px;
   color: var(--muted-dim);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
-
-/* ------------------------------------------------------------ strict toggle */
-
-.switch {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  cursor: pointer;
-  user-select: none;
-  padding: 6px 12px 6px 10px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  background: var(--panel-2);
-  flex: 0 0 auto;
-}
-
-.switch input {
-  position: absolute;
-  opacity: 0;
-  pointer-events: none;
-}
-
-.switch-track {
-  width: 34px;
-  height: 19px;
-  border-radius: 999px;
-  background: var(--switch-track);
-  position: relative;
-  transition: background 0.15s ease;
-  flex: 0 0 auto;
-}
-
-.switch-thumb {
-  position: absolute;
-  top: 2px;
-  left: 2px;
-  width: 15px;
-  height: 15px;
-  border-radius: 50%;
-  background: var(--switch-thumb);
-  transition: transform 0.15s ease, background 0.15s ease;
-}
-
-.switch input:checked + .switch-track {
-  background: var(--switch-on);
-}
-
-.switch input:checked + .switch-track .switch-thumb {
-  transform: translateX(15px);
-  background: var(--accent);
-}
-
-.switch input:focus-visible + .switch-track {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
-}
-
-.switch-text {
-  display: flex;
-  flex-direction: column;
-  line-height: 1.25;
-}
-
-.switch-title {
-  font-size: 12.5px;
-  font-weight: 600;
-}
-
-.switch-sub {
-  font-size: 10.5px;
-  color: var(--muted-dim);
-}
-
-/* ----------------------------------------------------------- theme toggle */
-
-.icon-button {
-  display: grid;
-  place-items: center;
-  width: 34px;
-  height: 34px;
-  padding: 0;
-  border-radius: var(--radius);
-  border: 1px solid var(--border);
-  background: var(--panel-2);
-  color: var(--muted);
-  cursor: pointer;
-  flex: 0 0 auto;
-  transition: color 0.15s ease, background 0.15s ease;
-}
-
-.icon-button:hover {
-  color: var(--text);
-  background: var(--panel-3);
-}
-
-.icon-button:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
-}
-
-.icon {
-  width: 17px;
-  height: 17px;
-}
-
-/* Show the theme you would switch *to*. */
-[data-theme="light"] .icon--sun,
-[data-theme="dark"] .icon--moon {
-  display: none;
-}
-
-/* ---------------------------------------------------------------- layout */
 
 .layout {
   flex: 1 1 auto;
@@ -326,18 +416,19 @@ body {
 .pane-head {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 9px 14px;
+  gap: 10px;
+  padding: 5px 10px;
   border-bottom: 1px solid var(--border);
   background: var(--panel);
   flex: 0 0 auto;
+  min-height: 34px;
 }
 
 .pane-head h2 {
   margin: 0;
-  font-size: 11.5px;
-  font-weight: 650;
-  letter-spacing: 0.7px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.9px;
   text-transform: uppercase;
   color: var(--muted);
   white-space: nowrap;
@@ -345,7 +436,7 @@ body {
 
 .pane-note {
   margin: 0 0 0 auto;
-  font-size: 11px;
+  font-size: 10.5px;
   color: var(--muted-dim);
   white-space: nowrap;
   overflow: hidden;
@@ -356,12 +447,7 @@ body {
   margin-left: auto;
   display: flex;
   align-items: center;
-  gap: 8px;
-}
-
-.count {
-  color: var(--muted-dim);
-  font-weight: 500;
+  gap: 4px;
 }
 
 .scroll {
@@ -370,11 +456,9 @@ body {
   flex: 1 1 auto;
 }
 
-/* ---------------------------------------------------------------- editor */
-
 kbd {
   font-family: var(--mono);
-  font-size: 10px;
+  font-size: 9.5px;
   line-height: 1;
   padding: 2px 4px;
   border: 1px solid var(--border);
@@ -384,37 +468,27 @@ kbd {
   color: var(--muted);
 }
 
-select {
-  background: var(--panel-3);
-  color: var(--text);
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  padding: 5px 8px;
-  font-size: 12px;
-  font-family: var(--sans);
-  max-width: 230px;
-  cursor: pointer;
-}
-
-select:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 1px;
-}
-
 .blurb {
   margin: 0;
-  padding: 8px 14px;
-  font-size: 11.5px;
+  padding: 5px 10px;
+  font-size: 11px;
   color: var(--muted);
   background: var(--panel-2);
   border-bottom: 1px solid var(--border);
   flex: 0 0 auto;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .blurb strong {
   color: var(--text);
   font-weight: 600;
 }
+
+/* =========================================================================
+   Editor
+   ========================================================================= */
 
 .editor {
   flex: 1 1 auto;
@@ -430,25 +504,27 @@ select:focus-visible {
   outline: none;
 }
 
-/* ----------------------------------------------------------------- audit */
+/* =========================================================================
+   Auditor
+   ========================================================================= */
 
 .audit {
-  padding: 10px;
+  padding: 7px;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 4px;
 }
 
 .report-group {
-  margin-bottom: 2px;
+  margin-bottom: 1px;
 }
 
 .report-header {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 4px 6px 6px;
-  font-size: 11px;
+  gap: 7px;
+  padding: 3px 5px 5px;
+  font-size: 10.5px;
   color: var(--muted);
 }
 
@@ -460,7 +536,7 @@ select:focus-visible {
 
 .report-verdict {
   margin-left: auto;
-  font-size: 10.5px;
+  font-size: 10px;
   letter-spacing: 0.3px;
   color: var(--muted-dim);
 }
@@ -475,9 +551,9 @@ select:focus-visible {
   background: var(--panel);
   border: 1px solid var(--border);
   border-left: 3px solid var(--muted-dim);
-  border-radius: 7px;
-  padding: 8px 11px;
-  margin-bottom: 6px;
+  border-radius: var(--radius-sm);
+  padding: 6px 9px;
+  margin-bottom: 4px;
   transition: background 0.12s ease, border-color 0.12s ease;
 }
 
@@ -511,136 +587,106 @@ select:focus-visible {
 .step-top {
   display: flex;
   align-items: center;
-  gap: 8px;
-  margin-bottom: 5px;
+  gap: 6px;
+  margin-bottom: 4px;
   flex-wrap: wrap;
 }
 
 .step-line {
   font-family: var(--mono);
-  font-size: 10.5px;
-  color: var(--muted-dim);
-  background: var(--panel-3);
-  border-radius: 4px;
-  padding: 1px 5px;
-}
-
-.badge {
-  font-size: 9.5px;
-  font-weight: 700;
-  letter-spacing: 0.6px;
-  padding: 2px 6px;
-  border-radius: 4px;
-  text-transform: uppercase;
-}
-
-.badge--valid {
-  color: var(--valid);
-  background: var(--valid-bg);
-}
-
-.badge--warning {
-  color: var(--warning);
-  background: var(--warning-bg);
-}
-
-.badge--invalid {
-  color: var(--invalid);
-  background: var(--invalid-bg);
-}
-
-.backend {
-  font-family: var(--mono);
   font-size: 10px;
   color: var(--muted);
-  border: 1px solid var(--border);
-  border-radius: 4px;
+  background: var(--panel-3);
+  border-radius: 3px;
   padding: 1px 5px;
+  font-variant-numeric: tabular-nums;
 }
 
 .depth {
-  font-size: 10px;
+  font-size: 9.5px;
   color: var(--muted-dim);
 }
 
 .step-statement {
   display: block;
   font-family: var(--mono);
-  font-size: 12.5px;
-  line-height: 1.45;
+  font-size: 12px;
+  line-height: 1.4;
   color: var(--text);
   word-break: break-word;
   white-space: pre-wrap;
 }
 
 .step-message {
-  margin: 5px 0 0;
-  font-size: 11.5px;
-  line-height: 1.45;
+  margin: 4px 0 0;
+  font-size: 11px;
+  line-height: 1.4;
   color: var(--muted);
   word-break: break-word;
 }
 
 .note {
-  margin: 6px 0 0;
-  font-size: 11.5px;
-  line-height: 1.45;
-  border-radius: 5px;
-  padding: 6px 8px;
+  margin: 5px 0 0;
+  font-size: 11px;
+  line-height: 1.4;
+  border-radius: var(--radius-sm);
+  padding: 5px 7px;
   word-break: break-word;
 }
 
 .note--counterexample {
   color: var(--note-cex-text);
   background: var(--invalid-bg);
-  border: 1px solid var(--invalid);
+  border: 1px solid color-mix(in oklab, var(--invalid) 55%, transparent);
 }
 
 .note--domain {
   color: var(--note-dom-text);
   background: var(--warning-bg);
-  border: 1px solid var(--warning);
+  border: 1px solid color-mix(in oklab, var(--warning) 55%, transparent);
 }
 
 .note-label {
   font-weight: 700;
-  letter-spacing: 0.4px;
+  letter-spacing: 0.5px;
   text-transform: uppercase;
-  font-size: 9.5px;
+  font-size: 9px;
   display: block;
   margin-bottom: 2px;
 }
 
-/* --------------------------------------------------------------- context */
+/* =========================================================================
+   Context
+   ========================================================================= */
 
 .context {
-  padding: 12px 14px;
+  padding: 10px 11px;
 }
 
 .ctx-empty {
   color: var(--muted-dim);
-  font-size: 12px;
-  line-height: 1.6;
+  font-size: 11.5px;
+  line-height: 1.5;
 }
 
 .ctx-title {
   font-family: var(--mono);
-  font-size: 12.5px;
+  font-size: 12px;
   color: var(--text);
-  margin: 0 0 10px;
+  margin: 0 0 8px;
   word-break: break-word;
-  line-height: 1.5;
+  line-height: 1.45;
 }
 
 .ctx-section {
-  margin-bottom: 15px;
+  margin-bottom: 12px;
 }
 
 .ctx-section h3 {
-  margin: 0 0 6px;
-  font-size: 10.5px;
-  font-weight: 650;
-  letter-spacing: 0.7px;
+  margin: 0 0 5px;
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.8px;
   text-transform: uppercase;
   color: var(--muted-dim);
 }
@@ -648,14 +694,14 @@ select:focus-visible {
 .chips {
   display: flex;
   flex-wrap: wrap;
-  gap: 5px;
+  gap: 4px;
 }
 
 .chip {
   font-family: var(--mono);
-  font-size: 11.5px;
-  padding: 3px 8px;
-  border-radius: 5px;
+  font-size: 11px;
+  padding: 2px 6px;
+  border-radius: var(--radius-sm);
   background: var(--panel-2);
   border: 1px solid var(--border);
   color: var(--text);
@@ -675,22 +721,22 @@ select:focus-visible {
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 3px;
 }
 
 .ctx-list li {
   font-family: var(--mono);
-  font-size: 11.5px;
-  line-height: 1.5;
-  padding: 5px 8px;
-  border-radius: 5px;
+  font-size: 11px;
+  line-height: 1.45;
+  padding: 4px 7px;
+  border-radius: var(--radius-sm);
   background: var(--panel-2);
   border: 1px solid var(--border);
   word-break: break-word;
 }
 
 .ctx-none {
-  font-size: 11.5px;
+  font-size: 11px;
   color: var(--muted-dim);
   font-style: italic;
 }
@@ -698,9 +744,9 @@ select:focus-visible {
 .ctx-facts {
   display: grid;
   grid-template-columns: auto 1fr;
-  gap: 3px 10px;
-  font-size: 11.5px;
-  margin-bottom: 14px;
+  gap: 2px 9px;
+  font-size: 11px;
+  margin-bottom: 11px;
 }
 
 .ctx-facts dt {
@@ -713,125 +759,109 @@ select:focus-visible {
   color: var(--text);
 }
 
-/* ----------------------------------------------------------- parse error */
+/* =========================================================================
+   Parse error / empty state
+   ========================================================================= */
 
 .parse-error {
-  border: 1px solid rgba(242, 83, 74, 0.4);
+  border: 1px solid color-mix(in oklab, var(--invalid) 45%, transparent);
   background: var(--invalid-bg);
-  border-radius: 7px;
-  padding: 12px 14px;
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
 }
 
 .parse-error h3 {
-  margin: 0 0 6px;
-  font-size: 11.5px;
-  letter-spacing: 0.6px;
+  margin: 0 0 5px;
+  font-size: 10.5px;
+  letter-spacing: 0.7px;
   text-transform: uppercase;
   color: var(--invalid);
 }
 
 .parse-error .location {
   font-family: var(--mono);
-  font-size: 12px;
+  font-size: 11.5px;
   color: var(--danger-text);
-  margin-bottom: 8px;
+  margin-bottom: 7px;
 }
 
 .parse-error pre {
   margin: 0;
   font-family: var(--mono);
-  font-size: 11px;
+  font-size: 10.5px;
   line-height: 1.5;
   color: var(--muted);
   white-space: pre-wrap;
   word-break: break-word;
-  max-height: 260px;
+  max-height: 240px;
   overflow: auto;
 }
 
 .empty-state {
   color: var(--muted-dim);
-  font-size: 12px;
-  padding: 14px;
-  line-height: 1.6;
+  font-size: 11.5px;
+  padding: 12px;
+  line-height: 1.5;
 }
 
-/* ------------------------------------------------------------- workspace */
+/* =========================================================================
+   Workspace panel (contents of a <wa-popup>)
+   ========================================================================= */
 
 .pane--editor {
   /* Anchors the drop overlay. */
   position: relative;
 }
 
-.menu {
-  position: relative;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.icon-button--slim {
-  width: 24px;
-  height: 24px;
-}
-
-.icon-button--slim .icon {
-  width: 13px;
-  height: 13px;
-}
-
-.history-panel {
-  position: absolute;
-  top: calc(100% + 8px);
-  right: 0;
-  z-index: 30;
-  width: 340px;
-  max-width: calc(100vw - 32px);
+#history-panel {
+  display: block;
+  width: 330px;
+  max-width: calc(100vw - 28px);
   max-height: min(70vh, 520px);
   overflow: auto;
-  padding: 12px;
+  padding: 10px;
   background: var(--panel);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.22);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.24);
 }
 
 .history-head {
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-bottom: 10px;
+  margin-bottom: 8px;
 }
 
 .history-head h3 {
   margin: 0;
-  font-size: 11.5px;
-  font-weight: 650;
-  letter-spacing: 0.7px;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.8px;
   text-transform: uppercase;
   color: var(--muted);
 }
 
-.history-head .icon-button {
+.history-head wa-button {
   margin-left: auto;
 }
 
 .history-block {
-  margin-bottom: 14px;
+  margin-bottom: 11px;
 }
 
 .history-block h4 {
-  margin: 0 0 6px;
-  font-size: 10.5px;
-  font-weight: 650;
-  letter-spacing: 0.6px;
+  margin: 0 0 5px;
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.7px;
   text-transform: uppercase;
   color: var(--muted-dim);
 }
 
 .history-note {
-  margin: 6px 0 0;
-  font-size: 10.5px;
+  margin: 5px 0 0;
+  font-size: 10px;
   color: var(--muted-dim);
 }
 
@@ -843,15 +873,15 @@ select:focus-visible {
 .tl-strip {
   display: flex;
   gap: 2px;
-  height: 22px;
-  border-radius: 5px;
+  height: 18px;
+  border-radius: var(--radius-sm);
   overflow: hidden;
   background: var(--panel-3);
 }
 
 .tl-bar {
   min-width: 3px;
-  border-radius: 2px;
+  border-radius: 1px;
 }
 
 .tl-bar--valid {
@@ -873,16 +903,16 @@ select:focus-visible {
 .snapshots {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 4px;
 }
 
 .snapshot {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 7px 9px;
+  gap: 7px;
+  padding: 5px 7px;
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   background: var(--panel-2);
 }
 
@@ -894,7 +924,7 @@ select:focus-visible {
 }
 
 .snapshot-name {
-  font-size: 11.5px;
+  font-size: 11px;
   color: var(--text);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -902,55 +932,32 @@ select:focus-visible {
 }
 
 .snapshot-sub {
-  font-size: 10px;
+  font-size: 9.5px;
   color: var(--muted-dim);
 }
 
 .snapshot-actions {
   margin-left: auto;
   display: flex;
-  gap: 4px;
+  gap: 3px;
   flex: 0 0 auto;
-}
-
-.mini {
-  font: inherit;
-  font-size: 10.5px;
-  padding: 3px 7px;
-  border-radius: 5px;
-  border: 1px solid var(--border);
-  background: var(--panel-3);
-  color: var(--muted);
-  cursor: pointer;
-  white-space: nowrap;
-}
-
-.mini:hover {
-  color: var(--text);
-}
-
-.mini:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 1px;
-}
-
-.mini--danger {
-  color: var(--danger-text);
 }
 
 .history-actions {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
-  padding-top: 10px;
+  gap: 5px;
+  padding-top: 8px;
   border-top: 1px solid var(--border);
 }
 
-/* ---------------------------------------------------------- file drop */
+/* =========================================================================
+   File drop
+   ========================================================================= */
 
 .drop-overlay {
   position: absolute;
-  inset: 8px;
+  inset: 6px;
   z-index: 25;
   display: grid;
   place-items: center;
@@ -960,7 +967,7 @@ select:focus-visible {
   border-radius: var(--radius);
   background: var(--accent-bg);
   color: var(--accent);
-  font-size: 12.5px;
+  font-size: 12px;
   font-weight: 600;
 }
 
@@ -972,79 +979,15 @@ select:focus-visible {
   margin: 0;
 }
 
-/* --------------------------------------------------------------- toast */
-
-.toast {
-  position: fixed;
-  left: 50%;
-  bottom: 22px;
-  transform: translateX(-50%);
-  z-index: 50;
-  max-width: min(520px, calc(100vw - 32px));
-  padding: 9px 14px;
-  border-radius: 7px;
-  font-size: 12px;
-  background: var(--panel-3);
-  color: var(--text);
-  border: 1px solid var(--border);
-  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.22);
-}
-
-.toast[hidden] {
-  display: none;
-}
-
-.toast--warning {
-  border-color: var(--warning);
-  background: var(--warning-bg);
-  color: var(--note-dom-text);
-}
-
-/* ------------------------------------------------------------- export dialog */
-
-dialog.dialog {
-  padding: 0;
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  background: var(--panel);
-  color: var(--text);
-  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.35);
-  max-width: 640px;
-  width: 90vw;
-  margin: auto;
-  overflow: hidden;
-}
-
-dialog.dialog::backdrop {
-  background: rgba(0, 0, 0, 0.55);
-  backdrop-filter: blur(2px);
-}
-
-.dialog-content {
-  display: flex;
-  flex-direction: column;
-}
-
-.dialog-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 12px 16px;
-  border-bottom: 1px solid var(--border);
-  background: var(--panel-2);
-}
-
-.dialog-head h3 {
-  margin: 0;
-  font-size: 14px;
-  font-weight: 600;
-}
+/* =========================================================================
+   Export dialog (contents of a <wa-dialog>)
+   ========================================================================= */
 
 .dialog-body {
-  padding: 16px;
+  padding: 12px;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 10px;
 }
 
 .dialog-options {
@@ -1052,23 +995,17 @@ dialog.dialog::backdrop {
   align-items: center;
 }
 
-.switch--inline {
-  background: transparent;
-  padding: 0;
-  border: none;
-}
-
 .latex-textarea {
   width: 100%;
-  height: 220px;
+  height: 200px;
   font-family: var(--mono);
-  font-size: 12px;
+  font-size: 11.5px;
   line-height: 1.45;
   background: var(--bg);
   color: var(--text);
   border: 1px solid var(--border);
-  border-radius: 6px;
-  padding: 10px;
+  border-radius: var(--radius-sm);
+  padding: 8px;
   resize: vertical;
 }
 
@@ -1081,45 +1018,12 @@ dialog.dialog::backdrop {
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  gap: 8px;
-  padding: 12px 16px;
-  border-top: 1px solid var(--border);
-  background: var(--panel-2);
+  gap: 6px;
 }
 
-.btn {
-  font: inherit;
-  font-size: 12px;
-  font-weight: 500;
-  padding: 6px 12px;
-  border-radius: 6px;
-  border: 1px solid var(--border);
-  background: var(--panel-3);
-  color: var(--text);
-  cursor: pointer;
-  transition: background 0.15s ease, border-color 0.15s ease;
-}
-
-.btn:hover {
-  background: var(--border);
-}
-
-.btn:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 1px;
-}
-
-.btn--primary {
-  background: var(--accent);
-  color: #ffffff;
-  border-color: transparent;
-}
-
-.btn--primary:hover {
-  filter: brightness(1.1);
-}
-
-/* ------------------------------------------------------------ responsive */
+/* =========================================================================
+   Responsive
+   ========================================================================= */
 
 @media (max-width: 1100px) {
   body {

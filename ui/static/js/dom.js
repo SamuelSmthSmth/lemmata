@@ -14,8 +14,10 @@ export const dom = {
   contextSub: document.getElementById("context-sub"),
   themeToggle: document.getElementById("theme-toggle"),
 
-  // Workspace panel
+  // Workspace panel. The panel is the content of a <wa-popup>, which owns the
+  // anchoring and the `active` flag that used to be a `hidden` boolean.
   historyToggle: document.getElementById("history-toggle"),
+  historyPopup: document.getElementById("history-popup"),
   historyPanel: document.getElementById("history-panel"),
   historyClose: document.getElementById("history-close"),
   timeline: document.getElementById("timeline"),
@@ -33,8 +35,9 @@ export const dom = {
 
   // LaTeX & PDF Export dialog
   exportLatex: document.getElementById("export-latex"),
+  // <wa-dialog> supplies its own close button and light-dismiss, so there is
+  // no dialog-close element to wire up any more.
   latexDialog: document.getElementById("latex-dialog"),
-  latexDialogClose: document.getElementById("latex-dialog-close"),
   latexStandalone: document.getElementById("latex-standalone"),
   latexOutput: document.getElementById("latex-output"),
   copyLatex: document.getElementById("copy-latex"),

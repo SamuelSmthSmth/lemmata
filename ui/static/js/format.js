@@ -17,8 +17,28 @@ export function note(label, text, className) {
   return box;
 }
 
+// Status and backend markers are Web Awesome badges. The variant carries the
+// meaning; the tinted `accent` appearance keeps them from shouting on a screen
+// that has eight of them at once.
+const STATUS_VARIANT = { VALID: "success", WARNING: "warning", INVALID: "danger" };
+
 export function badge(status) {
-  return el("span", `badge badge--${status.toLowerCase()}`, status);
+  const node = document.createElement("wa-badge");
+  node.className = "badge";
+  node.variant = STATUS_VARIANT[status] ?? "neutral";
+  node.appearance = "accent";
+  node.textContent = status;
+  return node;
+}
+
+/** The engine component that verified a step (SymPy, Z3, ChainGuard, ...). */
+export function backendBadge(name) {
+  const node = document.createElement("wa-badge");
+  node.className = "backend";
+  node.variant = "neutral";
+  node.appearance = "outlined";
+  node.textContent = name;
+  return node;
 }
 
 export function chipList(pairs, emptyText) {

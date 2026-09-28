@@ -108,7 +108,8 @@ PROBE = """JSON.stringify({
   steps: document.querySelectorAll('.step').length,
   lines: [...document.querySelectorAll('.cm-line')].map(l => l.textContent),
   hash: location.hash,
-  toast: document.querySelector('#toast').hidden ? null : document.querySelector('#toast').textContent,
+  toast: (() => { const items = document.querySelectorAll('#toast wa-toast-item');
+    return items.length ? items[items.length - 1].textContent : null; })(),
 })"""
 
 
@@ -179,10 +180,52 @@ def timeline_checks() -> int:
     )
 
 
+def click_step(selector: str) -> None:
+    """Click an auditor row, bringing it into view first.
+
+    The auditor is its own scroll container, and selecting a later step scrolls
+    it -- which can leave an earlier row positioned above the viewport, at a
+    negative y.  A click at those coordinates hits nothing and, because
+    agent-browser reports success either way, fails silently.  Scrolling first
+    is also what a person does, since the row has to be visible to be clicked.
+    """
+    ab("scrollintoview", selector)
+    ab("click", selector)
+
+
 def load_example(example_id: str) -> dict:
-    ab("select", "#examples", example_id)
+    """Pick an example from the menu.
+
+    `select` cannot drive this control: #examples is a <wa-select>, a custom
+    element, not a native <select>, so there is nothing for the CLI to set.
+    Setting the property and dispatching the same `change` the component emits
+    is equivalent to choosing the option.
+    """
+    js(
+        "(() => { const s = document.querySelector('#examples');"
+        f" s.value = {json.dumps(example_id)};"
+        " s.dispatchEvent(new Event('change', { bubbles: true })); return s.value; })()"
+    )
     time.sleep(0.4)
     return settle()
+
+
+def set_strict(on: bool) -> None:
+    """Flip the strict-domain switch through its own control.
+
+    #strict is a <wa-switch>: the host is a custom element and the real
+    <input role="switch"> lives in its shadow root.  The clickable area is only
+    the label line, and the host's vertical centre falls in the gap between the
+    label and the hint, so clicking the host by coordinates hits nothing.
+    Activating the shadow <label> is the same path a user's click takes.  The
+    label also holds the two-line label + hint, so it is wider than the
+    visible track -- coordinates are simply the wrong tool here.
+    """
+    js(
+        "(() => { const s = document.querySelector('#strict');"
+        f" if (s.checked !== {str(on).lower()}) s.shadowRoot.querySelector('label').click();"
+        " return s.checked; })()"
+    )
 
 
 def run_checks() -> None:
@@ -236,7 +279,7 @@ def run_checks() -> None:
     print("== clicking a step must not re-run the solver ==")
     reset_page()
     ab("network", "requests", "--clear")
-    ab("click", ".report-group button.step:nth-of-type(3)")
+    click_step(".report-group button.step:nth-of-type(3)")
     time.sleep(0.8)
     state = probe()
     check(state["selected"] == "2", f"step 3 selected (index {state['selected']})")
@@ -280,7 +323,7 @@ def run_checks() -> None:
     check(probe()["selected"] == "7", "an unaudited line (QED) leaves the selection alone")
 
     print("== auditor keyboard navigation ==")
-    ab("click", ".report-group button.step:nth-of-type(1)")
+    click_step(".report-group button.step:nth-of-type(1)")
     time.sleep(0.5)
     check(probe()["selected"] == "0", "click step 1 selects index 0")
     ab("press", "ArrowDown")
@@ -321,11 +364,11 @@ def run_checks() -> None:
         state["verdict"] == "VALID (with domain warnings)",
         f"lenient verdict is {state['verdict']}",
     )
-    ab("check", "#strict")
+    set_strict(True)
     state = settle()
     check(state["verdict"] == "INVALID", f"strict verdict is {state['verdict']}")
     check("strict domains" in (state["meta"] or ""), "meta line reflects strict mode")
-    ab("uncheck", "#strict")
+    set_strict(False)
 
     print("== autosave survives a reload ==")
     state = reset_page()
@@ -365,7 +408,12 @@ def run_checks() -> None:
     reset_page()
     ab("click", "#history-toggle")
     time.sleep(0.4)
-    check(js("!document.querySelector('#history-panel').hidden"), "the workspace panel opens")
+    # The panel is a <wa-popup>; it has no `hidden` attribute to read (that
+    # check could never fail), so assert the popup's own state instead.
+    check(
+        js("document.querySelector('#history-popup').active === true"),
+        "the workspace panel opens",
+    )
 
     # Earlier sections load examples, and loading an example snapshots the buffer
     # it replaced, so the snapshot list does not start empty.  Clear it rather
@@ -401,7 +449,7 @@ def run_checks() -> None:
     # Newest first, so the hand-made snapshot is at index 1.
     js(
         "document.querySelectorAll('#snapshots .snapshot')[1]"
-        ".querySelector('button.mini').click(); 'clicked'"
+        ".querySelector('wa-button').click(); 'clicked'"
     )
     state = settle()
     check(
@@ -441,7 +489,7 @@ def run_checks() -> None:
 
     print("== the strict setting is remembered ==")
     reset_page()
-    ab("check", "#strict")
+    set_strict(True)
     time.sleep(0.6)
     ab("reload")
     settle()

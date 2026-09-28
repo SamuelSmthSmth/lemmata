@@ -76,13 +76,18 @@ function renderSnapshots({ onRestore }) {
 
     const actions = el("div", "snapshot-actions");
 
-    const restore = el("button", "mini", "Restore");
-    restore.type = "button";
+    const restore = document.createElement("wa-button");
+    restore.size = "xs";
+    restore.appearance = "filled-outlined";
+    restore.textContent = "Restore";
     restore.addEventListener("click", () => onRestore(snapshot));
     actions.append(restore);
 
-    const drop = el("button", "mini mini--danger", "Delete");
-    drop.type = "button";
+    const drop = document.createElement("wa-button");
+    drop.size = "xs";
+    drop.appearance = "filled-outlined";
+    drop.variant = "danger";
+    drop.textContent = "Delete";
     drop.setAttribute("aria-label", `Delete snapshot ${snapshot.name}`);
     drop.addEventListener("click", () => {
       removeSnapshot(snapshot.id);
@@ -100,13 +105,15 @@ export function renderHistory(handlers) {
   renderSnapshots(handlers);
 }
 
+// The panel is the content of a <wa-popup>, which owns the anchoring and the
+// `active` flag that used to be a `hidden` boolean here.
 export function setHistoryOpen(open) {
-  dom.historyPanel.hidden = !open;
+  dom.historyPopup.active = open;
   dom.historyToggle.setAttribute("aria-expanded", open ? "true" : "false");
 }
 
 export function isHistoryOpen() {
-  return !dom.historyPanel.hidden;
+  return Boolean(dom.historyPopup.active);
 }
 
 export function initHistory(handlers) {
