@@ -81,6 +81,7 @@ class StepResult:
     diagnostic_range: Optional[dict[str, int]] = None
     counterexample_dict: Optional[dict[str, str]] = None
     subproof_metadata: Optional[dict[str, Any]] = None
+    sub_results: list[StepResult] = field(default_factory=list)
 
     def __post_init__(self) -> None:
         if self.col is None and hasattr(self.statement, "col"):
@@ -113,6 +114,7 @@ class StepResult:
             "counterexample_dict": self.counterexample_dict,
             "diagnostic_range": self.diagnostic_range,
             "subproof_metadata": self.subproof_metadata,
+            "sub_results": [r.to_dict() for r in self.sub_results],
         }
 
 
@@ -124,12 +126,26 @@ class ProofReport:
     results: list[StepResult] = field(default_factory=list)
 
     @property
+    def all_results(self) -> list[StepResult]:
+        """Flattened list of all verification results including nested subproof steps."""
+        flat: list[StepResult] = []
+
+        def _collect(res: StepResult) -> None:
+            flat.append(res)
+            for sub in res.sub_results:
+                _collect(sub)
+
+        for r in self.results:
+            _collect(r)
+        return flat
+
+    @property
     def is_valid(self) -> bool:
-        return all(r.status != StepStatus.INVALID for r in self.results)
+        return all(r.status != StepStatus.INVALID for r in self.all_results)
 
     @property
     def has_warnings(self) -> bool:
-        return any(r.status == StepStatus.WARNING or bool(r.domain_warnings) for r in self.results)
+        return any(r.status == StepStatus.WARNING or bool(r.domain_warnings) for r in self.all_results)
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -142,15 +158,24 @@ class ProofReport:
     def format_report(self) -> str:
         header = f"=== Theorem: {self.theorem_name} ===" if self.theorem_name else "=== Proof Audit ==="
         lines = [header]
-        for r in self.results:
+
+        def _format_step(r: StepResult) -> None:
             icon = "✓" if r.status == StepStatus.VALID else ("⚠" if r.status == StepStatus.WARNING else "❌")
             ln_prefix = f"L{r.line:<3}" if r.line is not None else "    "
             indent = "  " * r.scope_depth
             lines.append(f"  {ln_prefix} {icon} {indent}{r.statement}  [{r.backend}]")
             if r.status != StepStatus.VALID:
                 lines.append(f"         {indent}↳ {r.message}")
+            if r.counterexample:
+                lines.append(f"         {indent}↳ Counterexample: {r.counterexample}")
             for dw in r.domain_warnings:
                 lines.append(f"         {indent}↳ ⚠ {dw}")
+            for sub in r.sub_results:
+                _format_step(sub)
+
+        for r in self.results:
+            _format_step(r)
+
         verdict = "VALID" if self.is_valid else "INVALID"
         if self.is_valid and self.has_warnings:
             verdict = "VALID (with domain warnings)"
@@ -492,7 +517,10 @@ class ProofChecker:
             for ob in extract_domain_obligations(ex, line=line, ctx=ctx):
                 ctx.obligations.append(ob)
                 d_res = check_domain_obligation(ob, ctx)
-                if not d_res.valid:
+                # `sqrt(x) + sqrt(x) = 2 * sqrt(x)` extracts the same obligation
+                # once per occurrence, which reported the identical warning three
+                # times over; each distinct one is worth saying only once.
+                if not d_res.valid and d_res.message not in warnings:
                     warnings.append(d_res.message)
         return warnings
 
@@ -1128,6 +1156,8 @@ class ProofChecker:
 
         vars_snap, hyps_snap = self._snapshot(ctx)
         status = StepStatus.VALID if all_ok else StepStatus.INVALID
+        failed_cex = next((r.counterexample for r in sub_results if r.counterexample), None)
+        failed_cex_dict = next((r.counterexample_dict for r in sub_results if r.counterexample_dict), None)
         subproof_meta = {
             "kind": backend,
             "label": stmt.label or ("Case" if stmt.case_condition else "Subproof"),
@@ -1145,7 +1175,10 @@ class ProofChecker:
             scope_depth=ctx.scope_depth,
             active_variables=vars_snap,
             active_hypotheses=hyps_snap,
+            counterexample=failed_cex,
+            counterexample_dict=failed_cex_dict,
             subproof_metadata=subproof_meta,
+            sub_results=sub_results,
         )
 
     def _verify_qed_claim(

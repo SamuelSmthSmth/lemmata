@@ -566,3 +566,292 @@ QED
         assert case_step.subproof_metadata["step_count"] >= 1
         assert case_step.subproof_metadata["all_steps_valid"] is True
 
+
+
+class TestUnknownFunctionDiagnostics:
+    """A misspelled function should read as a name error, not a maths error.
+
+    An unrecognised call silently becomes an uninterpreted SymPy function, so
+    `fact(5) = 120` was reported as an algebraic failure.  The step is still
+    rejected; the message now says which name the engine did not know.
+    """
+
+    def test_misspelled_function_suggests_the_real_one(self, checker: ProofChecker):
+        src = """\
+Let n : Nat
+Step: fact(5) = 120
+"""
+        report = checker.check_source(src)[0]
+        step = report.results[1]
+        assert step.status == StepStatus.INVALID
+        assert "`fact` is not a known function" in step.message
+        assert "did you mean `factorial`?" in step.message
+
+    def test_unknown_function_in_an_inequality_is_explained(self, checker: ProofChecker):
+        """Z3 will happily offer a counterexample for a call it cannot read."""
+        src = """\
+Let x : Real
+Step: fact(x) > 1
+"""
+        report = checker.check_source(src)[0]
+        step = report.results[1]
+        assert step.status == StepStatus.INVALID
+        assert "did you mean `factorial`?" in step.message
+
+    def test_known_functions_get_no_hint(self, checker: ProofChecker):
+        src = """\
+Let x : Real
+Assume h: x > 0
+Step: ln(exp(x)) = x
+"""
+        report = checker.check_source(src)[0]
+        step = report.results[2]
+        assert step.status == StepStatus.VALID
+        assert "not a known function" not in step.message
+
+    def test_user_defined_functions_are_not_reported_as_unknown(self, checker: ProofChecker):
+        src = """\
+Define MyRel(a, b) <=> a = b
+
+Let x, y : Real
+Assume h: MyRel(x, y)
+Therefore MyRel(x, y)
+"""
+        report = checker.check_source(src)[0]
+        assert all("not a known function" not in r.message for r in report.results)
+
+    def test_uninterpreted_predicate_hypothesis_still_holds(self, checker: ProofChecker):
+        """An opaque predicate must keep working as a hypothesis."""
+        src = """\
+Let x : Real
+Assume h: P(x)
+Therefore P(x)
+"""
+        report = checker.check_source(src)[0]
+        assert report.is_valid, report.format_report()
+
+    def test_an_opaque_function_says_so(self, checker: ProofChecker):
+        """Z3 has no theory of exp, so its 'counterexample' is not a real one."""
+        src = """\
+Let x : Real
+Step: exp(x) > 0
+"""
+        step = checker.check_source(src)[0].results[-1]
+        assert step.status == StepStatus.INVALID
+        assert "no SMT interpretation" in step.message
+
+    def test_an_unimplemented_function_is_not_offered_a_lookalike(
+        self, checker: ProofChecker
+    ):
+        """`cot` is not a misspelling of `dot`, nor `asin` of `sin`.
+
+        String distance alone suggested those, which points a reader at a
+        different function rather than at the problem.
+        """
+        src = """\
+Let x : Real
+Step: cot(x) = cos(x) / sin(x)
+"""
+        message = checker.check_source(src)[0].results[-1].message
+        assert "not a function the engine implements" in message
+        assert "did you mean" not in message
+
+    def test_a_typo_still_gets_a_suggestion(self, checker: ProofChecker):
+        src = """\
+Let x : Real
+Step: sqrtt(x) = x
+"""
+        message = checker.check_source(src)[0].results[-1].message
+        assert "did you mean `sqrt`?" in message
+
+
+class TestCallArity:
+    """A wrong argument count is reported, not crashed or reinterpreted.
+
+    ``_SYMPY_FUNCS[fn](*args)`` used to be called unchecked: ``Abs(x, x)`` raised
+    a TypeError that escaped ``check_source`` altogether (a 500 from the API),
+    while ``log(x, 2)`` silently became a base-2 logarithm, so ``ln(x, 2)``
+    quietly stopped meaning the natural log.
+    """
+
+    @pytest.mark.parametrize(
+        "source",
+        [
+            """\
+Let x : Real
+Step: abs(x, x) = x
+""",
+            """\
+Let x : Real
+Step: exp(x, 2) = x
+""",
+            """\
+Let x : Real
+Step: sin(x, x) = 0
+""",
+            """\
+Let n : Nat
+Step: factorial(n, n) = 0
+""",
+        ],
+    )
+    def test_arity_misuse_does_not_escape_the_api(self, checker: ProofChecker, source: str):
+        report = checker.check_source(source)[0]
+        assert report.results[-1].status == StepStatus.INVALID
+
+    def test_the_arity_is_named(self, checker: ProofChecker):
+        src = """\
+Let x : Real
+Step: abs(x, x) = x
+"""
+        assert "takes 1 argument(s), but got 2" in checker.check_source(src)[0].results[-1].message
+
+    def test_ln_does_not_quietly_become_base_two(self, checker: ProofChecker):
+        """'ln(8, 2) = 3' used to be accepted as log base 2."""
+        src = """\
+Let x : Real
+Step: ln(8, 2) = 3
+"""
+        step = checker.check_source(src)[0].results[-1]
+        assert step.status == StepStatus.INVALID
+        assert "`ln` takes 1 argument(s)" in step.message
+
+    @pytest.mark.parametrize(
+        "source",
+        [
+            """\
+Let A = [[1, 2], [3, 4]]
+Step: det(A, A) = 1
+""",
+            """\
+Let n : Nat
+Step: sum(k, 1, n) = n
+""",
+            """\
+Step: integrate(x) = x^2 / 2
+""",
+            """\
+Let a : Int
+Step: Even(a, a)
+""",
+        ],
+    )
+    def test_a_known_name_with_the_wrong_shape_is_reported(
+        self, checker: ProofChecker, source: str
+    ):
+        step = checker.check_source(source)[0].results[-1]
+        assert step.status == StepStatus.INVALID
+        assert "argument" in step.message
+
+    def test_the_valid_forms_still_check(self, checker: ProofChecker):
+        src = """\
+Let n : Nat
+Step: sum(k, 1, n, 1) = n
+Step: diff(n^2, n) = 2 * n
+Step: integrate(2 * n, n) = n^2
+Step: lim(sin(n) / n, n, 0) = 1
+"""
+        report = checker.check_source(src)[0]
+        assert report.is_valid, report.format_report()
+
+    def test_domain_warnings_are_not_repeated(self, checker: ProofChecker):
+        """'sqrt(x) + sqrt(x)' extracted the same obligation three times."""
+        src = """\
+Let x : Real
+Step: sqrt(x) + sqrt(x) = 2 * sqrt(x)
+"""
+        report = checker.check_source(src)[0]
+        warnings = report.results[-1].domain_warnings
+        assert warnings
+        assert len(warnings) == len(set(warnings))
+
+
+class TestMathematicalConstants:
+    r"""`pi` and `e` are the numbers -- unless the name is in use as a variable.
+
+    Both used to be ordinary free variables, so `sin(\pi) = 0` was rejected
+    with "Counterexample at pi=3: LHS = sin(3)".
+    """
+
+    @pytest.mark.parametrize(
+        "source",
+        [
+            r"Step: sin(\pi) = 0",
+            r"Step: sin(pi) = 0",
+            r"Step: cos(\pi) = -1",
+            r"Step: ln(e) = 1",
+            r"Step: exp(1) = e",
+        ],
+    )
+    def test_the_identities_hold(self, checker: ProofChecker, source: str):
+        report = checker.check_source(source)[0]
+        assert report.is_valid, report.format_report()
+
+    @pytest.mark.parametrize(
+        "source",
+        ["Step: pi > 3", "Step: pi < 4", "Step: e > 2", "Step: e < 3", "Step: pi != 3"],
+    )
+    def test_ordinary_comparisons_are_provable(self, checker: ProofChecker, source: str):
+        """The SMT backend gives the constants true, if loose, bounds."""
+        report = checker.check_source(source)[0]
+        assert report.is_valid, report.format_report()
+
+    def test_a_declared_name_is_a_variable_again(self, checker: ProofChecker):
+        src = """\
+Let pi : Real
+Assume h: pi = 5
+Step: pi^2 = 25
+"""
+        report = checker.check_source(src)[0]
+        assert report.is_valid, report.format_report()
+
+    def test_a_structure_identity_keeps_its_name(self, checker: ProofChecker):
+        """`e` is the group identity in the templates, not Euler's number."""
+        src = """\
+Theorem: "Identity element"
+Proof:
+    Assume Group(G, op, e, inv)
+    Given a : Real
+    Step: op(a, e) = a
+    Step: op(a, inv(a)) = e
+QED
+"""
+        report = checker.check_source(src)[0]
+        assert report.is_valid, report.format_report()
+
+
+class TestSubproofAuditing:
+    """Verifies that statements inside nested subproofs are audited line-by-line."""
+
+    def test_subproof_auditing_details(self, checker: ProofChecker):
+        src = """\
+Given x : Int
+Case x >= 0:
+    Assume h1: x >= 0
+    Step: x + 1 >= 1
+Case x < 0:
+    Assume h2: x < 0
+    Step: x - 1 < -1
+Hence x >= 0 or x < 0
+"""
+        report = checker.check_source(src)[0]
+        assert report.is_valid
+        # Top-level results: Given, Case 1, Case 2, Hence
+        assert len(report.results) == 4
+        # all_results flattens subproof statements: 4 top-level + 2 in Case 1 + 2 in Case 2 = 8
+        assert len(report.all_results) == 8
+
+        case1 = report.results[1]
+        assert len(case1.sub_results) == 2
+        assert case1.sub_results[0].line == 3
+        assert case1.sub_results[0].status == StepStatus.VALID
+        assert case1.sub_results[1].line == 4
+        assert case1.sub_results[1].status == StepStatus.VALID
+
+        formatted = report.format_report()
+        # Verify that the inner statements appear in the formatted audit log
+        assert "Assume h1: x >= 0" in formatted
+        assert "Step: (x + 1) >= 1" in formatted or "x + 1 >= 1" in formatted
+        assert "Assume h2: x < 0" in formatted
+        assert "Step: (x - 1) < (-1)" in formatted or "(x - 1) <" in formatted
+

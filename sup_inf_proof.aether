@@ -1,0 +1,59 @@
+Theorem: "Bounds of the sequence 1 + (-1)^n / n"
+Claim: forall n : Int, n >= 1 => (1 + (-1)^n / n >= 0 and 1 + (-1)^n / n <= 3 / 2)
+Proof:
+    Given n : Int where n >= 1
+    Case Even(n):
+        Assume h1: Even(n)
+        Obtain k : Int such that n = 2 * k from h1
+        Step: 2 * k >= 1
+        Step: k >= 1
+        
+        Step: 1 + (-1)^n / n = 1 + (-1)^(2 * k) / (2 * k)
+        Step: = 1 + 1 / (2 * k)
+        Step: <= 1 + 1 / 2
+        Step: = 3 / 2
+        Hence 1 + (-1)^n / n <= 3 / 2
+        
+        Step: 1 + (-1)^n / n = 1 + 1 / (2 * k)
+        Step: >= 1 + 0
+        Step: >= 0
+        Hence 1 + (-1)^n / n >= 0
+        
+        Hence 1 + (-1)^n / n >= 0 and 1 + (-1)^n / n <= 3 / 2
+
+    Case Odd(n):
+        Assume h2: Odd(n)
+        Obtain k : Int such that n = 2 * k + 1 from h2
+        Step: 2 * k + 1 >= 1
+        Step: 2 * k >= 0
+        Step: k >= 0
+        
+        Step: 1 + (-1)^n / n = 1 + (-1)^(2 * k + 1) / (2 * k + 1)
+        Step: = 1 - 1 / (2 * k + 1)
+        Step: >= 1 - 1 / 1
+        Step: = 0
+        Hence 1 + (-1)^n / n >= 0
+        
+        Step: 1 + (-1)^n / n = 1 - 1 / (2 * k + 1)
+        Step: <= 1 - 0
+        Step: <= 3 / 2
+        Hence 1 + (-1)^n / n <= 3 / 2
+        
+        Hence 1 + (-1)^n / n >= 0 and 1 + (-1)^n / n <= 3 / 2
+QED
+
+Theorem: "Witnesses for Supremum and Infimum"
+Claim: (exists n : Int, n >= 1 and 1 + (-1)^n / n = 0) and (exists m : Int, m >= 1 and 1 + (-1)^m / m = 3 / 2)
+Proof:
+    Step: 1 >= 1
+    Step: 1 + (-1)^1 / 1 = 1 - 1
+    Step: = 0
+    Hence exists n : Int, n >= 1 and 1 + (-1)^n / n = 0 [witness: 1]
+
+    Step: 2 >= 1
+    Step: 1 + (-1)^2 / 2 = 1 + 1 / 2
+    Step: = 3 / 2
+    Hence exists m : Int, m >= 1 and 1 + (-1)^m / m = 3 / 2 [witness: 2]
+    
+    Hence (exists n : Int, n >= 1 and 1 + (-1)^n / n = 0) and (exists m : Int, m >= 1 and 1 + (-1)^m / m = 3 / 2)
+QED
