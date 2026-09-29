@@ -39,6 +39,7 @@ export const dom = {
   // no dialog-close element to wire up any more.
   latexDialog: document.getElementById("latex-dialog"),
   latexStandalone: document.getElementById("latex-standalone"),
+  latexBreakdown: document.getElementById("latex-breakdown"),
   latexOutput: document.getElementById("latex-output"),
   copyLatex: document.getElementById("copy-latex"),
   downloadTex: document.getElementById("download-tex"),

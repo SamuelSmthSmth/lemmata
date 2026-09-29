@@ -94,37 +94,34 @@ export const aetherLanguage = StreamLanguage.define({
   tokenTable: AETHER_TOKENS,
 });
 
-// One style per theme, selected alongside the matching editor theme so the
-// syntax colours always sit on the right background.
-const DARK_TOKENS = [
-  { tag: tags.definitionKeyword, color: "#c792ea", fontWeight: "600" },
-  { tag: tags.keyword, color: "#82aaff" },
-  { tag: tags.controlKeyword, color: "#f78c6c", fontWeight: "600" },
-  { tag: tags.operatorKeyword, color: "#89ddff" },
-  { tag: tags.modifier, color: "#7f8896" },
-  { tag: tags.operator, color: "#89ddff" },
-  { tag: tags.typeName, color: "#ffcb6b" },
-  { tag: tags.number, color: "#f78c6c" },
-  { tag: tags.string, color: "#c3e88d" },
-  { tag: tags.variableName, color: "#e7e9ee" },
-  { tag: tags.comment, color: "#5f6b7c", fontStyle: "italic" },
-];
-
-const LIGHT_TOKENS = [
-  { tag: tags.definitionKeyword, color: "#8250df", fontWeight: "600" },
-  { tag: tags.keyword, color: "#0550ae" },
-  { tag: tags.controlKeyword, color: "#953800", fontWeight: "600" },
-  { tag: tags.operatorKeyword, color: "#0550ae" },
-  { tag: tags.modifier, color: "#6e7781" },
-  { tag: tags.operator, color: "#0550ae" },
-  { tag: tags.typeName, color: "#953800" },
-  { tag: tags.number, color: "#0550ae" },
-  { tag: tags.string, color: "#0a3069" },
-  { tag: tags.variableName, color: "#1f2328" },
-  { tag: tags.comment, color: "#6e7781", fontStyle: "italic" },
-];
-
-export const aetherHighlightStyles = {
-  dark: HighlightStyle.define(DARK_TOKENS),
-  light: HighlightStyle.define(LIGHT_TOKENS),
-};
+/**
+ * Build the syntax colours from a palette of already-resolved CSS values.
+ *
+ * This module stays DOM-free so it can be unit-tested in Node, which means it
+ * cannot read custom properties itself -- editor.js resolves the tokens and
+ * passes them in.  The upshot is one palette for the whole app rather than a
+ * syntax theme maintained separately from it.
+ *
+ * The scheme itself is nearly monochrome.  The controlled-natural-language
+ * keywords (Theorem, Assume, Therefore, QED) are the skeleton of a proof, so
+ * they carry the accent; types are inked and separated by weight; operators,
+ * glue words, strings and comments all recede.  A proof should read as text
+ * with a structure, not as a rainbow.
+ */
+export function makeHighlightStyle(p) {
+  return HighlightStyle.define([
+    { tag: tags.definitionKeyword, color: p.keyword, fontWeight: "600" },
+    { tag: tags.controlKeyword, color: p.keyword, fontWeight: "600" },
+    { tag: tags.keyword, color: p.keyword },
+    { tag: tags.operatorKeyword, color: p.keyword },
+    { tag: tags.typeName, color: p.type, fontWeight: "600" },
+    { tag: tags.variableName, color: p.ink },
+    { tag: tags.number, color: p.ink },
+    { tag: tags.operator, color: p.operator },
+    { tag: tags.modifier, color: p.glue },
+    { tag: tags.string, color: p.string },
+    // No italics: the vendored subsets ship no italic file, and a synthesised
+    // slant on a monospace face reads as a rendering fault rather than emphasis.
+    { tag: tags.comment, color: p.comment },
+  ]);
+}

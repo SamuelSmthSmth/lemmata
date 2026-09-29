@@ -368,10 +368,16 @@ class LatexProofExporter:
                 lines.append(f"{ind}Therefore, ${c_str}${w_str}{j_str}.")
 
             elif isinstance(stmt, SubProofNode):
-                tag = stmt.subproof_type.title()
-                header = f"{tag}:"
-                if stmt.title:
-                    header = f"{tag} (${stmt.title}$):"
+                # SubProofNode carries `label` and `case_condition` -- there is
+                # no `subproof_type` and no `title`, and reaching for them
+                # raised AttributeError on every proof containing a subproof.
+                # The wording mirrors what the checker reports for the same
+                # node, so an exported subproof reads as it does in the auditor.
+                label = stmt.label or ("Case" if stmt.case_condition is not None else "Subproof")
+                if stmt.case_condition is not None:
+                    header = f"{label} ${expr_to_latex(stmt.case_condition)}$:"
+                else:
+                    header = f"{label}:"
                 lines.append(f"\n{ind}\\paragraph*{{{header}}}")
                 lines.append(self._export_statements(stmt.statements, indent_level + 1))
 

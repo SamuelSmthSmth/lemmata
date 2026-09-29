@@ -53,6 +53,7 @@ uv run uvicorn ui.app:app --reload
 | Snapshot the buffer, restore an earlier one, reset to the starting example | workspace panel |
 | A link that reproduces the exact proof | "Copy link" in the workspace panel |
 | Session verdict timeline | workspace panel |
+| Export the proof to LaTeX or PDF, with or without a verification report | export button in the toolbar |
 
 Verification is **debounced by 300 ms** as you type. Selecting a step — by
 clicking a proof line, clicking a row in the auditor, or with the arrow keys —
@@ -190,6 +191,7 @@ ui/
       files.js             download, clipboard, drag-and-drop
       history.js           the workspace panel
       toast.js             transient notifications
+  latex_report.py          LaTeX/PDF export: the proof plus its audit
     vendor/
       esm/                 generated CodeMirror 6 graph (committed)
       webawesome/          generated Web Awesome components (committed)
@@ -350,3 +352,64 @@ uv run python ui/vendor_webawesome.py
 Because the token layer is what styles everything, `styles.css` is *unlayered*
 while Web Awesome's CSS lives in cascade layers — and unlayered CSS outranks
 layered CSS, so the app's own rules win wherever the two overlap.
+
+### The visual scheme
+
+The interface is deliberately close to monochrome, and the rules it follows are
+worth keeping:
+
+- **A step that held is not news.** Status is set as type, not as a pill, and
+  `VALID` is the quietest thing in the row. Colour is reserved for the two
+  things that need it: the verdict, and a step that failed.
+- **The entailment rail is the signature.** A 2px rule in the margin marks a
+  step that did not hold, and every step below it is marked more faintly,
+  because everything after a broken step rests on it.
+- **The syntax palette is built, not hardcoded.** `aether-language.js` stays
+  DOM-free so it can be unit-tested in Node, so it exports
+  `makeHighlightStyle(palette)` and `editor.js` passes in the values it resolves
+  from the `--cm-token-*` tokens. The CNL keywords take the accent; types are
+  inked and separated by weight; operators, glue words, strings and comments
+  recede.
+- **A failure is stated once.** The engine repeats itself — a failing obligation
+  arrives as both the message and a warning, and an algebraic failure's message
+  ends with the same `Counterexample at x=3: …` sentence the callout shows.
+  `splitStepText()` in `format.js` strips from the prose anything a callout is
+  about to display, and both panes use it.
+- **Two controls are styled through `::part()`** rather than left at their
+  defaults: switches are ink toggles (off and on differ by ink, not by hue, so
+  the controls that change how a proof is judged cannot outshout the verdict
+  they produce), and the example picker is an inline hairline field rather than
+  a boxed control.
+
+### LaTeX and PDF export
+
+`aether.export_to_latex` typesets a proof and nothing else — it is handed source
+text and never sees a verification result. Everything the auditor and the
+Context & State pane show is therefore added by `ui/latex_report.py`, in the UI
+layer, rather than by reaching into `aether.core`. The engine proves; the UI
+reports.
+
+The generated document is the proof first, then, each starting on a fresh page
+under a hairline rule:
+
+| Section | Contents |
+| --- | --- |
+| Verification Report | the verdict and counts, then a `longtable` of line / status / backend / canonical statement, then a note for every statement that had something to say — so a clean proof says nothing |
+| Proof State | what was in scope at each statement: scope depth, declared variables, active hypotheses and derived facts |
+| Session | the workspace panel's verdict timeline and snapshots, which live in `localStorage` and so are sent by the client |
+| Original Proof Source | the Aether source, verbatim |
+
+Three consequences worth knowing:
+
+- **Everything is escaped.** A proof is arbitrary text and LaTeX treats `^`,
+  `_`, `&` and friends as syntax, so an unescaped `n^2` in a table cell is a
+  compile error. Escaping is one regex pass rather than a chain of
+  `str.replace` calls, because replacing `\\` first and `{` second would go on
+  to escape the braces in the backslash's own replacement text. The source
+  listing is the one deliberate exception, since it is quoted verbatim.
+- **The PDF is compiled twice.** `longtable` measures its columns on the first
+  pass and lays them out on the second; one pass leaves the report's tables
+  ragged.
+- **The breakdown is optional.** `breakdown=false` returns exactly what the
+  engine's exporter produced before any of this existed, which is what the
+  engine's own tests and the CLI still see.

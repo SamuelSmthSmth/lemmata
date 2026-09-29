@@ -7,17 +7,28 @@
 // content-hashed chunks, so importing one never duplicates it, but there is no
 // reason to download the ones we do not use.
 //
-// NOTE: never use the `name` attribute on <wa-icon>.  Web Awesome's default
-// icon library is Font Awesome and it fetches each icon from
-// ka-f.fontawesome.com at runtime -- the package ships no SVG assets of its
-// own.  Slot an inline <svg> instead, which is what dom.js does.  This was
-// verified with a network probe: a named <wa-icon> makes a cross-origin
-// request, a slotted one makes none.  <wa-select> and <wa-option> are safe as
-// they are, because their internal caret and checkmark are embedded data: URIs.
+// Deliberately absent: <wa-badge>.  The auditor used to render a status pill
+// and a backend pill on every row, which made eight passing steps as loud as
+// the one that failed.  Status is now typographic (see styles.css), so the
+// component is not vendored at all.
+//
+// NOTE: the app's own icons are plain inline <svg>, never <wa-icon>.
+//
+// Two independent reasons.  A `name` icon fetches from ka-f.fontawesome.com at
+// runtime, because the package ships no SVG assets of its own -- which would
+// break the no-cross-origin-requests rule this app is built on.  And a slotted
+// <svg> is not a substitute: <wa-icon>'s shadow root is a single empty
+// <svg part="svg"> with no <slot>, since it renders only from `name`/`src`, so
+// a slotted icon stays 0x0 and paints nothing.  A plain <svg> inside
+// <wa-button> lands in the button's label slot and just works.
+//
+// `icon.js` is still imported below regardless: <wa-select>, <wa-option> and
+// <wa-dialog> create <wa-icon library="system"> elements of their own, and the
+// custom element has to be defined for those to render.  Their glyphs are
+// embedded data: URIs, so they make no requests.
 
 import { setBasePath } from "../vendor/webawesome/webawesome.js";
 
-import "../vendor/webawesome/components/badge/badge.js";
 import "../vendor/webawesome/components/button/button.js";
 import "../vendor/webawesome/components/dialog/dialog.js";
 import "../vendor/webawesome/components/icon/icon.js";

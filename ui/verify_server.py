@@ -121,13 +121,74 @@ def main() -> int:
         check("\\documentclass" in latex_data["latex"], "LaTeX export contains documentclass")
         check("\\begin{align*}" in latex_data["latex"], "LaTeX export contains align* environment")
 
+        # The report is appended by the UI layer (ui/latex_report.py), not by
+        # the engine's exporter, so assert each of its sections is present and
+        # that the source listing survives verbatim.
+        report = latex_data["latex"]
+        for section in (
+            "Verification Report",
+            "Proof State",
+            "Original Proof Source",
+        ):
+            check(f"\\aesection{{{section}}}" in report, f"report has a {section} section")
+        check("\\begin{longtable}" in report, "report typesets its tables with longtable")
+        check("Given n : Int" in report, "report includes the original source verbatim")
+        check("MultipleOf" in report, "report quotes the canonical statements")
+
+        print("== POST /api/export/latex (breakdown off) ==")
+        _, _, body = server.request(
+            "/api/export/latex",
+            "POST",
+            {"source": by_id["even-square"]["source"], "standalone": True, "breakdown": False},
+        )
+        plain = json.loads(body).get("latex", "")
+        check("\\documentclass" in plain, "breakdown off still produces the proof document")
+        check("aesection" not in plain, "breakdown off leaves the engine's output untouched")
+
+        print("== POST /api/export/latex (session data) ==")
+        _, _, body = server.request(
+            "/api/export/latex",
+            "POST",
+            {
+                "source": by_id["even-square"]["source"],
+                "standalone": True,
+                "session": {
+                    "timeline": [{"verdict": "VALID", "n": 2, "ts": 1759100000000}],
+                    "snapshots": [{"name": "before edit", "ts": 1759100200000, "auto": True}],
+                },
+            },
+        )
+        with_session = json.loads(body).get("latex", "")
+        check("\\aesection{Session}" in with_session, "workspace data adds a Session section")
+        check("before edit" in with_session, "the snapshot name reaches the report")
+
         print("== POST /api/export/pdf ==")
         status, ctype, pdf_bytes = server.request(
-            "/api/export/pdf", "POST", {"source": by_id["even-square"]["source"]}
+            "/api/export/pdf",
+            "POST",
+            {
+                "source": by_id["even-square"]["source"],
+                "session": {"snapshots": [{"name": "pdf snapshot", "ts": 1759100200000}]},
+            },
         )
         check(status == 200, f"POST /api/export/pdf -> {status}")
         check("application/pdf" in ctype, f"PDF content-type is {ctype}")
         check(pdf_bytes.startswith(b"%PDF"), f"PDF bytes header is %PDF ({len(pdf_bytes)} bytes)")
+
+        # The report has to end up in the PDF, not just in the .tex.  Page
+        # objects sit in compressed streams, so the pdf bytes cannot be asked
+        # how many pages they hold without pulling in a PDF library; comparing
+        # the compiled size against the same source without the breakdown is
+        # the dependency-free way to show the appendix is really there.
+        _, _, plain_bytes = server.request(
+            "/api/export/pdf",
+            "POST",
+            {"source": by_id["even-square"]["source"], "breakdown": False},
+        )
+        check(
+            plain_bytes.startswith(b"%PDF") and len(pdf_bytes) > len(plain_bytes),
+            f"the breakdown adds pages to the PDF ({len(plain_bytes)} -> {len(pdf_bytes)} bytes)",
+        )
 
 
         _, _, body = server.request(
@@ -218,6 +279,19 @@ def main() -> int:
             for spec in import_re.findall(path.read_text(encoding="utf-8"))
         ]
         check(not remote, f"no vendored module imports over the network {remote[:2]}")
+
+        print("== vendored fonts over HTTP ==")
+        fonts = sorted((STATIC / "vendor" / "fonts").glob("*.woff2"))
+        check(len(fonts) >= 2, f"found {len(fonts)} vendored woff2 subsets on disk")
+        bad_fonts = []
+        for path in fonts:
+            rel = path.relative_to(STATIC).as_posix()
+            status, ctype, body = server.request(f"/static/{rel}")
+            # wOF2 is the format's magic number.  A wrong MIME type or a 404
+            # here shows up only as a silently substituted system face.
+            if status != 200 or body[:4] != b"wOF2":
+                bad_fonts.append(f"{rel} -> {status} {ctype or 'none'}")
+        check(not bad_fonts, f"all {len(fonts)} font subsets served as woff2 {bad_fonts[:2]}")
 
     print()
     if failures:

@@ -5,7 +5,7 @@
 
 import { dom } from "./dom.js";
 import { state } from "./state.js";
-import { bulletList, chipList, el, note, section } from "./format.js";
+import { bulletList, chipList, el, note, section, splitStepText } from "./format.js";
 
 export function renderContext() {
   dom.context.replaceChildren();
@@ -51,10 +51,15 @@ export function renderContext() {
   if (entry.theoremName) addFact("theorem", entry.theoremName);
   dom.context.append(facts);
 
+  // The same de-duplication the auditor does, so a failure is not stated twice
+  // in the same pane.
+  const { message, callouts } = splitStepText(result);
   const verificationNodes = [];
-  if (result.message) verificationNodes.push(el("p", "ctx-empty", result.message));
-  if (result.counterexample) {
-    verificationNodes.push(note("counterexample", result.counterexample, "note--counterexample"));
+  if (message) verificationNodes.push(el("p", "ctx-empty", message));
+  for (const { text, className } of callouts) {
+    // Domain obligations have their own section further down this pane.
+    if (className === "note--domain") continue;
+    verificationNodes.push(note(null, text, className));
   }
   dom.context.append(section("Verification", verificationNodes));
 
@@ -64,7 +69,10 @@ export function renderContext() {
       el(
         "p",
         "ctx-empty",
-        `${meta.label || meta.kind} (${meta.step_count} inner steps): ${meta.all_steps_valid ? "all steps verified ✓" : "contains invalid steps ❌"}`,
+        // No tick/cross glyphs: the vendored latin subset has no U+2713 or
+        // U+274C, so they would fall back to another face mid-sentence.  The
+        // words carry it, and the status colour does the rest.
+        `${meta.label || meta.kind} (${meta.step_count} inner steps): ${meta.all_steps_valid ? "all steps verified" : "contains an invalid step"}`,
       ),
     ];
     if (meta.case_condition) {
@@ -89,7 +97,8 @@ export function renderContext() {
     dom.context.append(
       section(
         "Domain obligations",
-        result.domain_warnings.map((warning) => note("unresolved", warning, "note--domain")),
+        // No label: the warning already begins "Unresolved domain obligation: …".
+        result.domain_warnings.map((warning) => note(null, warning, "note--domain")),
       ),
     );
   }

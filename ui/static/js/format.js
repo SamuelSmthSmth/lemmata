@@ -11,35 +11,50 @@ export function el(tag, className, text) {
   return node;
 }
 
+/**
+ * A callout attached to a step.
+ *
+ * The engine's own sentences already name themselves -- "Counterexample at
+ * x=3: …", "Unresolved domain obligation: …" -- so a label above one of those
+ * just repeats its first two words in caps.  Pass a label only when the value
+ * is a bare expression and needs one.
+ */
 export function note(label, text, className) {
   const box = el("div", `note ${className}`);
-  box.append(el("span", "note-label", label), document.createTextNode(text));
+  if (label) box.append(el("span", "note-label", label));
+  box.append(document.createTextNode(text));
   return box;
 }
 
-// Status and backend markers are Web Awesome badges. The variant carries the
-// meaning; the tinted `accent` appearance keeps them from shouting on a screen
-// that has eight of them at once.
-const STATUS_VARIANT = { VALID: "success", WARNING: "warning", INVALID: "danger" };
+/**
+ * Separate a step result into the prose worth printing quietly and the failures
+ * worth printing loudly.
+ *
+ * The engine repeats itself, which is fine for a machine and tiresome to read:
+ * a failing obligation arrives as the message *and* as a warning, and an
+ * algebraic failure's message ends with the same "Counterexample at x=3: …"
+ * sentence the callout shows.  Rendering both states every failure twice, so
+ * any sentence a callout is about to display is stripped out of the prose and
+ * the caller drops the prose if nothing is left.
+ */
+export function splitStepText(result) {
+  const callouts = [];
+  if (result.counterexample) {
+    callouts.push({ text: result.counterexample, className: "note--counterexample" });
+  }
+  for (const warning of result.domain_warnings) {
+    callouts.push({ text: warning, className: "note--domain" });
+  }
 
-export function badge(status) {
-  const node = document.createElement("wa-badge");
-  node.className = "badge";
-  node.variant = STATUS_VARIANT[status] ?? "neutral";
-  node.appearance = "accent";
-  node.textContent = status;
-  return node;
+  let message = result.message ?? "";
+  for (const { text } of callouts) message = message.split(text).join("");
+
+  return { message: message.replace(/\s+/g, " ").trim(), callouts };
 }
 
-/** The engine component that verified a step (SymPy, Z3, ChainGuard, ...). */
-export function backendBadge(name) {
-  const node = document.createElement("wa-badge");
-  node.className = "backend";
-  node.variant = "neutral";
-  node.appearance = "outlined";
-  node.textContent = name;
-  return node;
-}
+// Status and backend markers are plain spans, styled by styles.css.  They were
+// Web Awesome badges until the auditor stopped rendering a pill per row: eight
+// passing rows should not look as loud as the one that failed.
 
 export function chipList(pairs, emptyText) {
   if (!pairs.length) return el("p", "ctx-none", emptyText);

@@ -5,7 +5,7 @@
 
 import { dom } from "./dom.js";
 import { state } from "./state.js";
-import { backendBadge, badge, el, note } from "./format.js";
+import { el, note, splitStepText } from "./format.js";
 import { renderContext } from "./context.js";
 
 function reportHeader(report) {
@@ -38,6 +38,25 @@ function parseErrorCard(error) {
   return card;
 }
 
+/** Status and provenance, set as type rather than as a row of pills.
+ *
+ * A pill per row made eight passing steps as loud as the one that failed, which
+ * is backwards -- a valid step is the unremarkable case.  The word is always
+ * present (it has to be; the audit contract requires the status), but only a
+ * warning or a failure earns colour.
+ */
+function stepMeta(result) {
+  const meta = el("span", "step-meta");
+  meta.append(el("span", `status status--${result.status.toLowerCase()}`, result.status));
+  if (result.backend) {
+    meta.append(el("span", "meta-sep", "·"), el("span", "backend", result.backend));
+  }
+  if (result.scope_depth > 0) {
+    meta.append(el("span", "meta-sep", "·"), el("span", "depth", `depth ${result.scope_depth}`));
+  }
+  return meta;
+}
+
 function stepRow(entry, index) {
   const { result } = entry;
   const row = el("button", `step step--${result.status.toLowerCase()}`);
@@ -50,20 +69,20 @@ function stepRow(entry, index) {
   // within it, instead of every step being its own tab stop.
   row.tabIndex = selected || (state.selected === null && index === 0) ? 0 : -1;
 
-  const top = el("div", "step-top");
-  top.append(el("span", "step-line", `L${result.line ?? "?"}`), badge(result.status));
-  top.append(backendBadge(result.backend));
-  if (result.scope_depth > 0) top.append(el("span", "depth", `depth ${result.scope_depth}`));
-  row.append(top);
+  // The margin holds the source line and nothing else.
+  row.append(el("span", "step-line", `${result.line ?? "?"}`));
 
-  row.append(el("code", "step-statement", result.statement));
-  if (result.message) row.append(el("p", "step-message", result.message));
-  if (result.counterexample) {
-    row.append(note("counterexample", result.counterexample, "note--counterexample"));
-  }
-  for (const warning of result.domain_warnings) {
-    row.append(note("domain obligation", warning, "note--domain"));
-  }
+  const body = el("div", "step-body");
+  const head = el("div", "step-head");
+  head.append(el("code", "step-statement", result.statement));
+  head.append(stepMeta(result));
+  body.append(head);
+
+  const { message, callouts } = splitStepText(result);
+  if (message) body.append(el("p", "step-message", message));
+  // No labels: each engine sentence already names itself.
+  for (const { text, className } of callouts) body.append(note(null, text, className));
+  row.append(body);
 
   row.addEventListener("click", () => selectStep(index, { focus: true }));
   return row;
@@ -88,12 +107,21 @@ export function renderAudit(data) {
     return;
   }
 
+  // The entailment rule.  A failed step invalidates everything that rests on
+  // it, so the margin rule turns red at the break and stays red to the end of
+  // the proof rather than marking one isolated row.  This is the one thing the
+  // layout knows that a flat list of results does not.
+  const firstInvalid = state.steps.findIndex((entry) => entry.result.status === "INVALID");
+
   let flatIndex = 0;
   for (const report of data.reports) {
     const group = el("div", "report-group");
     if (data.reports.length > 1 || report.theorem_name) group.append(reportHeader(report));
     for (const result of report.results) {
-      group.append(stepRow(state.steps[flatIndex], flatIndex));
+      const row = stepRow(state.steps[flatIndex], flatIndex);
+      if (firstInvalid !== -1 && flatIndex === firstInvalid) row.classList.add("is-break");
+      if (firstInvalid !== -1 && flatIndex > firstInvalid) row.classList.add("is-downstream");
+      group.append(row);
       flatIndex += 1;
     }
     dom.audit.append(group);

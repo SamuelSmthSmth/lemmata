@@ -12,7 +12,7 @@ import { EditorView, keymap, placeholder } from "../vendor/esm/@codemirror/view@
 import { Compartment } from "../vendor/esm/@codemirror/state@6.mjs";
 import { indentLess, indentMore } from "../vendor/esm/@codemirror/commands@6.mjs";
 import { indentUnit, syntaxHighlighting } from "../vendor/esm/@codemirror/language@6.mjs";
-import { aetherHighlightStyles, aetherLanguage } from "../aether-language.js";
+import { aetherLanguage, makeHighlightStyle } from "../aether-language.js";
 
 // Mirrors aether.parser.indenter.AetherIndenter.tab_len = 4.
 export const INDENT = "    ";
@@ -28,8 +28,9 @@ function token(name, fallback) {
   return value || fallback;
 }
 
-function editorTheme(name) {
-  const p = {
+/** Resolve the editor palette from the shared design tokens. */
+function palette() {
+  return {
     bg: token("--cm-bg", "#ffffff"),
     text: token("--cm-text", "#1f2328"),
     caret: token("--cm-caret", "#0969da"),
@@ -43,7 +44,19 @@ function editorTheme(name) {
     placeholder: token("--cm-placeholder", "#a8b0b9"),
     tooltipBg: token("--cm-tooltip-bg", "#ffffff"),
     tooltipBorder: token("--cm-tooltip-border", "#dfe3e8"),
+    fontMono: token("--font-mono", 'ui-monospace, SFMono-Regular, Menlo, monospace'),
+    // Syntax. See makeHighlightStyle in aether-language.js.
+    keyword: token("--cm-token-keyword", "#0a5fbf"),
+    type: token("--cm-token-type", "#16181d"),
+    ink: token("--cm-token-ink", "#16181d"),
+    operator: token("--cm-token-operator", "#646b78"),
+    glue: token("--cm-token-glue", "#8b929c"),
+    string: token("--cm-token-string", "#646b78"),
+    comment: token("--cm-token-comment", "#8b929c"),
   };
+}
+
+function editorTheme(name, p) {
   return EditorView.theme(
     {
       "&": { color: p.text, backgroundColor: p.bg, height: "100%" },
@@ -58,9 +71,14 @@ function editorTheme(name) {
       ".cm-activeLineGutter": { backgroundColor: p.activeGutterBg, color: p.activeGutterFg },
       ".cm-activeLine": { backgroundColor: p.activeLine },
       ".cm-scroller": {
-        fontFamily: 'ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace',
+        fontFamily: p.fontMono,
         fontSize: "13px",
         lineHeight: "1.6",
+        // JetBrains Mono's ligatures map !=, <=, >= and => onto the symbols a
+        // mathematician reads, which is right for the auditor -- that is the
+        // canonical form.  It is wrong here: the editor has to show the
+        // characters you actually typed, or editing becomes guesswork.
+        fontVariantLigatures: "none",
       },
       ".cm-selectionBackground": { backgroundColor: p.selection },
       "&.cm-focused .cm-selectionBackground": { backgroundColor: p.selectionFocused },
@@ -76,10 +94,11 @@ function editorTheme(name) {
   );
 }
 
-// The theme and its syntax colours always travel together, so they can never
-// disagree; a Compartment swaps them without rebuilding the whole view.
+// The theme and its syntax colours are built from one resolved palette and
+// swapped together through a Compartment, so they can never disagree.
 function themeExtensions(name) {
-  return [editorTheme(name), syntaxHighlighting(aetherHighlightStyles[name])];
+  const p = palette();
+  return [editorTheme(name, p), syntaxHighlighting(makeHighlightStyle(p))];
 }
 
 // Resolved before first paint by the inline script in index.html.

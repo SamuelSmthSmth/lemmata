@@ -29,7 +29,7 @@ import { initHistory, renderHistory, setHistoryOpen } from "./history.js";
 import { permalinkFor, readPermalink, writePermalink } from "./permalink.js";
 import { applyResponse } from "./render.js";
 import { examplesById, state } from "./state.js";
-import { addSnapshot, persistWorkspace, recordOutcome, workspace } from "./store.js";
+import { addSnapshot, persistWorkspace, recordOutcome, timeline, workspace } from "./store.js";
 import { showToast } from "./toast.js";
 import { markStale, setPending } from "./verdict.js";
 
@@ -230,6 +230,35 @@ setupDropZone({
 
 let latexAbortController = null;
 
+/**
+ * The workspace panel's timeline and snapshots, for the exported report.
+ *
+ * The server cannot see either one -- they live in localStorage -- so they are
+ * sent along. Only the fields the report renders are included, which keeps the
+ * request small and the document's surface predictable.
+ */
+function exportSession() {
+  return {
+    timeline: timeline.entries.map(({ verdict, n, ts }) => ({ verdict, n, ts })),
+    snapshots: workspace.snapshots.map(({ name, ts, strict, auto }) => ({
+      name,
+      ts,
+      strict: Boolean(strict),
+      auto: Boolean(auto),
+    })),
+  };
+}
+
+function exportOptions() {
+  return {
+    source: currentSource(),
+    standalone: dom.latexStandalone.checked,
+    breakdown: dom.latexBreakdown.checked,
+    strictDomains: dom.strict.checked,
+    session: exportSession(),
+  };
+}
+
 async function refreshLatexExport() {
   if (!dom.latexDialog.open) return;
   if (latexAbortController) latexAbortController.abort();
@@ -238,8 +267,7 @@ async function refreshLatexExport() {
   dom.latexOutput.value = "% Generating LaTeX...";
   try {
     const data = await exportLatex({
-      source: currentSource(),
-      standalone: dom.latexStandalone.checked,
+      ...exportOptions(),
       signal: latexAbortController.signal,
     });
     dom.latexOutput.value = data.latex;
@@ -267,6 +295,7 @@ dom.latexDialog.addEventListener("wa-after-hide", () => {
 });
 
 dom.latexStandalone.addEventListener("change", refreshLatexExport);
+dom.latexBreakdown.addEventListener("change", refreshLatexExport);
 
 dom.copyLatex.addEventListener("click", async () => {
   const text = dom.latexOutput.value;
@@ -292,7 +321,7 @@ dom.downloadPdf.addEventListener("click", async () => {
   dom.downloadPdf.textContent = "Compiling PDF...";
 
   try {
-    const blob = await exportPdf({ source: currentSource() });
+    const blob = await exportPdf(exportOptions());
     const name = state.data?.reports?.[0]?.theorem_name;
     const filename = pdfFilename(name);
     downloadBlob(blob, filename);

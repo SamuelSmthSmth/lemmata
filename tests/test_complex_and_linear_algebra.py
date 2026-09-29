@@ -162,3 +162,46 @@ Step: (x + 1)^2 = x^2 + 2 * x + 1
         latex = export_to_latex(src, standalone=False)
         assert "\\documentclass" not in latex
         assert "\\begin{align*}" in latex
+
+    def test_export_to_latex_induction_subproofs(self):
+        """A subproof must export, and say what kind of subproof it is.
+
+        SubProofNode carries `label` and `case_condition`; it has neither
+        `subproof_type` nor `title`.  Reading the wrong attribute raised
+        AttributeError on *every* document containing a subproof, so a proof
+        with an induction took down the whole export.
+        """
+        src = """\
+Theorem: "Tiny induction"
+Proof:
+    Given n : Int
+    Base case n = 0:
+        Step: 0 = 0
+    Inductive step:
+        Assume h1: n > 0
+        Step: n = n
+QED
+"""
+        latex = export_to_latex(src, standalone=True)
+        assert "\\paragraph*{Base case $n = 0$:}" in latex
+        assert "\\paragraph*{Inductive step:}" in latex
+        assert "\\end{document}" in latex
+
+    def test_export_to_latex_case_and_named_subproofs(self):
+        """The other two subproof shapes carry a condition or a bare name."""
+        src = """\
+Theorem: "Tiny case split"
+Proof:
+    Let x : Int
+    Case x >= 0:
+        Step: x = x
+    Case x < 0:
+        Step: x = x
+    SubLemma:
+        Step: x = x
+QED
+"""
+        latex = export_to_latex(src, standalone=True)
+        assert "\\paragraph*{Case $x \\ge 0$:}" in latex
+        assert "\\paragraph*{Case $x < 0$:}" in latex
+        assert "\\paragraph*{SubLemma:}" in latex

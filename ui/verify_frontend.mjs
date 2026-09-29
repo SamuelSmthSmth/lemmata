@@ -130,6 +130,24 @@ check(
   `vendored Web Awesome must not import over the network: ${remote.slice(0, 2).join(", ")}`,
 );
 
+// --- 1c. the vendored fonts -------------------------------------------------
+//
+// fonts.css points at the woff2 subsets by relative URL.  A typo there fails
+// silently and invisibly -- the browser just substitutes a system face -- so
+// assert every URL resolves to a file that is actually vendored.
+
+const fontsCssPath = new URL("fonts.css", STATIC);
+const fontsCss = readFileSync(fontsCssPath, "utf8");
+const fontUrls = [...fontsCss.matchAll(/url\(\s*["']?([^"')]+)["']?\s*\)/g)].map(([, u]) => u);
+
+check(fontUrls.length >= 2, `expected fonts.css to reference vendored subsets, found ${fontUrls.length}`);
+for (const url of fontUrls) {
+  check(
+    existsSync(new URL(url, fontsCssPath)),
+    `fonts.css references ${url}, which does not exist`,
+  );
+}
+
 // --- 2. language module + tags ---------------------------------------------
 
 const language = await moduleAt("aether-language.js");
@@ -141,9 +159,21 @@ check(
   Boolean(language.aetherLanguage?.parser) && language.aetherLanguage?.name === "aether",
   "aetherLanguage is not a usable StreamLanguage instance",
 );
+// The syntax colours are built from a palette editor.js resolves out of the
+// design tokens, so they cannot drift from the rest of the app.
+const stubPalette = {
+  keyword: "#000",
+  type: "#000",
+  ink: "#000",
+  operator: "#000",
+  glue: "#000",
+  string: "#000",
+  comment: "#000",
+};
 check(
-  Boolean(language.aetherHighlightStyles?.light && language.aetherHighlightStyles?.dark),
-  "aetherHighlightStyles must define both a light and a dark style",
+  typeof language.makeHighlightStyle === "function" &&
+    Boolean(language.makeHighlightStyle(stubPalette)),
+  "makeHighlightStyle must build a syntax style from a resolved palette",
 );
 
 // --- 3. tokenizer -----------------------------------------------------------

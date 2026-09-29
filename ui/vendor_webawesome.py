@@ -20,7 +20,8 @@ can copy the graph verbatim -- no import rewriting, just the tree it lives in.
 Only the files reachable from the components the UI actually uses are copied.
 The whole ``dist-cdn`` tree is 13 MB across ~1200 files (it also carries React
 wrappers, type declarations and docs); the reachable subgraph is a few hundred
-KB.  ``styles/`` is small and is copied whole.
+KB.  ``styles/`` is small and is copied whole, minus the TypeScript sources and
+declarations that ship alongside it and are never loaded.
 
 No npm is involved: the package is fetched from the npm registry as a tarball
 and read with the standard library.
@@ -51,8 +52,11 @@ PREFIX = "package/dist-cdn/"
 
 # The components the UI uses.  Adding one here is all it takes to vendor it;
 # its chunks are picked up automatically because they are reachable.
+#
+# `badge` is deliberately absent: the auditor used to render a status pill and a
+# backend pill on every row, and set the status as type instead (see styles.css),
+# so the component is not needed at all.
 COMPONENTS = [
-    "badge",
     "button",
     "dialog",
     "icon",
@@ -73,6 +77,11 @@ ENTRIES = ["webawesome.js", *(f"components/{name}/{name}.js" for name in COMPONE
 # Whole-tree copies: the token layer, the component styles and the load-bearing
 # utilities.  Small (a few hundred KB) and not worth subsetting file by file.
 WHOLE_DIRS = ["styles"]
+
+# The styles directory also ships TypeScript sources and declarations for the
+# same stylesheets.  Nothing loads them at runtime, so copying the tree whole
+# would put a dozen dead files in the repository.
+SKIP_SUFFIXES = (".ts", ".tsx", ".map")
 
 # Matches `from"..."`, bare `import"..."`, and dynamic `import("...")`.
 IMPORT_RE = re.compile(r'(?:from|import)\s*\(?\s*"([^"]+)"')
@@ -157,11 +166,14 @@ def main() -> int:
     # The stylesheets are tiny and interdependent; copy them whole.
     for directory in WHOLE_DIRS:
         for path, member in index.items():
-            if path.startswith(f"{directory}/"):
-                dest = DEST / path
-                dest.parent.mkdir(parents=True, exist_ok=True)
-                dest.write_bytes(read_member(tar, member))
-                seen.add(path)
+            if not path.startswith(f"{directory}/"):
+                continue
+            if path.endswith(SKIP_SUFFIXES):
+                continue
+            dest = DEST / path
+            dest.parent.mkdir(parents=True, exist_ok=True)
+            dest.write_bytes(read_member(tar, member))
+            seen.add(path)
 
     # Attribution: MIT requires the licence travel with the copy.
     license_member = index.get("LICENSE.md") or tar.getmember("package/LICENSE.md")

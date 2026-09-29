@@ -1,125 +1,139 @@
 /* ===========================================================================
-   Aether — dense theme on top of the Web Awesome token layer.
+   Aether -- typeset like a proof, not built like a dashboard.
 
-   Web Awesome is vendored (ui/vendor_webawesome.py) and its stylesheet defines
-   every colour and dimension as a `--wa-*` custom property inside cascade
-   layers.  This file is *unlayered*, and unlayered CSS outranks layered CSS,
-   so everything below both overrides Web Awesome's defaults and stays the
-   single source of truth for the app's palette.
+   Three ideas hold this together.
 
-   The upshot: the shell and the Web Awesome components share one palette,
-   because the app's own names are aliases of the `--wa-*` semantics rather
-   than a second, parallel set of hex values.
+   1. One palette, in the --wa-* token layer.  Web Awesome's stylesheet defines
+      every colour as a custom property inside cascade layers; this file is
+      unlayered, and unlayered CSS outranks layered CSS, so everything below
+      both overrides those defaults and stays the single source of truth.  The
+      app's own names are aliases of the --wa-* semantics rather than a second,
+      parallel set of hex values.
+
+   2. Monospace everywhere except the intern's prose.  The formal layer -- the
+      proof itself, the line numbers, the variables, the hypotheses, the
+      verdict -- is machine-checked, so it is set in JetBrains Mono.  The only
+      things that break the grid are the sentences where the checker explains
+      itself in English.  That split is the whole type system; there is no
+      second family.
+
+   3. Failure is the event.  A valid step is the unremarkable case, so it gets
+      no box, no fill and no colour.  A step that fails gets a rail in the
+      margin, and so does everything after it, because everything after it
+      rests on it.
 
    Component internals live in shadow DOM and cannot be reached from here at
-   all.  Density is therefore expressed through the token layer (the four scale
-   knobs below) and through ::part() where the component exposes one -- never
-   by trying to restyle internals.
+   all.  Density is expressed through the token layer (the scale knobs below)
+   and through ::part() where a component exposes one -- never by trying to
+   restyle internals.
    =========================================================================== */
 
 :root {
   color-scheme: light;
 
-  /* --- Density knobs -----------------------------------------------------
-     These are why the components look like part of a tool rather than a
-     marketing page.  Each one scales a whole family of component tokens at
-     once, so the components get denser without a line of shadow-DOM CSS. */
+  /* --- Density and geometry ---------------------------------------------
+     Each knob scales a whole family of component tokens at once.  The radii
+     are deliberately near-square: an instrument, not a web page. */
   --wa-font-size-scale: 0.8125; /* 16px -> 13px base */
-  --wa-space-scale: 0.7; /* tighter padding inside components */
-  --wa-border-radius-scale: 0.55; /* crisper corners */
+  --wa-space-scale: 0.7;
+  --wa-border-radius-scale: 0.3;
   --wa-line-height-normal: 1.45;
   --wa-focus-ring-width: 0.125rem;
   --wa-focus-ring-offset: 0.0625rem;
 
-  --wa-font-family-body: var(--sans);
-  --wa-font-family-code: var(--mono);
+  --wa-font-family-body: var(--font-mono);
+  --wa-font-family-code: var(--font-mono);
 
   /* --- Palette: light --------------------------------------------------- */
   --wa-color-surface-default: #ffffff;
-  --wa-color-surface-raised: #f6f7f9;
-  --wa-color-surface-lowered: #eceff3;
-  --wa-color-surface-border: #dfe3e8;
+  --wa-color-surface-raised: #f7f8f9;
+  --wa-color-surface-lowered: #eff1f4;
+  --wa-color-surface-border: #dde1e6;
 
-  --wa-color-text-normal: #1f2328;
-  --wa-color-text-quiet: #5c6570;
-  --wa-color-text-link: #0969da;
+  --wa-color-text-normal: #16181d;
+  --wa-color-text-quiet: #646b78;
+  --wa-color-text-link: #0a5fbf;
 
-  --wa-color-focus: #0969da;
-  --wa-color-overlay-modal: rgba(31, 35, 40, 0.42);
+  --wa-color-focus: #0a5fbf;
+  --wa-color-overlay-modal: rgba(22, 24, 29, 0.42);
 
-  --wa-color-brand-fill-loud: #0969da;
+  --wa-color-brand-fill-loud: #0a5fbf;
   --wa-color-brand-on-loud: #ffffff;
-  --wa-color-brand-fill-quiet: rgba(9, 105, 218, 0.1);
-  --wa-color-brand-on-quiet: #0969da;
+  --wa-color-brand-fill-quiet: rgba(10, 95, 191, 0.08);
+  --wa-color-brand-on-quiet: #0a5fbf;
 
-  --wa-color-success-fill-quiet: rgba(26, 127, 55, 0.1);
-  --wa-color-success-on-quiet: #1a7f37;
-  --wa-color-success-fill-loud: #1a7f37;
+  --wa-color-success-fill-quiet: rgba(21, 115, 51, 0.09);
+  --wa-color-success-on-quiet: #157333;
+  --wa-color-success-fill-loud: #157333;
 
-  --wa-color-warning-fill-quiet: rgba(138, 92, 0, 0.12);
+  --wa-color-warning-fill-quiet: rgba(125, 78, 0, 0.1);
   --wa-color-warning-on-quiet: #7d4e00;
-  --wa-color-warning-fill-loud: #8a5c00;
+  --wa-color-warning-fill-loud: #7d4e00;
 
-  --wa-color-danger-fill-quiet: rgba(207, 34, 46, 0.09);
-  --wa-color-danger-on-quiet: #cf222e;
-  --wa-color-danger-fill-loud: #cf222e;
+  --wa-color-danger-fill-quiet: rgba(190, 24, 36, 0.08);
+  --wa-color-danger-on-quiet: #be1824;
+  --wa-color-danger-fill-loud: #be1824;
 
-  --wa-color-neutral-fill-quiet: rgba(31, 35, 40, 0.06);
-  --wa-color-neutral-on-quiet: #5c6570;
-  --wa-color-neutral-border-normal: #dfe3e8;
+  --wa-color-neutral-fill-quiet: rgba(22, 24, 29, 0.05);
+  --wa-color-neutral-on-quiet: #646b78;
+  --wa-color-neutral-border-normal: #dde1e6;
 }
 
 [data-theme="dark"] {
   color-scheme: dark;
 
-  --wa-color-surface-default: #0f1115;
-  --wa-color-surface-raised: #16181d;
-  --wa-color-surface-lowered: #1c2027;
-  --wa-color-surface-border: #272c35;
+  --wa-color-surface-default: #0e1013;
+  --wa-color-surface-raised: #15181c;
+  --wa-color-surface-lowered: #1a1e23;
+  --wa-color-surface-border: #262b32;
 
-  --wa-color-text-normal: #e7e9ee;
-  --wa-color-text-quiet: #8b94a3;
-  --wa-color-text-link: #58a6ff;
+  --wa-color-text-normal: #e6e8ec;
+  --wa-color-text-quiet: #868e9c;
+  --wa-color-text-link: #6cb0ff;
 
-  --wa-color-focus: #58a6ff;
-  --wa-color-overlay-modal: rgba(0, 0, 0, 0.6);
+  --wa-color-focus: #6cb0ff;
+  --wa-color-overlay-modal: rgba(0, 0, 0, 0.62);
 
   --wa-color-brand-fill-loud: #1f6feb;
   --wa-color-brand-on-loud: #ffffff;
-  --wa-color-brand-fill-quiet: rgba(88, 166, 255, 0.12);
-  --wa-color-brand-on-quiet: #58a6ff;
+  --wa-color-brand-fill-quiet: rgba(108, 176, 255, 0.1);
+  --wa-color-brand-on-quiet: #6cb0ff;
 
-  --wa-color-success-fill-quiet: rgba(63, 185, 80, 0.12);
-  --wa-color-success-on-quiet: #3fb950;
+  --wa-color-success-fill-quiet: rgba(74, 185, 96, 0.11);
+  --wa-color-success-on-quiet: #4ab960;
   --wa-color-success-fill-loud: #238636;
 
-  --wa-color-warning-fill-quiet: rgba(214, 160, 31, 0.14);
-  --wa-color-warning-on-quiet: #d6a01f;
+  --wa-color-warning-fill-quiet: rgba(214, 160, 31, 0.13);
+  --wa-color-warning-on-quiet: #d9a520;
   --wa-color-warning-fill-loud: #9e6a03;
 
-  --wa-color-danger-fill-quiet: rgba(242, 83, 74, 0.12);
-  --wa-color-danger-on-quiet: #f2534a;
+  --wa-color-danger-fill-quiet: rgba(242, 100, 92, 0.11);
+  --wa-color-danger-on-quiet: #f2645c;
   --wa-color-danger-fill-loud: #da3633;
 
-  --wa-color-neutral-fill-quiet: rgba(231, 233, 238, 0.07);
-  --wa-color-neutral-on-quiet: #8b94a3;
-  --wa-color-neutral-border-normal: #272c35;
+  --wa-color-neutral-fill-quiet: rgba(230, 232, 236, 0.06);
+  --wa-color-neutral-on-quiet: #868e9c;
+  --wa-color-neutral-border-normal: #262b32;
 }
 
-/* --- App aliases ----------------------------------------------------------
-   The rest of this file reads in the app's own vocabulary, but every value is
-   derived from the Web Awesome token layer above, so there is exactly one
-   place a colour is decided. */
+/* --- Type and the app's own vocabulary ------------------------------------ */
 :root {
-  --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
-  --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  /* The formal layer.  See fonts.css for the subsets and ui/vendor_fonts.py for
+     where they come from. */
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, "SF Mono", Menlo,
+    Consolas, monospace;
+  /* The intern's voice.  Only ever used for sentences. */
+  --font-prose: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica,
+    Arial, sans-serif;
 
   --bg: var(--wa-color-surface-default);
   --panel: var(--wa-color-surface-raised);
   --panel-2: var(--wa-color-surface-lowered);
-  /* A third, subtler step (chips, keys) that still tracks the theme. */
-  --panel-3: color-mix(in oklab, var(--wa-color-text-normal) 7%, var(--wa-color-surface-default));
+  --panel-3: color-mix(in oklab, var(--wa-color-text-normal) 6%, var(--wa-color-surface-default));
   --border: var(--wa-color-surface-border);
+  /* The 1px structure lines.  Barely there on purpose: they organise the page
+     without drawing boxes around anything. */
+  --hairline: color-mix(in oklab, var(--wa-color-text-normal) 8%, var(--wa-color-surface-default));
   --text: var(--wa-color-text-normal);
   --muted: var(--wa-color-text-quiet);
   --muted-dim: color-mix(in oklab, var(--wa-color-text-quiet) 62%, var(--wa-color-surface-default));
@@ -136,15 +150,14 @@
   --danger-text: var(--wa-color-danger-on-quiet);
   --note-cex-text: var(--wa-color-danger-on-quiet);
   --note-dom-text: var(--wa-color-warning-on-quiet);
-  --selected-border: color-mix(in oklab, var(--accent) 45%, var(--border));
-  --selected-ring: color-mix(in oklab, var(--accent) 26%, transparent);
+  --selected-ring: color-mix(in oklab, var(--wa-color-text-normal) 22%, transparent);
 
-  --radius: 6px;
-  --radius-sm: 4px;
+  --radius: 2px;
+  --radius-sm: 2px;
 
-  /* Editor surface. CodeMirror cannot read CSS variables itself, so editor.js
-     reads these through getComputedStyle: that makes the palette single-source
-     rather than duplicated as literals in JavaScript. */
+  /* Editor surface.  CodeMirror cannot read custom properties itself, so
+     editor.js resolves these with getComputedStyle: that keeps the palette
+     single-source instead of duplicated as literals in JavaScript. */
   --cm-bg: var(--wa-color-surface-default);
   --cm-text: var(--wa-color-text-normal);
   --cm-caret: var(--accent);
@@ -153,11 +166,23 @@
   --cm-gutter-active-fg: var(--muted);
   --cm-gutter-active-bg: color-mix(in oklab, var(--wa-color-text-normal) 4%, var(--wa-color-surface-default));
   --cm-active-line: color-mix(in oklab, var(--wa-color-text-normal) 3%, var(--wa-color-surface-default));
-  --cm-selection: color-mix(in oklab, var(--accent) 22%, transparent);
-  --cm-selection-focused: color-mix(in oklab, var(--accent) 34%, transparent);
+  --cm-selection: color-mix(in oklab, var(--accent) 20%, transparent);
+  --cm-selection-focused: color-mix(in oklab, var(--accent) 32%, transparent);
   --cm-placeholder: color-mix(in oklab, var(--wa-color-text-quiet) 55%, var(--wa-color-surface-default));
   --cm-tooltip-bg: var(--wa-color-surface-raised);
   --cm-tooltip-border: var(--wa-color-surface-border);
+
+  /* Syntax.  Nearly monochrome by design: the CNL keywords are the skeleton of
+     the proof and take the accent, types are inked and separated by weight,
+     and operators, glue words, strings and comments recede.  The result should
+     read as text with a structure rather than as a rainbow. */
+  --cm-token-keyword: var(--accent);
+  --cm-token-type: var(--text);
+  --cm-token-ink: var(--text);
+  --cm-token-operator: var(--muted);
+  --cm-token-glue: var(--muted-dim);
+  --cm-token-string: var(--muted);
+  --cm-token-comment: var(--muted-dim);
 }
 
 * {
@@ -173,12 +198,13 @@ body {
 body {
   background: var(--bg);
   color: var(--text);
-  font-family: var(--sans);
-  font-size: 13px;
-  line-height: 1.45;
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  line-height: 1.5;
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  -webkit-font-smoothing: antialiased;
 }
 
 .sr-only {
@@ -193,16 +219,23 @@ body {
   border: 0;
 }
 
+/* The one place the grid is deliberately broken: prose. */
+.step-message,
+.ctx-empty,
+.empty-state {
+  font-family: var(--font-prose);
+}
+
 /* =========================================================================
    Web Awesome host shims
-   The components cannot be styled inside, but their host element and the
-   parts they expose are ours.
+   Component internals are unreachable, but the host element and any exported
+   part belong to us.
    ========================================================================= */
 
 wa-button.icon-button {
-  width: 26px;
-  height: 26px;
-  font-size: 13px;
+  width: 24px;
+  height: 24px;
+  font-size: 12px;
   color: var(--muted);
 }
 
@@ -218,20 +251,24 @@ wa-button.icon-button:hover {
 }
 
 wa-button.icon-button--slim {
-  width: 22px;
-  height: 22px;
-  font-size: 11px;
+  width: 20px;
+  height: 20px;
+  font-size: 10px;
 }
 
-wa-icon {
-  display: inline-flex;
+/* Icons are inlined SVGs, not <wa-icon>.
+   A slotted <svg> inside <wa-icon> is never painted: the component's shadow root
+   is a single empty <svg part="svg"> with no <slot>, because it only renders
+   from `name`/`src` -- so every icon here sat at 0x0 and rendered nothing.  A
+   plain <svg> inside <wa-button> lands in the button's own label slot instead.
+   The size is in `em` so the icon follows the button's font-size.
+   (A `name` icon is not an option anyway: it fetches from ka-f.fontawesome.com
+   at runtime, and this app makes no cross-origin requests.) */
+.icon {
+  display: block;
+  flex: none;
   width: 1em;
   height: 1em;
-}
-
-wa-icon svg {
-  width: 100%;
-  height: 100%;
 }
 
 /* Show the theme you would switch *to*. */
@@ -240,167 +277,197 @@ wa-icon svg {
   display: none;
 }
 
-.strict-switch {
+/* Every switch, reduced to an ink toggle.  Off and on differ by ink, not by
+   hue: a stock filled pill is the loudest object on an otherwise hairlined
+   page, and the switches here decide how a proof is judged and exported, so
+   none of them should compete with the verdict they produce. */
+wa-switch {
+  --height: 14px;
+  --width: 26px;
+  --thumb-size: 8px;
+  --wa-form-control-activated-color: var(--text);
   --wa-form-control-label-color: var(--text);
-  font-size: 12px;
+}
+
+wa-switch::part(control) {
+  background: var(--panel-2);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-sm);
+}
+
+wa-switch::part(thumb) {
+  background: var(--muted-dim);
+  border-color: transparent;
+  border-radius: 1px;
+}
+
+wa-switch:state(checked)::part(control) {
+  background: var(--text);
+  border-color: var(--text);
+}
+
+wa-switch:state(checked)::part(thumb) {
+  background: var(--bg);
+}
+
+/* A tighter label than the dialog switches need, since this one sits in the
+   topbar beside the verdict. */
+.strict-switch {
+  font-size: 11.5px;
   margin-left: 4px;
 }
 
 .strict-switch::part(label) {
-  font-size: 12px;
+  font-size: 11.5px;
   font-weight: 600;
 }
 
 .strict-switch::part(hint) {
-  font-size: 10.5px;
+  font-size: 10px;
   color: var(--muted-dim);
 }
 
+/* The example picker reads as an inline field rather than a boxed control:
+   a hairline underline matches the rules the rest of the page is built from,
+   and the toolbar stops competing with the proof below it. */
 .examples-select {
-  width: 190px;
-  /* The select renders no visible label; the hint line is not wanted here. */
-  --wa-form-control-hint-color: var(--muted-dim);
+  width: 180px;
 }
 
-wa-badge {
-  font-family: var(--sans);
+.examples-select::part(combobox) {
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid var(--hairline);
+  border-radius: 0;
+  height: 26px;
+  padding: 0 6px 0 8px;
+  transition: border-color 0.1s ease;
 }
 
-wa-badge::part(badge) {
-  font-size: 9.5px;
-  font-weight: 700;
-  letter-spacing: 0.5px;
-  text-transform: uppercase;
-  padding: 1px 5px;
-  border-radius: var(--radius-sm);
-}
-
-/* The backend badge stays monospace: it names a component of the engine. */
-wa-badge.backend {
-  font-family: var(--mono);
-}
-
-wa-badge.backend::part(badge) {
-  font-size: 9.5px;
-  font-weight: 500;
-  letter-spacing: 0;
-  text-transform: none;
+.examples-select:hover::part(combobox),
+.examples-select:focus-within::part(combobox) {
+  border-bottom-color: var(--text);
 }
 
 wa-spinner {
-  width: 11px;
-  height: 11px;
-  font-size: 11px;
+  width: 10px;
+  height: 10px;
+  font-size: 10px;
   vertical-align: -1px;
 }
 
 /* =========================================================================
-   Layout
+   Topbar
    ========================================================================= */
 
 .topbar {
   display: flex;
   align-items: center;
   gap: 14px;
-  padding: 7px 12px;
+  padding: 6px 12px;
   background: var(--panel);
   border-bottom: 1px solid var(--border);
   flex: 0 0 auto;
+  min-height: 36px;
 }
 
 .brand {
   display: flex;
-  align-items: center;
-  gap: 10px;
+  align-items: baseline;
   min-width: 0;
 }
 
 .brand-text {
   display: flex;
   align-items: baseline;
-  gap: 8px;
+  gap: 9px;
 }
 
 .brand-text h1 {
   margin: 0;
-  font-size: 13.5px;
+  font-size: 12.5px;
   font-weight: 700;
-  letter-spacing: 0.3px;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
 }
 
 .brand-text p {
   margin: 0;
-  font-size: 11px;
+  font-size: 10px;
   color: var(--muted-dim);
+  letter-spacing: 0.2px;
 }
 
 .verdict-block {
   margin-left: auto;
   display: flex;
   align-items: baseline;
-  gap: 9px;
+  gap: 10px;
   min-width: 0;
 }
 
+/* A rail and a word, in the same language as the auditor's margin.  The
+   rail carries the status, so the palette stays quiet: green appears here and
+   nowhere else, which is what lets red land when it does. */
 .verdict {
-  font-size: 11.5px;
+  font-family: var(--font-mono);
+  font-size: 11px;
   font-weight: 700;
-  letter-spacing: 0.5px;
-  padding: 3px 9px;
-  border-radius: 999px;
-  border: 1px solid transparent;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  padding: 2px 0 2px 8px;
+  border-left: 2px solid var(--muted-dim);
   white-space: nowrap;
 }
 
 .verdict--idle {
   color: var(--muted);
-  border-color: var(--border);
-  background: var(--panel-2);
+  border-left-color: var(--border);
 }
 
 .verdict--valid {
   color: var(--valid);
-  border-color: color-mix(in oklab, var(--valid) 40%, transparent);
-  background: var(--valid-bg);
+  border-left-color: var(--valid);
 }
 
 .verdict--warning {
   color: var(--warning);
-  border-color: color-mix(in oklab, var(--warning) 40%, transparent);
-  background: var(--warning-bg);
+  border-left-color: var(--warning);
 }
 
 .verdict--invalid,
 .verdict--parse-error {
   color: var(--invalid);
-  border-color: color-mix(in oklab, var(--invalid) 45%, transparent);
-  background: var(--invalid-bg);
+  border-left-color: var(--invalid);
 }
 
 .verdict--pending {
   color: var(--accent);
-  border-color: color-mix(in oklab, var(--accent) 40%, transparent);
-  background: var(--accent-bg);
+  border-left-color: var(--accent);
 }
 
 /* An edit has landed and the debounced re-check has not answered yet, so the
    verdict on screen describes the previous buffer. */
 .verdict.is-stale {
-  opacity: 0.5;
+  opacity: 0.45;
 }
 
 .verdict-meta {
-  font-size: 11px;
+  font-size: 10px;
   color: var(--muted-dim);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
 
+/* =========================================================================
+   Layout
+   ========================================================================= */
+
 .layout {
   flex: 1 1 auto;
   min-height: 0;
   display: grid;
-  grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr) minmax(0, 0.9fr);
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr) minmax(0, 0.85fr);
   gap: 1px;
   background: var(--border);
 }
@@ -413,22 +480,23 @@ wa-spinner {
   min-width: 0;
 }
 
+/* Flat.  The head is a label and a rule, with no fill of its own, so the only
+   strong horizontal line in a pane is the one under its title. */
 .pane-head {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 5px 10px;
+  padding: 5px 12px;
   border-bottom: 1px solid var(--border);
-  background: var(--panel);
   flex: 0 0 auto;
-  min-height: 34px;
+  min-height: 30px;
 }
 
 .pane-head h2 {
   margin: 0;
-  font-size: 10px;
+  font-size: 9.5px;
   font-weight: 700;
-  letter-spacing: 0.9px;
+  letter-spacing: 1.3px;
   text-transform: uppercase;
   color: var(--muted);
   white-space: nowrap;
@@ -436,7 +504,7 @@ wa-spinner {
 
 .pane-note {
   margin: 0 0 0 auto;
-  font-size: 10.5px;
+  font-size: 10px;
   color: var(--muted-dim);
   white-space: nowrap;
   overflow: hidden;
@@ -447,7 +515,7 @@ wa-spinner {
   margin-left: auto;
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 3px;
 }
 
 .scroll {
@@ -457,24 +525,23 @@ wa-spinner {
 }
 
 kbd {
-  font-family: var(--mono);
-  font-size: 9.5px;
+  font-family: var(--font-mono);
+  font-size: 9px;
   line-height: 1;
-  padding: 2px 4px;
+  padding: 1px 3px;
   border: 1px solid var(--border);
   border-bottom-width: 2px;
-  border-radius: 3px;
+  border-radius: 2px;
   background: var(--panel-3);
   color: var(--muted);
 }
 
 .blurb {
   margin: 0;
-  padding: 5px 10px;
-  font-size: 11px;
+  padding: 5px 12px;
+  font-size: 10.5px;
   color: var(--muted);
-  background: var(--panel-2);
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid var(--hairline);
   flex: 0 0 auto;
   white-space: nowrap;
   overflow: hidden;
@@ -506,55 +573,85 @@ kbd {
 
 /* =========================================================================
    Auditor
+
+   No cards.  Each row is a line number in the margin, the statement, and its
+   status set as type on the right; the only rules are hairlines, and the only
+   rails belong to steps that failed -- or that rest on one that did.
    ========================================================================= */
 
 .audit {
-  padding: 7px;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
+  padding: 0;
 }
 
 .report-group {
-  margin-bottom: 1px;
+  margin: 0;
 }
 
 .report-header {
   display: flex;
-  align-items: center;
-  gap: 7px;
-  padding: 3px 5px 5px;
-  font-size: 10.5px;
-  color: var(--muted);
+  align-items: baseline;
+  gap: 8px;
+  padding: 9px 12px 6px;
+  font-size: 10px;
+  color: var(--muted-dim);
+  border-bottom: 1px solid var(--hairline);
 }
 
 .report-header .report-name {
-  font-family: var(--mono);
   color: var(--text);
   font-weight: 600;
 }
 
 .report-verdict {
   margin-left: auto;
-  font-size: 10px;
-  letter-spacing: 0.3px;
+  font-size: 9.5px;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
   color: var(--muted-dim);
 }
 
 .step {
-  display: block;
+  position: relative;
+  display: grid;
+  grid-template-columns: 22px minmax(0, 1fr);
+  gap: 11px;
   width: 100%;
   text-align: left;
   font: inherit;
   color: inherit;
   cursor: pointer;
-  background: var(--panel);
-  border: 1px solid var(--border);
-  border-left: 3px solid var(--muted-dim);
-  border-radius: var(--radius-sm);
-  padding: 6px 9px;
-  margin-bottom: 4px;
-  transition: background 0.12s ease, border-color 0.12s ease;
+  background: none;
+  border: 0;
+  border-bottom: 1px solid var(--hairline);
+  border-radius: 0;
+  padding: 8px 12px 8px 14px;
+  transition: background 0.1s ease;
+}
+
+/* The entailment rule.  Rows are flush, so consecutive rails read as one
+   continuous line down the margin. */
+.step::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 2px;
+  background: transparent;
+}
+
+.step--warning::before {
+  background: var(--warning);
+}
+
+.step--invalid::before {
+  background: var(--invalid);
+}
+
+/* Everything below the break is suspect: it was justified by a step that did
+   not hold.  Still marked, but quieter than the break itself. */
+.step.is-downstream::before {
+  background: color-mix(in oklab, var(--invalid) 30%, transparent);
 }
 
 .step:hover {
@@ -563,92 +660,118 @@ kbd {
 
 .step:focus-visible {
   outline: 2px solid var(--accent);
-  outline-offset: 1px;
+  outline-offset: -2px;
 }
 
+/* Selection is a ring, not a fill or a rail, so it can never be confused with
+   a status -- and never covers one up. */
 .step.is-selected {
-  background: var(--panel-3);
-  border-color: var(--selected-border);
-  box-shadow: 0 0 0 1px var(--selected-ring);
-}
-
-.step--valid {
-  border-left-color: var(--valid);
-}
-
-.step--warning {
-  border-left-color: var(--warning);
-}
-
-.step--invalid {
-  border-left-color: var(--invalid);
-}
-
-.step-top {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  margin-bottom: 4px;
-  flex-wrap: wrap;
+  background: var(--panel-2);
+  box-shadow: inset 0 0 0 1px var(--selected-ring);
 }
 
 .step-line {
-  font-family: var(--mono);
-  font-size: 10px;
-  color: var(--muted);
-  background: var(--panel-3);
-  border-radius: 3px;
-  padding: 1px 5px;
+  font-size: 10.5px;
+  color: var(--muted-dim);
+  text-align: right;
   font-variant-numeric: tabular-nums;
+  padding-top: 1px;
 }
 
-.depth {
-  font-size: 9.5px;
-  color: var(--muted-dim);
+.step-body {
+  min-width: 0;
+}
+
+.step-head {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
 }
 
 .step-statement {
-  display: block;
-  font-family: var(--mono);
-  font-size: 12px;
-  line-height: 1.4;
+  flex: 1 1 auto;
+  min-width: 0;
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  line-height: 1.45;
   color: var(--text);
   word-break: break-word;
   white-space: pre-wrap;
 }
 
+.step-meta {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: baseline;
+  gap: 5px;
+  font-size: 9.5px;
+  letter-spacing: 0.4px;
+  white-space: nowrap;
+}
+
+.status {
+  text-transform: uppercase;
+  letter-spacing: 0.7px;
+}
+
+/* A step that held is not news. */
+.status--valid {
+  color: var(--muted-dim);
+  font-weight: 400;
+}
+
+.status--warning {
+  color: var(--warning);
+  font-weight: 700;
+}
+
+.status--invalid {
+  color: var(--invalid);
+  font-weight: 700;
+}
+
+.meta-sep {
+  color: var(--muted-dim);
+  opacity: 0.45;
+}
+
+.backend,
+.depth {
+  color: var(--muted-dim);
+}
+
 .step-message {
   margin: 4px 0 0;
-  font-size: 11px;
-  line-height: 1.4;
+  font-size: 11.5px;
+  line-height: 1.5;
   color: var(--muted);
   word-break: break-word;
 }
 
 .note {
-  margin: 5px 0 0;
+  margin: 6px 0 0;
   font-size: 11px;
-  line-height: 1.4;
+  line-height: 1.45;
   border-radius: var(--radius-sm);
-  padding: 5px 7px;
+  padding: 5px 8px;
   word-break: break-word;
 }
 
 .note--counterexample {
   color: var(--note-cex-text);
   background: var(--invalid-bg);
-  border: 1px solid color-mix(in oklab, var(--invalid) 55%, transparent);
+  border-left: 2px solid var(--invalid);
 }
 
 .note--domain {
   color: var(--note-dom-text);
   background: var(--warning-bg);
-  border: 1px solid color-mix(in oklab, var(--warning) 55%, transparent);
+  border-left: 2px solid var(--warning);
 }
 
 .note-label {
   font-weight: 700;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.9px;
   text-transform: uppercase;
   font-size: 9px;
   display: block;
@@ -660,33 +783,32 @@ kbd {
    ========================================================================= */
 
 .context {
-  padding: 10px 11px;
+  padding: 10px 12px;
 }
 
 .ctx-empty {
   color: var(--muted-dim);
   font-size: 11.5px;
-  line-height: 1.5;
+  line-height: 1.55;
 }
 
 .ctx-title {
-  font-family: var(--mono);
   font-size: 12px;
   color: var(--text);
-  margin: 0 0 8px;
+  margin: 0 0 9px;
   word-break: break-word;
   line-height: 1.45;
 }
 
 .ctx-section {
-  margin-bottom: 12px;
+  margin-bottom: 13px;
 }
 
 .ctx-section h3 {
-  margin: 0 0 5px;
+  margin: 0 0 6px;
   font-size: 9.5px;
   font-weight: 700;
-  letter-spacing: 0.8px;
+  letter-spacing: 1px;
   text-transform: uppercase;
   color: var(--muted-dim);
 }
@@ -698,11 +820,9 @@ kbd {
 }
 
 .chip {
-  font-family: var(--mono);
   font-size: 11px;
   padding: 2px 6px;
   border-radius: var(--radius-sm);
-  background: var(--panel-2);
   border: 1px solid var(--border);
   color: var(--text);
 }
@@ -721,32 +841,32 @@ kbd {
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: 2px;
 }
 
 .ctx-list li {
-  font-family: var(--mono);
   font-size: 11px;
-  line-height: 1.45;
-  padding: 4px 7px;
+  line-height: 1.5;
+  padding: 3px 7px;
   border-radius: var(--radius-sm);
+  border-left: 2px solid var(--hairline);
   background: var(--panel-2);
-  border: 1px solid var(--border);
   word-break: break-word;
 }
 
+/* Not italic: the vendored subsets ship no italic file, and a synthesised
+   slant on a monospace face looks like a rendering fault. */
 .ctx-none {
-  font-size: 11px;
+  font-size: 11.5px;
   color: var(--muted-dim);
-  font-style: italic;
 }
 
 .ctx-facts {
   display: grid;
   grid-template-columns: auto 1fr;
-  gap: 2px 9px;
+  gap: 2px 10px;
   font-size: 11px;
-  margin-bottom: 11px;
+  margin-bottom: 12px;
 }
 
 .ctx-facts dt {
@@ -755,7 +875,6 @@ kbd {
 
 .ctx-facts dd {
   margin: 0;
-  font-family: var(--mono);
   color: var(--text);
 }
 
@@ -764,22 +883,20 @@ kbd {
    ========================================================================= */
 
 .parse-error {
-  border: 1px solid color-mix(in oklab, var(--invalid) 45%, transparent);
+  border-left: 2px solid var(--invalid);
   background: var(--invalid-bg);
-  border-radius: var(--radius-sm);
   padding: 10px 12px;
 }
 
 .parse-error h3 {
   margin: 0 0 5px;
-  font-size: 10.5px;
-  letter-spacing: 0.7px;
+  font-size: 9.5px;
+  letter-spacing: 1px;
   text-transform: uppercase;
   color: var(--invalid);
 }
 
 .parse-error .location {
-  font-family: var(--mono);
   font-size: 11.5px;
   color: var(--danger-text);
   margin-bottom: 7px;
@@ -787,7 +904,7 @@ kbd {
 
 .parse-error pre {
   margin: 0;
-  font-family: var(--mono);
+  font-family: var(--font-mono);
   font-size: 10.5px;
   line-height: 1.5;
   color: var(--muted);
@@ -801,7 +918,7 @@ kbd {
   color: var(--muted-dim);
   font-size: 11.5px;
   padding: 12px;
-  line-height: 1.5;
+  line-height: 1.55;
 }
 
 /* =========================================================================
@@ -809,35 +926,33 @@ kbd {
    ========================================================================= */
 
 .pane--editor {
-  /* Anchors the drop overlay. */
   position: relative;
 }
 
 #history-panel {
   display: block;
-  width: 330px;
+  width: 320px;
   max-width: calc(100vw - 28px);
   max-height: min(70vh, 520px);
   overflow: auto;
   padding: 10px;
-  background: var(--panel);
+  background: var(--bg);
   border: 1px solid var(--border);
-  border-radius: var(--radius);
-  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.24);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.2);
 }
 
 .history-head {
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-bottom: 8px;
+  margin-bottom: 9px;
 }
 
 .history-head h3 {
   margin: 0;
-  font-size: 10.5px;
+  font-size: 9.5px;
   font-weight: 700;
-  letter-spacing: 0.8px;
+  letter-spacing: 1px;
   text-transform: uppercase;
   color: var(--muted);
 }
@@ -847,14 +962,14 @@ kbd {
 }
 
 .history-block {
-  margin-bottom: 11px;
+  margin-bottom: 12px;
 }
 
 .history-block h4 {
   margin: 0 0 5px;
-  font-size: 9.5px;
+  font-size: 9px;
   font-weight: 700;
-  letter-spacing: 0.7px;
+  letter-spacing: 0.9px;
   text-transform: uppercase;
   color: var(--muted-dim);
 }
@@ -873,15 +988,12 @@ kbd {
 .tl-strip {
   display: flex;
   gap: 2px;
-  height: 18px;
-  border-radius: var(--radius-sm);
+  height: 14px;
   overflow: hidden;
-  background: var(--panel-3);
 }
 
 .tl-bar {
   min-width: 3px;
-  border-radius: 1px;
 }
 
 .tl-bar--valid {
@@ -903,7 +1015,7 @@ kbd {
 .snapshots {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 3px;
 }
 
 .snapshot {
@@ -911,8 +1023,7 @@ kbd {
   align-items: center;
   gap: 7px;
   padding: 5px 7px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
+  border-left: 2px solid var(--hairline);
   background: var(--panel-2);
 }
 
@@ -947,8 +1058,8 @@ kbd {
   display: flex;
   flex-wrap: wrap;
   gap: 5px;
-  padding-top: 8px;
-  border-top: 1px solid var(--border);
+  padding-top: 9px;
+  border-top: 1px solid var(--hairline);
 }
 
 /* =========================================================================
@@ -964,10 +1075,9 @@ kbd {
   /* Must not swallow the drop event itself. */
   pointer-events: none;
   border: 2px dashed var(--accent);
-  border-radius: var(--radius);
   background: var(--accent-bg);
   color: var(--accent);
-  font-size: 12px;
+  font-size: 11.5px;
   font-weight: 600;
 }
 
@@ -992,26 +1102,27 @@ kbd {
 
 .dialog-options {
   display: flex;
-  align-items: center;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 6px 22px;
 }
 
 .latex-textarea {
   width: 100%;
   height: 200px;
-  font-family: var(--mono);
+  font-family: var(--font-mono);
   font-size: 11.5px;
-  line-height: 1.45;
+  line-height: 1.5;
   background: var(--bg);
   color: var(--text);
   border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
   padding: 8px;
   resize: vertical;
 }
 
 .latex-textarea:focus {
   outline: 2px solid var(--accent);
-  outline-offset: -1px;
+  outline-offset: -2px;
 }
 
 .dialog-actions {

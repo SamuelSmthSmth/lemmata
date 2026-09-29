@@ -37,6 +37,8 @@
     <link rel="stylesheet" href="/static/vendor/webawesome/styles/themes/default.css" />
     <link rel="stylesheet" href="/static/vendor/webawesome/styles/utilities/visually-hidden.css" />
     <link rel="stylesheet" href="/static/vendor/webawesome/styles/utilities/scroll-lock.css" />
+    <!-- Self-hosted JetBrains Mono (see ui/vendor_fonts.py). -->
+    <link rel="stylesheet" href="/static/fonts.css" />
     <link rel="stylesheet" href="/static/styles.css" />
   </head>
   <body>
@@ -68,17 +70,13 @@
         appearance="plain"
         aria-label="Switch between light and dark theme"
       >
-        <wa-icon class="icon icon--sun">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
-            <circle cx="12" cy="12" r="4"></circle>
-            <path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"></path>
-          </svg>
-        </wa-icon>
-        <wa-icon class="icon icon--moon">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"></path>
-          </svg>
-        </wa-icon>
+        <svg class="icon icon--sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+          <circle cx="12" cy="12" r="4"></circle>
+          <path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"></path>
+        </svg>
+        <svg class="icon icon--moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"></path>
+        </svg>
       </wa-button>
     </header>
 
@@ -102,14 +100,12 @@
               appearance="plain"
               aria-label="Export proof to LaTeX / PDF"
             >
-              <wa-icon class="icon">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                  <polyline points="14 2 14 8 20 8"></polyline>
-                  <line x1="16" y1="13" x2="8" y2="13"></line>
-                  <line x1="16" y1="17" x2="8" y2="17"></line>
-                </svg>
-              </wa-icon>
+              <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                <polyline points="14 2 14 8 20 8"></polyline>
+                <line x1="16" y1="13" x2="8" y2="13"></line>
+                <line x1="16" y1="17" x2="8" y2="17"></line>
+              </svg>
             </wa-button>
             <wa-tooltip for="export-latex" placement="bottom">Export to LaTeX / PDF</wa-tooltip>
 
@@ -120,12 +116,10 @@
               appearance="plain"
               aria-label="Download this proof as a .aether file"
             >
-              <wa-icon class="icon">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                  <path d="M12 3v12m0 0l4-4m-4 4l-4-4"></path>
-                  <path d="M4 20h16"></path>
-                </svg>
-              </wa-icon>
+              <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M12 3v12m0 0l4-4m-4 4l-4-4"></path>
+                <path d="M4 20h16"></path>
+              </svg>
             </wa-button>
             <wa-tooltip for="download-proof" placement="bottom">Download as .aether</wa-tooltip>
 
@@ -137,12 +131,10 @@
               aria-label="Workspace: history, snapshots and reset"
               aria-expanded="false"
             >
-              <wa-icon class="icon">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                  <circle cx="12" cy="12" r="8.5"></circle>
-                  <path d="M12 7.5V12l3 1.8"></path>
-                </svg>
-              </wa-icon>
+              <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <circle cx="12" cy="12" r="8.5"></circle>
+                <path d="M12 7.5V12l3 1.8"></path>
+              </svg>
             </wa-button>
             <wa-tooltip for="history-toggle" placement="bottom">Workspace</wa-tooltip>
 
@@ -162,11 +154,9 @@
                     appearance="plain"
                     aria-label="Close the workspace panel"
                   >
-                    <wa-icon class="icon">
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
-                        <path d="M6 6l12 12M18 6L6 18"></path>
-                      </svg>
-                    </wa-icon>
+                    <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+                      <path d="M6 6l12 12M18 6L6 18"></path>
+                    </svg>
                   </wa-button>
                 </div>
 
@@ -227,6 +217,11 @@
           <wa-switch id="latex-standalone" size="s" checked
             >Standalone document<span slot="hint"
               >Include preamble, \documentclass and packages</span
+            ></wa-switch
+          >
+          <wa-switch id="latex-breakdown" size="s" checked
+            >Verification breakdown<span slot="hint"
+              >Append the audit, proof state, session log and source listing</span
             ></wa-switch
           >
         </div>

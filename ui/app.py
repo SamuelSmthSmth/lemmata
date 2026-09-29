@@ -23,9 +23,10 @@ from fastapi.responses import FileResponse, Response, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
-from aether import ParseError, ProofChecker, ProofReport, export_to_latex
+from aether import ParseError, ProofChecker, ProofReport
 
 from .examples import EXAMPLES
+from .latex_report import export_report_latex
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
 
@@ -112,6 +113,14 @@ class ExampleModel(BaseModel):
 class LatexExportRequest(BaseModel):
     source: str = ""
     standalone: bool = True
+    strict_domains: bool = False
+    # Appending the verification report is what turns the export from a
+    # typeset proof into an audit of one; it can be turned off to get exactly
+    # the engine's own output.
+    breakdown: bool = True
+    # The workspace panel's timeline and snapshots live in the browser's local
+    # storage, so the client sends them if it wants them in the document.
+    session: Optional[dict[str, Any]] = None
 
 
 class LatexExportResponse(BaseModel):
@@ -278,7 +287,13 @@ def check_proof(request: CheckRequest) -> CheckResponse:
 async def export_latex(request: LatexExportRequest) -> LatexExportResponse:
     """Export proof source text to clean LaTeX markup."""
     try:
-        latex_code = export_to_latex(request.source, standalone=request.standalone)
+        latex_code = export_report_latex(
+            request.source,
+            strict_domains=request.strict_domains,
+            standalone=request.standalone,
+            breakdown=request.breakdown,
+            session=request.session,
+        )
         return LatexExportResponse(latex=latex_code)
     except ParseError as err:
         return LatexExportResponse(latex="", error=str(err.message))
@@ -288,6 +303,9 @@ async def export_latex(request: LatexExportRequest) -> LatexExportResponse:
 
 class PdfExportRequest(BaseModel):
     source: str = ""
+    strict_domains: bool = False
+    breakdown: bool = True
+    session: Optional[dict[str, Any]] = None
 
 
 @app.post("/api/export/pdf")
@@ -304,23 +322,33 @@ def export_pdf(request: PdfExportRequest) -> Response:
         )
 
     try:
-        tex_code = export_to_latex(request.source, standalone=True)
+        tex_code = export_report_latex(
+            request.source,
+            strict_domains=request.strict_domains,
+            standalone=True,
+            breakdown=request.breakdown,
+            session=request.session,
+        )
     except Exception as exc:
         return JSONResponse(status_code=400, content={"error": f"LaTeX generation failed: {exc}"})
 
     with tempfile.TemporaryDirectory() as td:
         tex_file = Path(td) / "proof.tex"
         tex_file.write_text(tex_code, encoding="utf-8")
-        try:
-            res = subprocess.run(
-                ["pdflatex", "-interaction=nonstopmode", "proof.tex"],
-                cwd=td,
-                capture_output=True,
-                text=True,
-                timeout=15,
-            )
-        except subprocess.TimeoutExpired:
-            return JSONResponse(status_code=504, content={"error": "PDF compilation timed out."})
+        # Two passes: longtable measures its columns on the first and lays them
+        # out on the second, so a single pass leaves the report's tables ragged.
+        res = None
+        for _ in range(2):
+            try:
+                res = subprocess.run(
+                    ["pdflatex", "-interaction=nonstopmode", "proof.tex"],
+                    cwd=td,
+                    capture_output=True,
+                    text=True,
+                    timeout=30,
+                )
+            except subprocess.TimeoutExpired:
+                return JSONResponse(status_code=504, content={"error": "PDF compilation timed out."})
 
         pdf_file = Path(td) / "proof.pdf"
         if not pdf_file.exists():

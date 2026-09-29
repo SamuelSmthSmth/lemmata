@@ -422,11 +422,18 @@ def run_checks() -> None:
     time.sleep(0.3)
     check(js("document.querySelectorAll('#snapshots .snapshot').length") == 0, "snapshots can be cleared")
 
-    # The panel overlays the top of the editor, so the edit goes through a line
-    # at the bottom -- clicking a covered line would just hit the panel.
+    # The panel is a dropdown and overlays the editor.  How far down it reaches
+    # depends on the type metrics and the panel's own content, so rather than
+    # hope a given line falls clear of it, close it for the edit and reopen it.
+    # The timeline and snapshot list are rendered from stored state, not from
+    # the popup being open, so nothing is missed by looking afterwards.
     before = timeline_checks()
+    ab("click", "#history-close")
+    time.sleep(0.3)
     append_to_line(11, " -- SNAP")
     state = settle()
+    ab("click", "#history-toggle")
+    time.sleep(0.3)
     after = timeline_checks()
     check(state["lines"][10].endswith("-- SNAP"), f"the edit landed ({state['lines'][10]!r})")
     check(after > before, f"the timeline records the check ({before} -> {after})")
