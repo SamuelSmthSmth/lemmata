@@ -389,8 +389,21 @@ Context & State pane show is therefore added by `ui/latex_report.py`, in the UI
 layer, rather than by reaching into `aether.core`. The engine proves; the UI
 reports.
 
-The generated document is the proof first, then, each starting on a fresh page
-under a hairline rule:
+That module renders the same facts in two presentations, selected by
+`export_report_latex(..., style=...)`:
+
+| Style | Used for | Look |
+| --- | --- | --- |
+| `plain` | the `.tex` a user downloads or copies, and `breakdown=false` | the sober `article` the engine's own exporter has always produced: a title block, then each report section on a fresh page |
+| `fancy` | the PDF the server compiles for the user | a site-matched document: topbar opening, journal proof, auditor step list, accent `#0a5fbf` |
+
+Only the PDF is designed. `ui/app.py` passes `style="fancy"` from
+`export_pdf` and `style="plain"` from `export_latex`, so the `.tex` stays the
+thing you can paste into a paper while the PDF is the thing you would be
+pleased to hand in.
+
+Both documents are the proof first, then, each starting on a fresh page under a
+hairline rule:
 
 | Section | Contents |
 | --- | --- |
@@ -398,6 +411,16 @@ under a hairline rule:
 | Proof State | what was in scope at each statement: scope depth, declared variables, active hypotheses and derived facts |
 | Session | the workspace panel's verdict timeline and snapshots, which live in `localStorage` and so are sent by the client |
 | Original Proof Source | the Aether source, verbatim |
+
+The designed document carries exactly the same facts and adds a closing
+`About` section. Its opening is a printed twin of the UI topbar: brand left,
+rail-and-word verdict right, the theorem as the hero title, then a tight mono
+meta strip — and the proof continues on the same page. The audit is not a
+spreadsheet: it is a vertical step list (left rail, line, statement, status,
+backend) with findings hanging under the failing step, matching the on-screen
+auditor. Proof state, session, source and about follow as back matter under
+hairline section labels. Colour follows the site light theme (`#0a5fbf`
+accent; green / amber / red only for status).
 
 Three consequences worth knowing:
 
@@ -413,3 +436,18 @@ Three consequences worth knowing:
 - **The breakdown is optional.** `breakdown=false` returns exactly what the
   engine's exporter produced before any of this existed, which is what the
   engine's own tests and the CLI still see.
+
+Two constraints the designed style has to live with, both recorded in
+`_FANCY_PREAMBLE`:
+
+- **No typeface but Computer Modern comes for free.** The `psnfss` packages
+  ship `.sty` files far more often than they ship usable metrics, and a
+  document that needs Palatino is a document that fails on a minimal TeX
+  installation, so the design leans on scale, colour, spacing and rule-work:
+  T1 (EC) for text, CM Sans for every label, CM Typewriter for code. A second
+  trap follows from the same place — EC has no bold-extended sans below 8pt, so
+  a bold sans label at 7.4pt sends pdfTeX after a bitmap that was never
+  generated and the run dies outright. Every bold label here is 8pt or larger.
+- **The opening is sized to share a page with the proof.** Brand, verdict,
+  theorem title and meta strip sit above the typeset proof; vertical gaps are
+  tuned so a short theorem does not leave a lonely cover page.

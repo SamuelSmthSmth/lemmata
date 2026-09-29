@@ -285,7 +285,12 @@ def check_proof(request: CheckRequest) -> CheckResponse:
 
 @app.post("/api/export/latex", response_model=LatexExportResponse)
 async def export_latex(request: LatexExportRequest) -> LatexExportResponse:
-    """Export proof source text to clean LaTeX markup."""
+    """Export proof source text to clean LaTeX markup.
+
+    This is the ``.tex`` a user takes away to edit, so it stays the plain
+    article presentation; the designed one is only used when Aether compiles
+    the document itself (see ``export_pdf``).
+    """
     try:
         latex_code = export_report_latex(
             request.source,
@@ -293,6 +298,7 @@ async def export_latex(request: LatexExportRequest) -> LatexExportResponse:
             standalone=request.standalone,
             breakdown=request.breakdown,
             session=request.session,
+            style="plain",
         )
         return LatexExportResponse(latex=latex_code)
     except ParseError as err:
@@ -322,12 +328,15 @@ def export_pdf(request: PdfExportRequest) -> Response:
         )
 
     try:
+        # The PDF is a finished document, so it gets the designed presentation:
+        # a site-matched layout with journal proof and auditor step list.
         tex_code = export_report_latex(
             request.source,
             strict_domains=request.strict_domains,
             standalone=True,
             breakdown=request.breakdown,
             session=request.session,
+            style="fancy",
         )
     except Exception as exc:
         return JSONResponse(status_code=400, content={"error": f"LaTeX generation failed: {exc}"})

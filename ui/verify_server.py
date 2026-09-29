@@ -22,6 +22,10 @@ ROOT = Path(__file__).resolve().parent
 PROJECT = ROOT.parent
 STATIC = ROOT / "static"
 
+sys.path.insert(0, str(PROJECT))
+
+from ui.latex_report import export_report_latex  # noqa: E402
+
 failures: list[str] = []
 
 
@@ -134,6 +138,31 @@ def main() -> int:
         check("\\begin{longtable}" in report, "report typesets its tables with longtable")
         check("Given n : Int" in report, "report includes the original source verbatim")
         check("MultipleOf" in report, "report quotes the canonical statements")
+
+        # The .tex is what a user takes away to edit, so it keeps the plain
+        # article presentation: nothing from the designed style may leak into
+        # it.  The designed style is generated directly here, because the PDF
+        # endpoint's own .tex is compiled away rather than returned.
+        for marker in ("\\aehead", "\\aeverdict", "\\begin{aestep}", "\\begin{aecode}"):
+            check(marker not in report, f"the .tex export stays plain (no {marker})")
+        check("\\aelabel" in report, "the .tex export keeps its own label macro")
+
+        print("== designed export style ==")
+        designed = export_report_latex(
+            by_id["even-square"]["source"],
+            standalone=True,
+            breakdown=True,
+            session={"timeline": [{"verdict": "VALID", "n": 2, "ts": 1759100000000}]},
+            style="fancy",
+        )
+        check("\\aeverdict{" in designed, "the designed style opens with a rail verdict")
+        check("\\begin{aestep}" in designed, "the designed style audits as step rows")
+        check("0A5FBF" in designed, "the designed style uses the site accent")
+        check("\\aesection{Auditor}" in designed, "the designed style has an auditor section")
+        check("\\aesection{Proof State}" in designed, "the designed style has a proof-state section")
+        check("\\aesection{About}" in designed, "the designed style closes with a legend")
+        check("Given n : Int" in designed, "the designed style includes the source verbatim")
+        check(designed.rstrip().endswith("\\end{document}"), "the designed style is a standalone document")
 
         print("== POST /api/export/latex (breakdown off) ==")
         _, _, body = server.request(
