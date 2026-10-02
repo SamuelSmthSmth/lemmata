@@ -631,26 +631,49 @@ Therefore P(x)
         assert report.is_valid, report.format_report()
 
     def test_an_opaque_function_says_so(self, checker: ProofChecker):
-        """Z3 has no theory of exp, so its 'counterexample' is not a real one."""
+        """Z3 knows exp only by its range, so its 'counterexample' may not be real.
+
+        `exp(x) >= 1 + x + x^2/2` holds for x >= 0, but needs more of exp than
+        the bounds the solver is given.
+        """
         src = """\
 Let x : Real
-Step: exp(x) > 0
+Assume h: x >= 0
+Step: exp(x) >= 1 + x + x^2 / 2
 """
         step = checker.check_source(src)[0].results[-1]
         assert step.status == StepStatus.INVALID
-        assert "no SMT interpretation" in step.message
+        assert "no SMT theory" in step.message
+
+    def test_the_solver_knows_the_range_of_exp_and_sin(self, checker: ProofChecker):
+        """True range facts are given to the solver, so routine bounds go through."""
+        src = """\
+Let x : Real
+Step: exp(x) > 0
+Step: |sin(x)| <= 1
+Step: cos(x) >= -1
+"""
+        report = checker.check_source(src)[0]
+        assert report.is_valid, report.format_report()
+
+    def test_range_facts_do_not_prove_false_bounds(self, checker: ProofChecker):
+        src = """\
+Let x : Real
+Step: exp(x) > 1
+"""
+        assert not checker.check_source(src)[0].is_valid
 
     def test_an_unimplemented_function_is_not_offered_a_lookalike(
         self, checker: ProofChecker
     ):
-        """`cot` is not a misspelling of `dot`, nor `asin` of `sin`.
+        """`arccot` is not a misspelling of `arccos`.
 
-        String distance alone suggested those, which points a reader at a
-        different function rather than at the problem.
+        String distance alone suggested lookalikes such as `cot` -> `dot`, which
+        points a reader at a different function rather than at the problem.
         """
         src = """\
 Let x : Real
-Step: cot(x) = cos(x) / sin(x)
+Step: arccot(x) = atan(1 / x)
 """
         message = checker.check_source(src)[0].results[-1].message
         assert "not a function the engine implements" in message

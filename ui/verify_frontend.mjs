@@ -159,21 +159,224 @@ check(
   Boolean(language.aetherLanguage?.parser) && language.aetherLanguage?.name === "aether",
   "aetherLanguage is not a usable StreamLanguage instance",
 );
-// The syntax colours are built from a palette editor.js resolves out of the
-// design tokens, so they cannot drift from the rest of the app.
-const stubPalette = {
-  keyword: "#000",
-  type: "#000",
-  ink: "#000",
-  operator: "#000",
-  glue: "#000",
-  string: "#000",
-  comment: "#000",
-};
+
+// --- 2b. the palette --------------------------------------------------------
+//
+// The colours are built from a palette editor.js resolves out of the design
+// tokens, so they cannot drift from the rest of the app.  Three files have to
+// agree about the key list -- aether-language.js, styles.css and editor.js --
+// and a mismatch in any of them shows up only as a token that is quietly not
+// coloured, so all three are checked against each other here.
+
+const PALETTE_KEYS = language.PALETTE_KEYS;
+check(Array.isArray(PALETTE_KEYS) && PALETTE_KEYS.length >= 10, "PALETTE_KEYS is missing or short");
+
+const stubPalette = Object.fromEntries(PALETTE_KEYS.map((key) => [key, "#000"]));
 check(
   typeof language.makeHighlightStyle === "function" &&
     Boolean(language.makeHighlightStyle(stubPalette)),
   "makeHighlightStyle must build a syntax style from a resolved palette",
+);
+
+const stylesCss = readFileSync(new URL("styles.css", STATIC), "utf8");
+const editorJs = readFileSync(new URL("js/editor.js", STATIC), "utf8");
+// Comments are stripped before any rule is parsed: several of them contain
+// braces and semicolons (\mathbb{N} and `grid-template-areas: "a b c";` both
+// appear in prose), and a naive scan would end the wrong rule at the wrong
+// character.
+const stylesCssCode = stylesCss.replace(/\/\*[\s\S]*?\*\//g, " ");
+
+for (const key of PALETTE_KEYS) {
+  const variable = language.tokenVariable(key);
+  check(
+    stylesCss.includes(`${variable}:`),
+    `styles.css defines no ${variable} for the ${key} palette key`,
+  );
+  check(
+    editorJs.includes(`"${variable}"`),
+    `js/editor.js does not resolve ${variable}, so ${key} would fall back to a literal`,
+  );
+}
+
+/** The body of the first rule whose selector contains `needle`. */
+function ruleBody(needle) {
+  const start = stylesCssCode.indexOf(needle);
+  if (start === -1) return null;
+  const open = stylesCssCode.indexOf("{", start);
+  const close = stylesCssCode.indexOf("}", open);
+  if (open === -1 || close === -1) return null;
+  return stylesCssCode.slice(open + 1, close);
+}
+
+// The vivid scheme is the point of the toggle: if its hues ever collapse onto
+// one another it stops being vivid, and nothing else would notice.
+for (const selector of [
+  ':root[data-syntax="vivid"]',
+  ':root[data-theme="dark"][data-syntax="vivid"]',
+]) {
+  const body = ruleBody(selector);
+  if (!check(body !== null, `styles.css has no ${selector} rule`)) continue;
+
+  const colours = new Set();
+  for (const key of PALETTE_KEYS) {
+    const variable = language.tokenVariable(key);
+    const match = body.match(new RegExp(`${variable}\\s*:\\s*(#[0-9a-fA-F]{3,8})`));
+    if (!check(match, `${selector} does not set ${variable} to a hex colour`)) continue;
+    colours.add(match[1].toLowerCase());
+  }
+
+  // A few keys are deliberately quiet (glue words, comments, plain ink), so the
+  // bar is "clearly more than one hue" rather than "all distinct".
+  check(
+    colours.size >= 8,
+    `${selector} uses only ${colours.size} distinct colours across ${PALETTE_KEYS.length} keys -- not vivid`,
+  );
+}
+
+// ...and the mono scheme is the quiet one it claims to be.  Its values are
+// declared in the app's own :root block -- the one that defines --font-mono --
+// where each key aliases the palette rather than naming a hue of its own.
+// The search has to be scoped: the vivid overrides come *before* that block in
+// the file, since a rule with an attribute selector outranks a bare :root
+// wherever it sits.
+{
+  const baseStart = stylesCssCode.indexOf("--font-mono:");
+  const baseEnd = stylesCssCode.indexOf("\n}", baseStart);
+  const base = baseStart === -1 ? "" : stylesCssCode.slice(baseStart, baseEnd);
+  const values = new Set();
+  for (const key of PALETTE_KEYS) {
+    const variable = language.tokenVariable(key);
+    const match = base.match(new RegExp(`${variable}\\s*:\\s*([^;]+);`));
+    if (!check(match, `the mono :root block defines no default for ${variable}`)) continue;
+    const value = match[1].trim();
+    values.add(value);
+    check(
+      value.startsWith("var("),
+      `the default ${variable} is the literal ${value}; mono should follow the palette`,
+    );
+  }
+  check(values.size <= 4, `the mono scheme uses ${values.size} distinct values -- it should stay quiet`);
+}
+
+// --- 2c. panel arrangements -------------------------------------------------
+//
+// layout.js keeps its pure half free of the DOM so it can be loaded here; only
+// the interaction wiring needs a browser (ui/verify_browser.py covers that).
+// The one thing the two halves cannot check about each other is the CSS, so
+// every arrangement id is matched against a [data-layout] rule, and each of
+// those rules is required to use all three slot names.
+
+const layoutModule = await moduleAt("js/layout.js");
+const { ARRANGEMENTS, DEFAULT_ORDER, SLOTS, layout, layoutApi } = layoutModule;
+
+check(ARRANGEMENTS.length >= 4, `expected at least four arrangements, found ${ARRANGEMENTS.length}`);
+check(
+  new Set(ARRANGEMENTS.map((a) => a.id)).size === ARRANGEMENTS.length,
+  "arrangement ids are not unique",
+);
+for (const arrangement of ARRANGEMENTS) {
+  check(
+    Boolean(arrangement.label) && Boolean(arrangement.hint),
+    `arrangement ${arrangement.id} is missing a label or a hint`,
+  );
+  check(
+    layoutModule.isArrangement(arrangement.id) && !layoutModule.isArrangement("nope"),
+    `isArrangement disagrees about ${arrangement.id}`,
+  );
+
+  const body = ruleBody(`[data-layout="${arrangement.id}"]`);
+  if (!check(body !== null, `styles.css has no [data-layout="${arrangement.id}"] rule`)) continue;
+
+  const letters = new Set();
+  for (const [, areas] of body.matchAll(/grid-template-areas:\s*([^;]+);/g)) {
+    for (const [, name] of areas.matchAll(/"([^"]*)"/g)) {
+      for (const letter of name.split(/\s+/).filter(Boolean)) letters.add(letter);
+    }
+  }
+  check(
+    letters.size === SLOTS.length && SLOTS.every((slot) => letters.has(slot)),
+    `[data-layout="${arrangement.id}"] places ${[...letters].join(",") || "nothing"} rather than every slot`,
+  );
+}
+
+check(
+  SLOTS.length === DEFAULT_ORDER.length,
+  `${SLOTS.length} slots for ${DEFAULT_ORDER.length} panes`,
+);
+for (const slot of SLOTS) {
+  check(
+    stylesCss.includes(`.pane[data-slot="${slot}"]`) || stylesCss.includes(`.pane[data-slot]`),
+    `styles.css has no rule for slot ${slot}`,
+  );
+}
+
+// Storage is user-editable and outlives upgrades, so normalization has to
+// repair it rather than trust it.
+const repaired = layoutModule.normalizeLayout({
+  arrangement: "sideways",
+  order: ["context", "ghost", "context"],
+});
+check(
+  repaired.arrangement === ARRANGEMENTS[0].id,
+  `an unknown arrangement became ${repaired.arrangement}`,
+);
+check(
+  JSON.stringify(repaired.order) === JSON.stringify(["context", "editor", "audit"]),
+  `a damaged order was repaired to ${repaired.order.join(",")}`,
+);
+check(
+  JSON.stringify(layoutModule.normalizeLayout(null).order) === JSON.stringify(DEFAULT_ORDER),
+  "an empty store did not fall back to the default order",
+);
+
+// Swapping is symmetric and ignores nonsense.
+check(
+  JSON.stringify(layoutModule.swapInOrder(DEFAULT_ORDER, "editor", "context")) ===
+    JSON.stringify(["context", "audit", "editor"]),
+  "swapInOrder did not swap the two panes",
+);
+check(
+  layoutModule.swapInOrder(DEFAULT_ORDER, "editor", "editor") === DEFAULT_ORDER &&
+    layoutModule.swapInOrder(DEFAULT_ORDER, "editor", "ghost") === DEFAULT_ORDER,
+  "swapInOrder changed something for a no-op swap",
+);
+
+// Moving clamps at the ends instead of wrapping.
+check(
+  layoutModule.moveInOrder(DEFAULT_ORDER, "editor", -1) === DEFAULT_ORDER,
+  "moveInOrder moved the first pane off the front",
+);
+check(
+  JSON.stringify(layoutModule.moveInOrder(DEFAULT_ORDER, "editor", 2)) ===
+    JSON.stringify(["audit", "context", "editor"]),
+  "moveInOrder did not carry a pane to the end",
+);
+check(
+  JSON.stringify(layoutModule.moveInOrder(DEFAULT_ORDER, "context", -1)) ===
+    JSON.stringify(["editor", "context", "audit"]),
+  "moveInOrder did not move a pane one slot back",
+);
+check(
+  layoutModule.moveInOrder(DEFAULT_ORDER, "editor", 0) === DEFAULT_ORDER,
+  "a zero-length move returned a new order",
+);
+
+check(
+  layout.arrangement === ARRANGEMENTS[0].id &&
+    JSON.stringify(layoutApi.current.order) === JSON.stringify(DEFAULT_ORDER),
+  `a fresh session did not start on ${ARRANGEMENTS[0].id}`,
+);
+
+// The controls layout.js looks for must exist, since it bails silently when
+// they do not.
+const indexHtml = readFileSync(new URL("index.html", STATIC), "utf8");
+for (const id of ["layout-toggle", "layout-popup", "layout-options", "syntax-toggle"]) {
+  check(indexHtml.includes(`id="${id}"`), `index.html has no #${id}`);
+}
+check(indexHtml.includes('class="layout"'), "index.html has no main.layout grid");
+check(
+  /aether-syntax/.test(indexHtml),
+  "index.html does not resolve the syntax scheme before first paint",
 );
 
 // --- 3. tokenizer -----------------------------------------------------------
@@ -254,6 +457,35 @@ const CASES = [
   { line: "    Base case n = 0:", want: ["structure:Base case", "variableName:n", "operator:=", "number:0", "operator::"] },
   { line: "    Inductive step:", want: ["structure:Inductive step", "operator::"] },
   { line: "    QED", want: ["structure:QED"] },
+  // Math functions are call-shaped, so they get their own token rather than
+  // sharing the introduction keywords -- the vivid scheme colours them apart.
+  {
+    line: "    Step: sqrt(x) >= 0",
+    want: [
+      "intro:Step",
+      "operator::",
+      "mathFn:sqrt",
+      "operator:(",
+      "variableName:x",
+      "operator:)",
+      "operator:>=",
+      "number:0",
+    ],
+  },
+  {
+    // The escapes the grammar accepts (\\mathbb{N}, \\epsilon) are macros; the
+    // bare capital that follows is still a type name.
+    line: "    Given n : \\mathbb{N}",
+    want: [
+      "intro:Given",
+      "variableName:n",
+      "operator::",
+      "macro:\\mathbb",
+      "operator:{",
+      "typeName:N",
+      "operator:}",
+    ],
+  },
 ];
 
 console.log("tokenizer output");

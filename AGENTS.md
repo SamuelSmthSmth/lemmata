@@ -133,3 +133,23 @@ The UI should expose the full capabilities of the Aether engine to the user. It 
    - **Declared Variables & Types** (`result.active_variables`, e.g., `n : Int`, `x : Real`).
    - **Active Hypotheses & Derived Facts** (`result.active_hypotheses`, e.g., `h1: Even(n)`, `n = (2 * k)`).
    - **Scope Depth** (`result.scope_depth`).
+
+---
+
+## 5. Verification & Tooling
+
+Every claim this repo makes is checked by a script you can run yourself:
+
+| Command | What it guards |
+| :--- | :--- |
+| `uv run pytest -q` | the engine (never imports `ui/`) |
+| `uv run python tests/lecture_notes/run_corpus.py [filter] [-v]` | the MTH2008 / MTH2010 lecture-note corpora (also part of `pytest`), one process per entry under a wall-clock budget, with full reports for anything off |
+| `uv run python ui/verify_examples.py` | each bundled example still produces the verdict its blurb advertises |
+| `uv run python ui/verify_capabilities.py` | the CNL capability matrix listed in `USER_GUIDE.md` — and that the table published there still matches the pins; `--markdown` prints it as the doc table, and every snippet runs under a wall-clock budget (`--budget`, 10s) because Z3's soft `timeout` is not enforceable in-process |
+| `uv run python ui/verify_server.py` | the HTTP API, both export styles, the vendored asset graph |
+| `node ui/verify_frontend.mjs` | the CodeMirror tokenizer and the frontend module graph |
+| `uv run python ui/verify_browser.py` | real-browser behaviour (keybindings, round-trip, panels, theme) |
+
+For ad-hoc browser work — screenshots, accessibility audits, HARs, layout diffs —
+see `TOOLING.md`: what the `agent-browser` CLI can do, its argument-order and
+session footguns, and the recipes this repo uses to verify the UI.

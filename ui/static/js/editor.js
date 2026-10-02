@@ -45,12 +45,20 @@ function palette() {
     tooltipBg: token("--cm-tooltip-bg", "#ffffff"),
     tooltipBorder: token("--cm-tooltip-border", "#dfe3e8"),
     fontMono: token("--font-mono", 'ui-monospace, SFMono-Regular, Menlo, monospace'),
-    // Syntax. See makeHighlightStyle in aether-language.js.
-    keyword: token("--cm-token-keyword", "#0a5fbf"),
+    // Syntax. Two schemes share this vocabulary -- "mono" (the default) points
+    // every key at the palette's own two inks, "vivid" gives each category its
+    // own hue. See makeHighlightStyle in aether-language.js.
+    structure: token("--cm-token-structure", "#0a5fbf"),
+    intro: token("--cm-token-intro", "#0a5fbf"),
+    flow: token("--cm-token-flow", "#0a5fbf"),
+    join: token("--cm-token-join", "#8b929c"),
+    logic: token("--cm-token-logic", "#0a5fbf"),
+    mathFn: token("--cm-token-math-fn", "#0a5fbf"),
+    macro: token("--cm-token-macro", "#16181d"),
     type: token("--cm-token-type", "#16181d"),
     ink: token("--cm-token-ink", "#16181d"),
+    number: token("--cm-token-number", "#16181d"),
     operator: token("--cm-token-operator", "#646b78"),
-    glue: token("--cm-token-glue", "#8b929c"),
     string: token("--cm-token-string", "#646b78"),
     comment: token("--cm-token-comment", "#8b929c"),
   };
@@ -95,7 +103,9 @@ function editorTheme(name, p) {
 }
 
 // The theme and its syntax colours are built from one resolved palette and
-// swapped together through a Compartment, so they can never disagree.
+// swapped together through a Compartment, so they can never disagree.  Both
+// attributes are read from the document, so this needs no arguments: switch
+// either one and call it again.
 function themeExtensions(name) {
   const p = palette();
   return [editorTheme(name, p), syntaxHighlighting(makeHighlightStyle(p))];
@@ -104,6 +114,12 @@ function themeExtensions(name) {
 // Resolved before first paint by the inline script in index.html.
 export function currentTheme() {
   return document.documentElement.dataset.theme === "light" ? "light" : "dark";
+}
+
+// Also resolved before first paint. "mono" is the quiet default; "vivid" is
+// the opt-in multi-hue scheme.
+export function currentSyntax() {
+  return document.documentElement.dataset.syntax === "vivid" ? "vivid" : "mono";
 }
 
 // ---------------------------------------------------------------------------
@@ -223,6 +239,13 @@ export function createEditor({ parent, onDocChanged, onSelectionMoved }) {
 
     setTheme(name) {
       view.dispatch({ effects: themeCompartment.reconfigure(themeExtensions(name)) });
+    },
+
+    // The colours themselves live in CSS (see the --cm-token-* blocks in
+    // styles.css), switched by [data-syntax]; all this has to do is rebuild the
+    // highlight style so CodeMirror picks the new values up.
+    setSyntax() {
+      view.dispatch({ effects: themeCompartment.reconfigure(themeExtensions(currentTheme())) });
     },
   };
 }

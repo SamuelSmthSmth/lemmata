@@ -28,6 +28,50 @@ def _tok(token) -> str:
     return str(token).strip()
 
 
+# Unicode spellings, as they appear in typeset notes, mapped onto the ASCII
+# operator each backend already understands.  Normalising here keeps the AST
+# (and every `str(node)`) in one spelling, whichever the student typed.
+_UNICODE_OPS: dict[str, str] = {
+    "≤": "<=", "≥": ">=", "≠": "!=", "≡": "\\equiv",
+    "∈": "in", "∉": "notin", "⊂": "subset", "⊆": "subseteq",
+    "−": "-", "∪": "\\cup", "·": "*", "×": "*", "\\times": "*", "∩": "\\cap", "∘": "\\circ",
+    "⇔": "<=>", "⟺": "<=>", "↔": "<=>", "⇒": "=>", "⟹": "=>",
+    "∨": "or", "∧": "and", "¬": "not",
+}
+
+
+def _op(token) -> str:
+    """The canonical spelling of an operator token."""
+    raw = _tok(token)
+    return _UNICODE_OPS.get(raw, raw)
+
+
+_UNICODE_GREEK: dict[str, str] = {
+    "α": "alpha", "β": "beta", "γ": "gamma", "δ": "delta", "ε": "epsilon", "ϵ": "epsilon",
+    "ζ": "zeta", "η": "eta", "θ": "theta", "ι": "iota", "κ": "kappa", "λ": "lambda",
+    "μ": "mu", "ν": "nu", "ξ": "xi", "ο": "omicron", "π": "pi", "ρ": "rho", "ς": "sigma",
+    "σ": "sigma", "τ": "tau", "υ": "upsilon", "φ": "phi", "ϕ": "phi", "χ": "chi",
+    "ψ": "psi", "ω": "omega", "Γ": "Gamma", "Δ": "Delta", "Θ": "Theta", "Λ": "Lambda",
+    "Ξ": "Xi", "Π": "Pi", "Σ": "Sigma", "Φ": "Phi", "Ψ": "Psi", "Ω": "Omega",
+}
+
+
+def _ident(token) -> str:
+    """An identifier's name: `\\epsilon` and `ε` are both `epsilon`."""
+    raw = _tok(token)
+    if raw in _UNICODE_GREEK:
+        return _UNICODE_GREEK[raw]
+    return raw.lstrip("\\")
+
+
+_TYPE_SETS: dict[str, str] = {"ℝ": "Real", "ℤ": "Int", "ℕ": "Nat", "ℚ": "Rat", "ℂ": "Complex"}
+
+_SUPERSCRIPT_DIGITS = str.maketrans("⁰¹²³⁴⁵⁶⁷⁸⁹", "0123456789")
+
+#: Relations that read "is a member of" in a bounded quantifier or declaration.
+_MEMBERSHIP_OPS = frozenset({"in", "\\in"})
+
+
 def _is_expr(obj) -> bool:
     return isinstance(obj, ExprNode)
 
@@ -59,7 +103,7 @@ class AetherASTTransformer(Transformer):
     @v_args(inline=True)
     def greek_symbol(self, token: Token) -> GreekSymbolNode:
         ln, col = _pos(token)
-        return GreekSymbolNode(name=_tok(token).lstrip("\\"), line=ln, col=col)
+        return GreekSymbolNode(name=_ident(token), line=ln, col=col)
 
     @v_args(inline=True)
     def number(self, token: Token) -> NumberNode:
@@ -166,6 +210,35 @@ class AetherASTTransformer(Transformer):
     def empty_set(self, children: list) -> EmptySetNode:
         return EmptySetNode()
 
+    def infinity(self, children: list) -> SymbolNode:
+        # `\infty`, `∞`, `infinity` and `oo` are one constant; the backends read
+        # the name `oo` as positive infinity unless it has been declared.
+        ln, col = _pos(children[0])
+        return SymbolNode(name="oo", line=ln, col=col)
+
+    def type_symbol(self, children: list) -> SymbolNode:
+        ln, col = _pos(children[0])
+        return SymbolNode(name=_TYPE_SETS[_tok(children[0])], line=ln, col=col)
+
+    def sqrt_prefix(self, children: list) -> FunctionCallNode:
+        ln, col = _pos(children[0])
+        return FunctionCallNode(func="sqrt", args=[children[1]], line=ln, col=col)
+
+    def factorial_op(self, children: list) -> FunctionCallNode:
+        operand = children[0]
+        return FunctionCallNode(func="factorial", args=[operand],
+                                line=getattr(operand, "line", None), col=getattr(operand, "col", None))
+
+    def superscript_op(self, children: list) -> BinaryOpNode:
+        base, sup = children[0], _tok(children[1])
+        negative = sup.startswith("⁻")
+        digits = sup.lstrip("⁺⁻").translate(_SUPERSCRIPT_DIGITS)
+        exp: ExprNode = NumberNode(value=digits)
+        if negative:
+            exp = UnaryOpNode(op="-", operand=exp)
+        return BinaryOpNode(op="^", left=base, right=exp,
+                            line=getattr(base, "line", None), col=getattr(base, "col", None))
+
     def vector_literal(self, children: list) -> ExprNode:
         elements = [c for c in children if _is_expr(c)]
         ln = getattr(elements[0], "line", None) if elements else None
@@ -182,7 +255,7 @@ class AetherASTTransformer(Transformer):
     def unary_op(self, children: list) -> UnaryOpNode:
         op_tok, operand = children
         ln, col = _pos(op_tok)
-        return UnaryOpNode(op=_tok(op_tok), operand=operand, line=ln, col=col)
+        return UnaryOpNode(op=_op(op_tok), operand=operand, line=ln, col=col)
 
     def not_op(self, children: list) -> UnaryOpNode:
         op_tok = children[0]
@@ -199,14 +272,14 @@ class AetherASTTransformer(Transformer):
             return children[0]
         # children: [left, ADDOP, right]  (left-recursive, so already folded)
         left, op_tok, right = children
-        return BinaryOpNode(op=_tok(op_tok), left=left, right=right)
+        return BinaryOpNode(op=_op(op_tok), left=left, right=right)
 
     def term(self, children: list) -> ExprNode:
         if len(children) == 1:
             return children[0]
         # children: [left, MULOP, right]
         left, op_tok, right = children
-        return BinaryOpNode(op=_tok(op_tok), left=left, right=right)
+        return BinaryOpNode(op=_op(op_tok), left=left, right=right)
 
     def power(self, children: list) -> ExprNode:
         if len(children) == 1:
@@ -229,7 +302,7 @@ class AetherASTTransformer(Transformer):
         left, op_tok, right = children[:3]
         if len(children) == 4:
             mod_expr = children[3]
-            op_str = _tok(op_tok)
+            op_str = _op(op_tok)
             if op_str in ("=", "\\equiv"):
                 return FunctionCallNode(
                     func="Congruent",
@@ -238,7 +311,7 @@ class AetherASTTransformer(Transformer):
                     col=getattr(left, "col", None),
                 )
         return RelationNode(
-            op=_tok(op_tok),
+            op=_op(op_tok),
             left=left,
             right=right,
             line=getattr(left, "line", None),
@@ -254,7 +327,7 @@ class AetherASTTransformer(Transformer):
         result = children[0]
         i = 1
         while i < len(children):
-            op = _tok(children[i])
+            op = _op(children[i])
             right = children[i + 1]
             result = BinaryOpNode(op=op, left=result, right=right)
             i += 2
@@ -286,11 +359,44 @@ class AetherASTTransformer(Transformer):
         # children: [QUANT_KW, (CNAME|GREEK_LETTER), ?type_name_str, formula]
         var_tok = next(c for c in children if _is_token(c) and c.type in ("CNAME", "GREEK_LETTER"))
         ln, col = _pos(var_tok)
-        var = _tok(var_tok).lstrip("\\")
+        var = _ident(var_tok)
         type_name = next((c for c in children if isinstance(c, str) and not _is_token(c)), None)
         formula = next(c for c in reversed(children) if _is_expr(c))
         return QuantifierNode(quantifier=q, var=var, var_type=type_name,
                               formula=formula, line=ln, col=col)
+
+    def exists_bounded(self, children: list) -> QuantifierNode:
+        return self._bounded_quantifier("exists", children)
+
+    def forall_bounded(self, children: list) -> QuantifierNode:
+        return self._bounded_quantifier("forall", children)
+
+    def _bounded_quantifier(self, q: str, children: list) -> QuantifierNode:
+        """`forall x in T, P` is typed; `forall x > 0, P` guards the body.
+
+        The guard reads the way the notes mean it: `forall \\epsilon > 0, P` is
+        `forall \\epsilon, \\epsilon > 0 => P`, and `exists \\delta > 0, P` is
+        `exists \\delta, \\delta > 0 and P`.  A membership bound that is a bare
+        name (`in Real`, `∈ ℝ`, `in G`) is taken as the variable's type; the
+        checker decides whether that name is a number type or a structure.
+        """
+        var_tok, op_tok, bound, formula = children[1], children[2], children[3], children[4]
+        ln, col = _pos(var_tok)
+        var = _ident(var_tok)
+        op = _op(op_tok)
+        if op in _MEMBERSHIP_OPS and isinstance(bound, SymbolNode):
+            return QuantifierNode(quantifier=q, var=var, var_type=bound.name,
+                                  formula=formula, line=ln, col=col)
+        var_node: ExprNode = (
+            GreekSymbolNode(name=var, line=ln, col=col)
+            if getattr(var_tok, "type", "") == "GREEK_LETTER"
+            else SymbolNode(name=var, line=ln, col=col)
+        )
+        guard = RelationNode(op=op, left=var_node, right=bound, line=ln, col=col)
+        connective = "=>" if q == "forall" else "and"
+        body = BinaryOpNode(op=connective, left=guard, right=formula, line=ln, col=col)
+        return QuantifierNode(quantifier=q, var=var, var_type=None,
+                              formula=body, line=ln, col=col)
 
     # -------------------------------------------------------------------
     # Variable declarations
@@ -320,12 +426,16 @@ class AetherASTTransformer(Transformer):
         # [VAR_INTRO, CNAME|GREEK_LETTER, REL_OP, arith_expr]
         kw, name_tok, op_tok, bound = children
         ln, col = _pos(kw)
-        vname = _tok(name_tok).lstrip("\\")
+        vname = _ident(name_tok)
         lhs_node: ExprNode = (
             GreekSymbolNode(name=vname, line=ln, col=col)
             if getattr(name_tok, "type", "") == "GREEK_LETTER"
             else SymbolNode(name=vname, line=ln, col=col)
         )
+        # `Let x in Real` / `Let x ∈ ℝ` / `Let g in G` is a typed declaration, not a
+        # real variable carrying a membership hypothesis.
+        if _op(op_tok) in _MEMBERSHIP_OPS and isinstance(bound, SymbolNode):
+            return VarDeclNode(variables=[vname], type_name=bound.name, line=ln, col=col)
         tname = "Real"
         if isinstance(bound, MatrixNode):
             tname = "Matrix"
@@ -333,15 +443,16 @@ class AetherASTTransformer(Transformer):
             tname = "Vector"
         elif isinstance(bound, EmptySetNode):
             tname = "Set"
-        condition = RelationNode(op=_tok(op_tok), left=lhs_node, right=bound, line=ln, col=col)
+        condition = RelationNode(op=_op(op_tok), left=lhs_node, right=bound, line=ln, col=col)
         return VarDeclNode(variables=[vname], type_name=tname,
                            condition=condition, line=ln, col=col)
 
     def var_list(self, children: list) -> list[str]:
-        return [_tok(t).lstrip("\\") for t in children if _is_token(t)]
+        return [_ident(t) for t in children if _is_token(t)]
 
     def type_name(self, children: list) -> str:
-        return "".join(_tok(t) for t in children if _is_token(t))
+        raw = "".join(_tok(t) for t in children if _is_token(t))
+        return _TYPE_SETS.get(raw, raw)
 
     # -------------------------------------------------------------------
     # Assume
@@ -367,7 +478,7 @@ class AetherASTTransformer(Transformer):
 
         # var name is the first CNAME/GREEK_LETTER token (not OBTAIN_KW)
         ident_toks = [c for c in children[1:] if _is_token(c) and c.type in ("CNAME", "GREEK_LETTER")]
-        var = _tok(ident_toks[0]).lstrip("\\")
+        var = _ident(ident_toks[0])
         source_label = _tok(ident_toks[1]) if len(ident_toks) > 1 else None
 
         type_name = next((c for c in children if isinstance(c, str) and not _is_token(c)), None)
@@ -402,7 +513,7 @@ class AetherASTTransformer(Transformer):
         op_tok = children[1]
         rhs = children[2]
         just = next((c for c in children if isinstance(c, str) and not _is_token(c)), None)
-        return StepNode(relation=_tok(op_tok), lhs=None, rhs=rhs,
+        return StepNode(relation=_op(op_tok), lhs=None, rhs=rhs,
                         justification=just, line=ln, col=col)
 
     # -------------------------------------------------------------------
@@ -426,7 +537,7 @@ class AetherASTTransformer(Transformer):
         ln, col = _pos(kw)
         op_tok = children[1]
         rhs = children[2]
-        rel = RelationNode(op=_tok(op_tok),
+        rel = RelationNode(op=_op(op_tok),
                            left=SymbolNode(name="<prev>"),
                            right=rhs)
         just = next((c for c in children if isinstance(c, str) and not _is_token(c)), None)

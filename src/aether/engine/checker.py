@@ -494,7 +494,7 @@ class ProofChecker:
     # -------------------------------------------------------------------
 
     def _snapshot(self, ctx: ProofContext) -> tuple[dict[str, str], list[str]]:
-        vars_snap = {k: v.math_type.value for k, v in ctx.all_variables().items()}
+        vars_snap = {k: v.type_label for k, v in ctx.all_variables().items()}
         hyps_snap = [
             f"def {fn.name}({', '.join(fn.params)}) = {fn.body}"
             for fn in ctx.all_functions().values()
@@ -805,14 +805,19 @@ class ProofChecker:
                 )
 
             # If user explicitly requested algebraic verification and it failed, do not fall back to SMT
-            if stmt.justification and any(
+            # (nor when the algebra itself settled the question).
+            if alg_res.decisive or (stmt.justification and any(
                 k in stmt.justification.lower() for k in ("algebra", "arithmetic", "ring", "field")
-            ):
+            )):
                 return StepResult(
                     statement=stmt,
                     line=stmt.line,
                     status=StepStatus.INVALID,
-                    message=f"Algebraic verification failed for step [by {stmt.justification}]: {alg_res.message}",
+                    message=(
+                        alg_res.message
+                        if alg_res.decisive
+                        else f"Algebraic verification failed for step [by {stmt.justification}]: {alg_res.message}"
+                    ),
                     backend="SymPy",
                     scope_depth=ctx.scope_depth,
                     active_variables=vars_snap,

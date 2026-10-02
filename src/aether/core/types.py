@@ -13,6 +13,8 @@ class MathType(str, Enum):
     Vector = "Vector"
     Matrix = "Matrix"
     Set = "Set"
+    #: A member of a structure's carrier (``Given a : G`` after ``Assume Group(G, ...)``).
+    Element = "Element"
 
 
 # Aliases accepted by the parser → canonical MathType name.

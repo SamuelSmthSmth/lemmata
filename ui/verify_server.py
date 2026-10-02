@@ -143,7 +143,14 @@ def main() -> int:
         # article presentation: nothing from the designed style may leak into
         # it.  The designed style is generated directly here, because the PDF
         # endpoint's own .tex is compiled away rather than returned.
-        for marker in ("\\aehead", "\\aeverdict", "\\begin{aestep}", "\\begin{aecode}"):
+        for marker in (
+            "\\aeverdict",
+            "\\aechip",
+            "\\aecard",
+            "\\begin{aestep}",
+            "\\begin{aecode}",
+            "\\begin{aefinding}",
+        ):
             check(marker not in report, f"the .tex export stays plain (no {marker})")
         check("\\aelabel" in report, "the .tex export keeps its own label macro")
 
@@ -155,14 +162,45 @@ def main() -> int:
             session={"timeline": [{"verdict": "VALID", "n": 2, "ts": 1759100000000}]},
             style="fancy",
         )
-        check("\\aeverdict{" in designed, "the designed style opens with a rail verdict")
-        check("\\begin{aestep}" in designed, "the designed style audits as step rows")
+        cover, opener, body = designed.partition("\\aesection{")
+        check(bool(opener), "the designed style is made of numbered sections")
+        check("\\begin{tcolorbox}[aecover]" in cover, "the designed style opens on the cover plate")
+        check("VALID" in cover, "the cover carries the verdict")
+        check("\\aecard{" in body, "the proof opens with the at-a-glance strip")
+        check("\\aepage" in designed, "a section opens a fresh page where the layout wants one")
+        check("\\begin{aestep}" in body, "the designed style audits as step rows")
         check("0A5FBF" in designed, "the designed style uses the site accent")
-        check("\\aesection{Auditor}" in designed, "the designed style has an auditor section")
-        check("\\aesection{Proof State}" in designed, "the designed style has a proof-state section")
-        check("\\aesection{About}" in designed, "the designed style closes with a legend")
+        check(
+            re.findall(r"\\aesection\{(\d\d)\}\{([^}]*)\}", designed)
+            == [
+                ("01", "The Proof"),
+                ("02", "Auditor"),
+                ("03", "Proof State"),
+                ("04", "Session"),
+                ("05", "Source"),
+                ("06", "About"),
+            ],
+            "the designed style numbers its sections in reading order",
+        )
+        check(
+            "\\begin{aefinding}" not in designed,
+            "a proof that clears has no Findings section",
+        )
         check("Given n : Int" in designed, "the designed style includes the source verbatim")
         check(designed.rstrip().endswith("\\end{document}"), "the designed style is a standalone document")
+
+        print("== designed export style (a failing proof) ==")
+        broken = export_report_latex(
+            by_id["algebraic-blunder"]["source"],
+            standalone=True,
+            breakdown=True,
+            style="fancy",
+        )
+        check("\\begin{aefinding}" in broken, "a failing step is written up as a finding")
+        check(
+            re.findall(r"\\aesection\{(\d\d)\}\{([^}]*)\}", broken)[1] == ("02", "Findings"),
+            "the findings section slots in ahead of the auditor",
+        )
 
         print("== POST /api/export/latex (breakdown off) ==")
         _, _, body = server.request(
@@ -250,6 +288,19 @@ def main() -> int:
         _, _, body = server.request("/api/check", "POST", {"source": ""})
         data = json.loads(body)
         check(data["verdict"] == "VALID" and data["summary"]["total"] == 0, "empty source is safe")
+
+        # An unchecked prelude call used to raise TypeError straight out of the
+        # engine, so this returned 500 rather than a verdict. A wrong arity is a
+        # rejected step, not a server fault.
+        status, _, body = server.request(
+            "/api/check", "POST", {"source": "Let x : Real\nStep: abs(x, x) = x"}
+        )
+        data = json.loads(body)
+        check(status == 200, f"a malformed call answers {status}, not a server error")
+        check(
+            data["verdict"] == "INVALID" and "argument" in data["reports"][0]["results"][-1]["message"],
+            f"a malformed call is a rejected step: {data['reports'][0]['results'][-1]['message']}",
+        )
 
         print("== vendored CodeMirror graph over HTTP ==")
         modules = sorted((STATIC / "vendor").rglob("*.mjs"))

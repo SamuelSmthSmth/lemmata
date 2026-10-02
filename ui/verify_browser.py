@@ -532,6 +532,144 @@ def run_checks() -> None:
         "the theme choice survives a reload",
     )
 
+    panel_checks()
+    syntax_checks()
+
+
+PANEL_PROBE = """(() => {
+  const name = (p) => p.className.split(' ').find(c => c.startsWith('pane--')).slice(6);
+  const grid = document.querySelector('main.layout');
+  const panes = [...grid.querySelectorAll('.pane')];
+  return JSON.stringify({
+    layout: grid.dataset.layout,
+    order: panes.map(name),
+    slotOf: Object.fromEntries(panes.map(p => [name(p), p.dataset.slot])),
+    slots: Object.fromEntries(panes.map(p => [p.dataset.slot, name(p)])),
+    grips: grid.querySelectorAll('.pane-grip').length,
+    areas: getComputedStyle(grid).gridTemplateAreas,
+    focused: (document.activeElement.className || '').split(' ')[0],
+    pressed: document.querySelector('#layout-toggle').getAttribute('aria-expanded'),
+  });
+})()"""
+
+SYNTAX_PROBE = """(() => {
+  const hues = new Set();
+  for (const span of document.querySelectorAll('.cm-line span')) {
+    if (!span.textContent.trim()) continue;
+    hues.add(getComputedStyle(span).color);
+  }
+  return JSON.stringify({
+    scheme: document.documentElement.dataset.syntax,
+    hues: [...hues].sort(),
+    pressed: document.querySelector('#syntax-toggle').getAttribute('aria-pressed'),
+  });
+})()"""
+
+
+def panel_checks() -> None:
+    print("== panel arrangement: presets, keyboard, and it is remembered ==")
+    js("localStorage.removeItem('aether:layout')")
+    ab("open", permalink(STARTING_SOURCE))
+    settle()
+
+    start = js(PANEL_PROBE)
+    check(start["layout"] == "columns", f"the default arrangement is Columns ({start['layout']})")
+    check(
+        start["order"] == ["editor", "audit", "context"],
+        f"the panes start in reading order ({start['order']})",
+    )
+    check(
+        start["slots"] == {"a": "editor", "b": "audit", "c": "context"},
+        f"slot a is the editor ({start['slots']})",
+    )
+    check(start["grips"] == 3, f"every pane carries a grip ({start['grips']})")
+
+    ab("click", "#layout-toggle")
+    time.sleep(0.4)
+    check(js(PANEL_PROBE)["pressed"] == "true", "the toolbar button reports the menu is open")
+    ab("click", "#layout-options [data-arrangement='split']")
+    time.sleep(0.4)
+
+    split = js(PANEL_PROBE)
+    check(split["layout"] == "split", f"the menu switches to Split ({split['layout']})")
+    check(split["areas"] not in ("", "none"), "Split lays the grid out with real template areas")
+    check(
+        split["order"] == ["editor", "audit", "context"],
+        "choosing an arrangement leaves the pane order alone",
+    )
+
+    # Keyboard: focus a grip, then step that pane along the order.  A drag does
+    # the same swap, but driving HTML5 drag-and-drop through CDP is unreliable;
+    # the swap itself is unit-tested in verify_frontend.mjs.
+    ab("click", ".pane--editor .pane-grip")
+    check(js(PANEL_PROBE)["focused"] == "pane-grip", "a grip can take focus")
+    ab("press", "ArrowRight")
+    time.sleep(0.4)
+    moved = js(PANEL_PROBE)
+    check(
+        moved["order"] == ["audit", "editor", "context"],
+        f"an arrow key moves the focused pane one slot ({moved['order']})",
+    )
+    check(js(PANEL_PROBE)["focused"] == "pane-grip", "focus stays on the grip, so a key can be pressed twice")
+
+    for _ in range(2):
+        ab("press", "ArrowRight")
+        time.sleep(0.3)
+    clamped = js(PANEL_PROBE)
+    check(
+        clamped["order"] == ["audit", "context", "editor"],
+        f"movement is clamped at the end, not wrapped ({clamped['order']})",
+    )
+
+    ab("reload")
+    settle()
+    remembered = js(PANEL_PROBE)
+    check(remembered["layout"] == "split", "the arrangement survives a reload")
+    check(
+        remembered["order"] == ["audit", "context", "editor"],
+        f"so does the pane order ({remembered['order']})",
+    )
+    check(
+        remembered["slots"] == {"a": "audit", "b": "context", "c": "editor"},
+        "the panes are reordered in the DOM, so tab order follows the screen",
+    )
+
+    js("localStorage.removeItem('aether:layout')")
+
+
+def syntax_checks() -> None:
+    print("== syntax colours: mono, vivid, and it is remembered ==")
+    js("localStorage.removeItem('aether-syntax')")
+    ab("open", permalink(STARTING_SOURCE))
+    settle()
+
+    mono = js(SYNTAX_PROBE)
+    check(mono["scheme"] == "mono", f"the editor starts near-monochrome ({mono['scheme']})")
+    check(mono["pressed"] == "false", f"the button says which scheme it is in ({mono['pressed']})")
+
+    ab("click", "#syntax-toggle")
+    time.sleep(0.5)
+    vivid = js(SYNTAX_PROBE)
+    check(vivid["scheme"] == "vivid", "the toolbar button switches to vivid")
+    check(vivid["pressed"] == "true", "the button reports the new scheme")
+    check(
+        len(vivid["hues"]) > len(mono["hues"]),
+        f"vivid colours the tokens apart ({len(mono['hues'])} hues -> {len(vivid['hues'])})",
+    )
+
+    ab("reload")
+    settle()
+    check(
+        js(SYNTAX_PROBE)["scheme"] == "vivid",
+        "the scheme survives a reload",
+    )
+    check(
+        len(js(SYNTAX_PROBE)["hues"]) == len(vivid["hues"]),
+        "and the editor is re-coloured on boot, not left plain",
+    )
+
+    js("localStorage.removeItem('aether-syntax')")
+
 
 def main() -> int:
     server = subprocess.Popen(

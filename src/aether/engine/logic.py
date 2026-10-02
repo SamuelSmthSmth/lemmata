@@ -19,21 +19,123 @@ from aether.core.ast import (
     RelationNode,
     QuantifierNode,
 )
-from aether.core.types import MathType, normalize_type_name
+from aether.core.types import MathType
 from aether.engine.context import (
     ProofContext,
+    collect_free_symbols,
     DomainObligation,
     canonical_rel,
 )
 from aether.engine.algebra import (
     AlgebraConversionError,
     ast_to_sympy,
+    called_function_names,
+    unknown_call_hints,
     verify_algebraic_equality,
 )
 
 
 class LogicConversionError(Exception):
     """Raised when an AST node cannot be translated into a Z3 expression."""
+
+
+# True, if loose, bounds on the mathematical constants.  Without them the
+# solver treats `pi` as an arbitrary real: `pi > 3` came back as a satisfied
+# query with a "counterexample".  These are facts about the numbers, so adding
+# them as hypotheses is sound -- they only narrow the models.
+_CONSTANT_BOUNDS: dict[str, tuple[str, str]] = {
+    "pi": ("3.14159265", "3.14159266"),
+    "e": ("2.718281828", "2.718281829"),
+}
+
+
+# ``(min, max)`` argument counts for the calls the SMT backend interprets.  A
+# call that reaches the uninterpreted fallback with one of these names was
+# misused -- ``Even(a, a)`` used to become an opaque predicate and be reported
+# as a counterexample, when the real problem was the argument list.
+_LOGIC_CALL_ARITY: dict[str, tuple[int, Optional[int]]] = {
+    "even": (1, 1),
+    "odd": (1, 1),
+    "positive": (1, 1),
+    "nonnegative": (1, 1),
+    "multipleof": (2, 2),
+    "divides": (2, 2),
+    "orthogonal": (2, 2),
+    "congruent": (3, 3),
+    "cong": (3, 3),
+    "cauchyriemann": (2, 4),
+    "cauchy_riemann": (2, 4),
+    "sqrt": (1, 1),
+    "abs": (1, 1),
+    "inv": (1, 1),
+    "inverse": (1, 1),
+    "max": (1, None),
+    "min": (1, None),
+}
+
+# Functions SymPy settles but Z3 has no theory for.  To the solver they are
+# arbitrary functions, so it will answer an inequality about them with a bogus
+# "counterexample" (`exp(x) > 0` came back as `x=2`).  The note says so instead
+# of letting that read as a maths error.
+_SYMPY_ONLY_CALLS: frozenset[str] = frozenset({"exp", "log", "ln", "sin", "cos", "tan"})
+
+
+def _range_facts(fn: str, value: z3.ExprRef, arg: z3.ExprRef) -> list[z3.ExprRef]:
+    """True facts about ``fn(arg)`` for functions Z3 only sees as uninterpreted.
+
+    Z3 has no theory of the transcendental functions, but most inequalities in
+    an analysis course do not need one: ``|x sin(1/x)| <= |x|`` needs only
+    ``|sin| <= 1``, and the quotient rule's ``exp(x) != 0`` only ``exp > 0``.
+    Each fact holds for every real argument, so adding them only removes
+    models that were never real -- it cannot make a false claim provable.
+    """
+    if fn in ("sin", "cos"):
+        return [value >= -1, value <= 1]  # type: ignore[operator]
+    if fn == "exp":
+        # exp(t) > 0, and the tangent line at 0 lies below it: exp(t) >= 1 + t.
+        return [value > 0, value >= 1 + arg]  # type: ignore[operator]
+    if fn == "cosh":
+        return [value >= 1]  # type: ignore[operator]
+    if fn == "tanh":
+        return [value > -1, value < 1]  # type: ignore[operator]
+    if fn in ("log", "ln"):
+        # For t > 0, log lies below its tangent at 1: log(t) <= t - 1.
+        return [z3.Implies(arg > 0, value <= arg - 1)]  # type: ignore[operator]
+    return []
+
+
+def _infinity_sign(expr: ExprNode, ctx: ProofContext) -> int:
+    """+1 for ``oo``, -1 for ``-oo``, 0 for anything else.
+
+    A declared variable called ``oo`` is just a variable.
+    """
+    if isinstance(expr, SymbolNode) and expr.name == "oo" and ctx.get_var("oo") is None:
+        return 1
+    if isinstance(expr, UnaryOpNode) and expr.op in ("-", "+"):
+        inner = _infinity_sign(expr.operand, ctx)
+        return -inner if expr.op == "-" else inner
+    return 0
+
+
+def _mentions_infinity(expr: ExprNode, ctx: ProofContext) -> bool:
+    return "oo" in collect_free_symbols(expr) and ctx.get_var("oo") is None
+
+
+def _compare_with_infinity(rel: str, left: int, right: int) -> Optional[bool]:
+    """Decide ``a rel b`` when at least one side is +-oo (``0`` marks a finite side)."""
+    if left == right:  # the same infinity on both sides
+        return rel in ("=", "<=", ">=")
+    if rel == "=":
+        return False
+    if rel == "!=":
+        return True
+    # The extended reals are ordered -oo < every real number < +oo.
+    less = left < right
+    if rel in ("<", "<="):
+        return less
+    if rel in (">", ">="):
+        return not less
+    return None
 
 
 @dataclass
@@ -242,6 +344,22 @@ def ast_to_z3(
                 return z3.BoolVal(True)
         if name in bound_vars:
             return bound_vars[name]
+        if name == "oo" and ctx.get_var("oo") is None:
+            raise LogicConversionError(
+                "oo is not a real number, so the solver cannot do arithmetic with it; "
+                "compare against it directly, or evaluate the limit or sum first."
+            )
+        if (
+            name in _CONSTANT_BOUNDS
+            and ctx.get_var(name) is None
+            and name not in ctx.structure_names()
+        ):
+            const = z3.Real(name)
+            low, high = _CONSTANT_BOUNDS[name]
+            if extra_constraints is not None:
+                extra_constraints.append(const > z3.RealVal(low))  # type: ignore[operator]
+                extra_constraints.append(const < z3.RealVal(high))  # type: ignore[operator]
+            return const
         vinfo = ctx.get_var(name)
         mt = vinfo.math_type if vinfo else MathType.Real
         return _make_z3_var(name, mt)
@@ -305,9 +423,16 @@ def ast_to_z3(
         raise LogicConversionError(f"Unsupported binary operator in Z3: {expr.op!r}")
 
     if isinstance(expr, RelationNode):
+        rel = canonical_rel(expr.op)
+        left_inf, right_inf = _infinity_sign(expr.left, ctx), _infinity_sign(expr.right, ctx)
+        if left_inf or right_inf:
+            finite_side = expr.right if left_inf else expr.left
+            if (left_inf and right_inf) or not _mentions_infinity(finite_side, ctx):
+                decided = _compare_with_infinity(rel, left_inf, right_inf)
+                if decided is not None:
+                    return z3.BoolVal(decided)
         left = ast_to_z3(expr.left, ctx, bound_vars, extra_constraints)
         right = ast_to_z3(expr.right, ctx, bound_vars, extra_constraints)
-        rel = canonical_rel(expr.op)
         if rel in ("=", "\\equiv"):
             return left == right
         if rel == "!=":
@@ -338,7 +463,10 @@ def ast_to_z3(
             b = ast_to_z3(expr.args[1], ctx, bound_vars, extra_constraints)
             m = ast_to_z3(expr.args[2], ctx, bound_vars, extra_constraints)
             if z3.is_int(a) and z3.is_int(b) and z3.is_int(m):
-                return ((a - b) % m) == 0  # type: ignore[operator]
+                # Z3 leaves `x % 0` unconstrained, which made every congruence
+                # modulo a possibly-zero m unprovable.  Modulo 0, congruence is
+                # equality (0 divides only 0).
+                return z3.If(m == 0, a == b, ((a - b) % m) == 0)  # type: ignore[operator]
             expanded = expand_prelude_predicate(expr)
             if expanded is not None:
                 return ast_to_z3(expanded, ctx, bound_vars, extra_constraints)
@@ -382,16 +510,31 @@ def ast_to_z3(
             a = ast_to_z3(expr.args[0], ctx, bound_vars, extra_constraints)
             b = ast_to_z3(expr.args[1], ctx, bound_vars, extra_constraints)
             if z3.is_int(a) and z3.is_int(b):
-                return (a % b) == 0  # type: ignore[operator]
+                return z3.If(b == 0, a == 0, (a % b) == 0)  # type: ignore[operator]
         if fn == "divides" and len(expr.args) == 2:
             a = ast_to_z3(expr.args[0], ctx, bound_vars, extra_constraints)
             b = ast_to_z3(expr.args[1], ctx, bound_vars, extra_constraints)
             if z3.is_int(a) and z3.is_int(b):
-                return (b % a) == 0  # type: ignore[operator]
+                return z3.If(a == 0, b == 0, (b % a) == 0)  # type: ignore[operator]
 
         expanded = expand_prelude_predicate(expr)
         if expanded is not None:
             return ast_to_z3(expanded, ctx, bound_vars, extra_constraints)
+
+        arity = _LOGIC_CALL_ARITY.get(fn)
+        if arity is not None:
+            low, high = arity
+            if len(expr.args) < low or (high is not None and len(expr.args) > high):
+                expected = (
+                    f"at least {low}"
+                    if high is None
+                    else str(low)
+                    if low == high
+                    else f"{low} to {high}"
+                )
+                raise LogicConversionError(
+                    f"`{expr.func}` takes {expected} argument(s), but got {len(expr.args)}."
+                )
 
         # Uninterpreted predicate / function
         z3_args = [ast_to_z3(a, ctx, bound_vars, extra_constraints) for a in expr.args]
@@ -402,10 +545,17 @@ def ast_to_z3(
             else z3.BoolSort()
         )
         uf = z3.Function(expr.func, *arg_sorts, return_sort)
-        return uf(*z3_args)
+        applied = uf(*z3_args)
+        if extra_constraints is not None and len(z3_args) == 1 and z3.is_arith(z3_args[0]):
+            arg_real = z3.ToReal(z3_args[0]) if z3.is_int(z3_args[0]) else z3_args[0]
+            extra_constraints.extend(_range_facts(fn, applied, arg_real))
+        return applied
 
     if isinstance(expr, QuantifierNode):
-        mt = normalize_type_name(expr.var_type) if expr.var_type else MathType.Real
+        try:
+            mt = ctx.resolve_type(expr.var_type)[0] if expr.var_type else MathType.Real
+        except ValueError as exc:
+            raise LogicConversionError(str(exc)) from exc
         z3_v = _make_z3_var(expr.var, mt)
         new_bound = dict(bound_vars)
         new_bound[expr.var] = z3_v
@@ -443,6 +593,20 @@ def extract_z3_model_dict(model: z3.ModelRef, ctx: ProofContext) -> dict[str, st
 def _format_z3_model(model: z3.ModelRef, ctx: ProofContext) -> str:
     m_dict = extract_z3_model_dict(model, ctx)
     return ", ".join(f"{k}={v}" for k, v in m_dict.items())
+
+
+def _quantifier_type(
+    raw: Optional[str],
+    ctx: ProofContext,
+    default: MathType = MathType.Real,
+) -> MathType:
+    """The math type a quantifier ranges over; an unknown name counts as the default."""
+    if not raw:
+        return default
+    try:
+        return ctx.resolve_type(raw)[0]
+    except ValueError:
+        return default
 
 
 def _types_compatible(quant_type: MathType, var_type: MathType) -> bool:
@@ -585,12 +749,12 @@ def _populate_solver_context(solver: z3.Solver, ctx: ProofContext) -> None:
         _populate_algebra_axioms(solver, h.proposition, ctx)
         # Eager ground instantiation for universally quantified hypotheses / lemmas
         if isinstance(h.proposition, QuantifierNode) and h.proposition.quantifier == "forall":
-            q1_mt = normalize_type_name(h.proposition.var_type) if h.proposition.var_type else MathType.Real
+            q1_mt = _quantifier_type(h.proposition.var_type, ctx)
             for v1 in active_vars.values():
                 if _types_compatible(q1_mt, v1.math_type):
                     inst1 = substitute_expr(h.proposition.formula, h.proposition.var, SymbolNode(name=v1.name))
                     if isinstance(inst1, QuantifierNode) and inst1.quantifier == "forall":
-                        q2_mt = normalize_type_name(inst1.var_type) if inst1.var_type else MathType.Real
+                        q2_mt = _quantifier_type(inst1.var_type, ctx)
                         for v2 in active_vars.values():
                             if _types_compatible(q2_mt, v2.math_type):
                                 inst2 = substitute_expr(inst1.formula, inst1.var, SymbolNode(name=v2.name))
@@ -711,6 +875,54 @@ def verify_induction_schema(
     return None
 
 
+def _eliminate_divisibility_witnesses(
+    diff: sp.Expr,
+    modulus: sp.Expr,
+    ctx: ProofContext,
+) -> tuple[sp.Expr, sp.Expr]:
+    """Rewrite *diff* using the divisibility facts in scope.
+
+    ``i = k (mod n)`` says ``i - k = n * t`` for some integer ``t``.  Solving
+    that for a variable of the goal (``i = k + n * t``) and substituting lets
+    the quotient test see that ``(i + j) - (k + l)`` is ``n * (t1 + t2)``.  Z3
+    alone cannot: with a symbolic modulus the question is non-linear.  Each
+    witness is a fresh integer symbol, so the rewrite only uses what the
+    hypothesis actually asserts.
+    """
+    for index, hyp in enumerate(ctx.all_hypotheses()):
+        prop = ctx.expand_user_functions(hyp.proposition) or hyp.proposition
+        if not isinstance(prop, FunctionCallNode):
+            continue
+        fn = prop.func.lower()
+        try:
+            if fn in ("congruent", "cong") and len(prop.args) == 3:
+                a, b, m = (ast_to_sympy(arg, ctx) for arg in prop.args)
+                lhs, mod = a - b, m
+            elif fn == "multipleof" and len(prop.args) == 2:
+                lhs, mod = ast_to_sympy(prop.args[0], ctx), ast_to_sympy(prop.args[1], ctx)
+            elif fn == "divides" and len(prop.args) == 2:
+                mod, lhs = ast_to_sympy(prop.args[0], ctx), ast_to_sympy(prop.args[1], ctx)
+            else:
+                continue
+        except AlgebraConversionError:
+            continue
+        if not all(s.is_integer for s in (lhs - mod).free_symbols):
+            continue
+        witness = sp.Symbol(f"_t{index}", integer=True)
+        relation = lhs - mod * witness
+        # Eliminate a variable that occurs in the goal with a unit coefficient,
+        # so the substitution introduces no fractions.
+        for sym in sorted(diff.free_symbols & lhs.free_symbols, key=lambda s: s.name):
+            coeff = sp.diff(relation, sym)
+            if coeff in (1, -1) and not coeff.free_symbols:
+                solution = sp.solve(relation, sym)
+                if len(solution) == 1:
+                    diff = sp.expand(diff.subs(sym, solution[0]))
+                    modulus = modulus.subs(sym, solution[0])
+                    break
+    return diff, modulus
+
+
 def _try_sympy_divisibility_or_existential(
     claim: ExprNode,
     ctx: ProofContext,
@@ -728,11 +940,21 @@ def _try_sympy_divisibility_or_existential(
                 try:
                     sl = ast_to_sympy(eq_l, ctx)
                     sr = ast_to_sympy(eq_r, ctx)
+                    # The modulus too: with n = d * n1, `n1 * k` over `n` only
+                    # reduces once both are written in d.
                     diff = diff.subs(sl, sr)
+                    s_m = s_m.subs(sl, sr)
                 except Exception:
                     continue
+            diff, s_m = _eliminate_divisibility_witnesses(diff, s_m, ctx)
             ratio = sp.simplify(diff / s_m)
-            if sp.denom(sp.together(ratio)) == 1 and all(s.is_integer for s in ratio.free_symbols):
+            # `1 / 0` is SymPy's zoo, whose denominator is 1: without this guard
+            # `a + 1 = a (mod 0)` passed as an integer quotient.
+            if (
+                not ratio.has(sp.zoo, sp.oo, -sp.oo, sp.nan)
+                and sp.denom(sp.together(ratio)) == 1
+                and all(s.is_integer for s in ratio.free_symbols)
+            ):
                 return LogicResult(
                     valid=True,
                     message=f"Verified congruence ({claim}) via algebraic quotient {ratio}.",
@@ -754,7 +976,7 @@ def _try_sympy_divisibility_or_existential(
         and canonical_rel(target.formula.op) == "="
     ):
         var_name = target.var
-        var_type = normalize_type_name(target.var_type) if target.var_type else MathType.Int
+        var_type = _quantifier_type(target.var_type, ctx, MathType.Int)
         try:
             # Create a temporary SymPy symbol for the existential variable
             m_sym = sp.Symbol(var_name, integer=(var_type in (MathType.Int, MathType.Nat)), real=True)
@@ -793,6 +1015,32 @@ def _try_sympy_divisibility_or_existential(
             pass
 
     return None
+
+
+def _explain_solver_limits(message: str, claim: ExprNode, ctx: ProofContext) -> str:
+    """Say why a failed SMT query may not mean the claim is actually false.
+
+    Two things make Z3's answer misleading on its own: a name no backend
+    interprets (so the solver reasons about an arbitrary function), and a
+    function SymPy settles but Z3 has no theory for.  Either way the
+    counterexample that comes back describes the solver's model, not the
+    student's mathematics.
+    """
+    notes = list(unknown_call_hints(claim, ctx))
+    opaque = sorted(
+        {name for name in called_function_names(claim, ctx) if name.lower() in _SYMPY_ONLY_CALLS}
+    )
+    if opaque:
+        names = ", ".join(f"`{name}`" for name in opaque)
+        verb = "have" if len(opaque) > 1 else "has"
+        pronoun = "their" if len(opaque) > 1 else "its"
+        notes.append(
+            f"{names} {verb} no SMT theory: the solver knows only {pronoun} range "
+            f"(|sin| <= 1, exp > 0, ...), so the counterexample above may not be a real one."
+        )
+    for note in dict.fromkeys(notes):
+        message = f"{message} {note}"
+    return message
 
 
 def verify_entailment(
@@ -862,6 +1110,8 @@ def verify_entailment(
                 message=f"Verified algebraically by SymPy ({claim}).",
                 backend="SymPy",
             )
+        if alg_res.decisive:
+            return LogicResult(valid=False, message=alg_res.message, backend="SymPy")
 
     # Set relations verification
     if witness is None and isinstance(claim, RelationNode):
@@ -981,7 +1231,11 @@ def verify_entailment(
         ce_msg = f"Counterexample: {ce_str}" if ce_str else "Z3 found a counterexample model."
         return LogicResult(
             valid=False,
-            message=f"Claim '{claim}' does not follow from current hypotheses. {ce_msg}",
+            message=_explain_solver_limits(
+                f"Claim '{claim}' does not follow from current hypotheses. {ce_msg}",
+                claim,
+                ctx,
+            ),
             counterexample=ce_str or None,
             counterexample_dict=ce_dict or None,
             backend="Z3",
@@ -989,9 +1243,41 @@ def verify_entailment(
 
     return LogicResult(
         valid=False,
-        message=f"Solver inconclusive (unknown) for '{claim}'.",
+        message=_explain_solver_limits(f"Solver inconclusive (unknown) for '{claim}'.", claim, ctx),
         backend="Z3",
     )
+
+
+def _evaluate_constant_relation(condition: ExprNode, ctx: ProofContext) -> Optional[bool]:
+    """Evaluate a relation between closed terms, e.g. ``gcd(8, 2) != 0``.
+
+    The solver sees ``gcd`` as an arbitrary function and cannot rule out zero;
+    SymPy can simply compute it.
+    """
+    if not isinstance(condition, RelationNode):
+        return None
+    try:
+        left = ast_to_sympy(condition.left, ctx)
+        right = ast_to_sympy(condition.right, ctx)
+    except (AlgebraConversionError, TypeError, ValueError):
+        return None
+    if not (isinstance(left, sp.Expr) and isinstance(right, sp.Expr)):
+        return None
+    if left.free_symbols or right.free_symbols or not (left.is_number and right.is_number):
+        return None
+    rel = canonical_rel(condition.op)
+    builders = {"=": sp.Eq, "!=": sp.Ne, "<": sp.Lt, "<=": sp.Le, ">": sp.Gt, ">=": sp.Ge}
+    if rel not in builders:
+        return None
+    try:
+        result = builders[rel](left, right)
+    except TypeError:
+        return None
+    if result is sp.true:
+        return True
+    if result is sp.false:
+        return False
+    return None
 
 
 def check_domain_obligation(
@@ -1000,6 +1286,14 @@ def check_domain_obligation(
     timeout_ms: int = 2000,
 ) -> LogicResult:
     """Check whether *obligation* (e.g. ``x - 2 != 0``) is guaranteed by *ctx*."""
+    constant = _evaluate_constant_relation(obligation.condition, ctx)
+    if constant is True:
+        obligation.discharged = True
+        return LogicResult(
+            valid=True,
+            message=f"Domain obligation discharged: {obligation.reason}",
+            backend="SymPy (Domain)",
+        )
     res = verify_entailment(obligation.condition, ctx, timeout_ms=timeout_ms)
     if res.valid:
         obligation.discharged = True
@@ -1032,3 +1326,103 @@ def verify_case_exhaustiveness(
         disjunction = BinaryOpNode(op="or", left=disjunction, right=cond)
     return verify_entailment(disjunction, ctx, timeout_ms=timeout_ms)
 
+
+
+# ---------------------------------------------------------------------------
+# Deciding SymPy side conditions against the proof context
+# ---------------------------------------------------------------------------
+
+
+def _sympy_to_z3(expr: sp.Basic, ctx: ProofContext) -> z3.ExprRef:
+    """Translate the small arithmetic/boolean SymPy fragment found in side conditions."""
+    if expr is sp.true:
+        return z3.BoolVal(True)
+    if expr is sp.false:
+        return z3.BoolVal(False)
+    if isinstance(expr, sp.Symbol):
+        vinfo = ctx.get_var(expr.name)
+        return _make_z3_var(expr.name, vinfo.math_type if vinfo else MathType.Real)
+    if isinstance(expr, sp.Integer):
+        return z3.IntVal(int(expr))
+    if isinstance(expr, sp.Rational):
+        return z3.RealVal(f"{expr.p}/{expr.q}")
+    args = [_sympy_to_z3(a, ctx) for a in expr.args]
+    if isinstance(expr, sp.Add):
+        return z3.Sum(args)
+    if isinstance(expr, sp.Mul):
+        return z3.Product(args)
+    if isinstance(expr, sp.Pow) and isinstance(expr.exp, sp.Integer) and 0 < abs(int(expr.exp)) <= 6:
+        acc = args[0]
+        for _ in range(abs(int(expr.exp)) - 1):
+            acc = acc * args[0]  # type: ignore[operator]
+        if expr.exp > 0:
+            return acc
+        return 1 / (z3.ToReal(acc) if z3.is_int(acc) else acc)  # type: ignore[operator]
+    if isinstance(expr, sp.Abs):
+        return z3.If(args[0] >= 0, args[0], -args[0])  # type: ignore[operator]
+    relations = {
+        sp.Eq: lambda a, b: a == b,
+        sp.Ne: lambda a, b: a != b,
+        sp.Lt: lambda a, b: a < b,
+        sp.Le: lambda a, b: a <= b,
+        sp.Gt: lambda a, b: a > b,
+        sp.Ge: lambda a, b: a >= b,
+    }
+    for cls, build in relations.items():
+        if isinstance(expr, cls):
+            return build(*args)
+    if isinstance(expr, sp.And):
+        return z3.And(args)
+    if isinstance(expr, sp.Or):
+        return z3.Or(args)
+    if isinstance(expr, sp.Not):
+        return z3.Not(args[0])
+    raise LogicConversionError(f"Cannot translate {expr} for the solver.")
+
+
+def _decide(condition: sp.Basic, ctx: ProofContext, timeout_ms: int = 1500) -> Optional[bool]:
+    """True/False if the proof's facts settle *condition*, else None."""
+    try:
+        z3_cond = _sympy_to_z3(condition, ctx)
+    except (LogicConversionError, TypeError, ValueError, z3.Z3Exception):
+        return None
+    for goal, answer in ((z3_cond, True), (z3.Not(z3_cond), False)):
+        solver = z3.Solver()
+        solver.set("timeout", timeout_ms)
+        _populate_solver_context(solver, ctx)
+        solver.add(z3.Not(goal))
+        if solver.check() == z3.unsat:
+            return answer
+    return None
+
+
+def refine_with_context(value: sp.Expr, ctx: ProofContext) -> sp.Expr:
+    """Pick the ``Piecewise`` branch / ``sign`` that the proof's hypotheses force.
+
+    A branch is taken only when its condition is *entailed* (every earlier
+    branch having been refuted), so an undecided case split is left as it is
+    and the step simply fails to verify.
+    """
+
+    def pick_branch(pw: sp.Piecewise) -> sp.Expr:
+        for branch, cond in pw.args:
+            decided = True if cond is sp.true else _decide(cond, ctx)
+            if decided is True:
+                return branch
+            if decided is None:
+                return pw
+        return pw
+
+    def pick_sign(sign: sp.Expr) -> sp.Expr:
+        arg = sign.args[0]
+        if isinstance(arg, sp.log):
+            # For u > 0, sign(log u) is the sign of u - 1.
+            arg = arg.args[0] - 1
+        for cond, value in ((sp.Gt(arg, 0), 1), (sp.Lt(arg, 0), -1), (sp.Eq(arg, 0), 0)):
+            if cond is sp.true or _decide(cond, ctx) is True:
+                return sp.Integer(value)
+        return sign
+
+    refined = value.replace(lambda n: isinstance(n, sp.Piecewise), pick_branch)
+    refined = refined.replace(lambda n: isinstance(n, sp.sign), pick_sign)
+    return refined

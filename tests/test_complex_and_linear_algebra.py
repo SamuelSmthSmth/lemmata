@@ -104,6 +104,55 @@ QED
         assert report.results[1].status == StepStatus.INVALID
 
 
+    def test_matrix_inverse_is_computed(self, checker: ProofChecker):
+        """`inverse(A)` used to be an uninterpreted symbol, so it never held.
+
+        The name was recognised -- `inv`/`inverse` mapped to a plain
+        ``sp.Function("inv")`` -- but the result was never evaluated, so every
+        inverse step was reported as an algebraic failure instead.
+        """
+        src = """\
+Theorem: "Matrix inverse"
+Proof:
+    Let A = [[1, 2], [3, 4]]
+    Step: inverse(A) * A = [[1, 0], [0, 1]]
+    Step: inv(A) = [[-2, 1], [3 / 2, -1 / 2]]
+QED
+"""
+        report = checker.check_source(src)[0]
+        assert report.is_valid, report.format_report()
+        assert all(r.status == StepStatus.VALID for r in report.results)
+
+    def test_wrong_matrix_inverse_is_rejected(self, checker: ProofChecker):
+        src = """\
+Theorem: "Wrong inverse"
+Proof:
+    Let A = [[1, 2], [3, 4]]
+    Step: inverse(A) = [[1, 0], [0, 1]]
+QED
+"""
+        report = checker.check_source(src)[0]
+        assert not report.is_valid
+        assert report.results[1].status == StepStatus.INVALID
+
+    def test_scalar_inv_stays_uninterpreted(self, checker: ProofChecker):
+        """The group templates write `inv(a)` for an abstract inverse.
+
+        That has to stay an opaque function rather than be mistaken for a
+        matrix inverse.
+        """
+        src = """\
+Theorem: "Group inverse"
+Proof:
+    Assume Group(G, op, e, inv)
+    Given a : Real
+    Step: op(a, inv(a)) = e
+QED
+"""
+        report = checker.check_source(src)[0]
+        assert report.is_valid, report.format_report()
+
+
 class TestSetTheory:
     def test_set_empty_set_and_operations(self, checker: ProofChecker):
         src = """\
@@ -205,3 +254,34 @@ QED
         assert "\\paragraph*{Case $x \\ge 0$:}" in latex
         assert "\\paragraph*{Case $x < 0$:}" in latex
         assert "\\paragraph*{SubLemma:}" in latex
+
+    def test_export_to_latex_escapes_theorem_names(self):
+        """Theorem names are free text, and LaTeX prints them in text mode.
+
+        A name such as `Divisibility of 3^n - 1 by 2` went into
+        `\\begin{theorem}[...]` verbatim, where `^` is a math-only token:
+        pdfTeX stopped with "Missing $ inserted" and wrote no PDF at all.
+        """
+        src = """\
+Theorem: "Divisibility of 3^n - 1 by 2"
+Claim: 1 = 1
+Proof:
+    Step: 1 = 1
+QED
+"""
+        latex = export_to_latex(src, standalone=True)
+        assert "\\begin{theorem}[Divisibility of 3\\textasciicircum{}n - 1 by 2]" in latex
+        assert "3^n" not in latex
+
+    def test_export_to_latex_escapes_labels(self):
+        """Labels reach LaTeX in text mode too -- `h_1` used to be left raw."""
+        src = """\
+Let n : Int
+Assume h_1: Even(n)
+Therefore Even(n)
+Sub_lemma:
+    Step: n = n
+"""
+        latex = export_to_latex(src, standalone=True)
+        assert "Assume (h\\_1) " in latex
+        assert "\\paragraph*{Sub\\_lemma:}" in latex

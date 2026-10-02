@@ -36,6 +36,13 @@ export const AETHER_TOKENS = {
   flow: tags.controlKeyword,
   join: tags.modifier,
   logicKw: tags.operatorKeyword,
+  // `tags.function` is a *modifier*: on its own it is not a tag.  Math
+  // functions are call-shaped, so this is the tag that means "a name you
+  // apply", which is exactly what sqrt/lim/det are.
+  mathFn: tags.function(tags.variableName),
+  // LaTeX-ish escapes (\mathbb{N}, \epsilon) get the macro tag so a vivid
+  // scheme can lift them out of the type colour.
+  macro: tags.macroName,
   operator: tags.operator,
   variableName: tags.variableName,
   typeName: tags.typeName,
@@ -60,7 +67,7 @@ export function aetherToken(stream) {
   if (stream.match(/not\s+in/i)) return "logicKw";
 
   if (stream.match(/"[^"]*"/)) return "string";
-  if (stream.match(/\\[a-zA-Z]+/)) return "typeName"; // \mathbb{N}, \epsilon, ...
+  if (stream.match(/\\[a-zA-Z]+/)) return "macro"; // \mathbb{N}, \epsilon, ...
   if (stream.match(/\d+(\.\d+)?/)) return "number";
 
   // Use the match result rather than stream.current(): `current()` is not
@@ -70,11 +77,11 @@ export function aetherToken(stream) {
     const text = word[0];
     const lower = text.toLowerCase();
     if (STRUCTURE_KW.has(lower)) return "structure";
+    if (MATH_FN_KW.has(lower)) return "mathFn";
     if (INTRO_KW.has(lower)) return "intro";
     if (FLOW_KW.has(lower)) return "flow";
     if (JOIN_KW.has(lower)) return "join";
     if (LOGIC_KW.has(lower)) return "logicKw";
-    if (MATH_FN_KW.has(lower)) return "intro";
     // Capitalised identifiers are types and prelude predicates: Int, Real,
     // Even, MultipleOf.  Keywords above are matched first, so Theorem/QED keep
     // their structure colouring.
@@ -95,6 +102,36 @@ export const aetherLanguage = StreamLanguage.define({
 });
 
 /**
+ * Every key `makeHighlightStyle` reads.
+ *
+ * Exported so the three files that have to agree about it -- this one, the
+ * CSS that supplies the values, and js/editor.js which resolves them out of
+ * the custom properties -- can be checked against each other.  They live in
+ * different files and a typo in any of them fails silently, as a token that is
+ * simply not coloured.
+ */
+export const PALETTE_KEYS = [
+  "structure",
+  "intro",
+  "flow",
+  "join",
+  "logic",
+  "mathFn",
+  "macro",
+  "type",
+  "ink",
+  "number",
+  "operator",
+  "string",
+  "comment",
+];
+
+/** The custom property a palette key is stored under: mathFn -> --cm-token-math-fn. */
+export function tokenVariable(key) {
+  return `--cm-token-${key.replace(/[A-Z]/g, (letter) => `-${letter.toLowerCase()}`)}`;
+}
+
+/**
  * Build the syntax colours from a palette of already-resolved CSS values.
  *
  * This module stays DOM-free so it can be unit-tested in Node, which means it
@@ -102,23 +139,32 @@ export const aetherLanguage = StreamLanguage.define({
  * passes them in.  The upshot is one palette for the whole app rather than a
  * syntax theme maintained separately from it.
  *
- * The scheme itself is nearly monochrome.  The controlled-natural-language
- * keywords (Theorem, Assume, Therefore, QED) are the skeleton of a proof, so
- * they carry the accent; types are inked and separated by weight; operators,
- * glue words, strings and comments all recede.  A proof should read as text
- * with a structure, not as a rainbow.
+ * Two schemes are expressed here, chosen entirely by the palette:
+ *
+ *   "mono"  (default) Collapses most keys onto the accent: the
+ *                     controlled-natural-language keywords are the skeleton of
+ *                     a proof, so they carry the colour; types are inked and
+ *                     separated by weight; everything else recedes.  A proof
+ *                     reads as text with a structure rather than a rainbow.
+ *   "vivid" Gives every category its own hue, the way a general-purpose
+ *                     language colours calls, strings and keywords apart.
+ *
+ * Nothing branches on the scheme: the palette supplies either one accent for
+ * most keys or a different colour for each, and the list below is the same.
  */
 export function makeHighlightStyle(p) {
   return HighlightStyle.define([
-    { tag: tags.definitionKeyword, color: p.keyword, fontWeight: "600" },
-    { tag: tags.controlKeyword, color: p.keyword, fontWeight: "600" },
-    { tag: tags.keyword, color: p.keyword },
-    { tag: tags.operatorKeyword, color: p.keyword },
+    { tag: tags.definitionKeyword, color: p.structure, fontWeight: "600" },
+    { tag: tags.controlKeyword, color: p.flow, fontWeight: "600" },
+    { tag: tags.keyword, color: p.intro },
+    { tag: tags.operatorKeyword, color: p.logic },
+    { tag: tags.function(tags.variableName), color: p.mathFn },
+    { tag: tags.macroName, color: p.macro },
     { tag: tags.typeName, color: p.type, fontWeight: "600" },
     { tag: tags.variableName, color: p.ink },
-    { tag: tags.number, color: p.ink },
+    { tag: tags.number, color: p.number },
     { tag: tags.operator, color: p.operator },
-    { tag: tags.modifier, color: p.glue },
+    { tag: tags.modifier, color: p.join },
     { tag: tags.string, color: p.string },
     // No italics: the vendored subsets ship no italic file, and a synthesised
     // slant on a monospace face reads as a rendering fault rather than emphasis.

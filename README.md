@@ -23,6 +23,9 @@ We provide two dedicated guides tailored for different audiences:
    - **For AI & Engine Developers**: Exhaustive technical documentation.
    - Complete formal grammar (Lark EBNF), AST dataclass taxonomy, scope manager mechanics, SymPy & Z3 solver algorithms, error taxonomy, Python public API, and REST API JSON schemas.
 
+3. **[Browser Tooling (`TOOLING.md`)](file:///home/samuel/Documents/GitHub/aether/TOOLING.md)**
+   - **For Contributors**: What the `agent-browser` CLI can and cannot do, established by sweeping it, plus the recipes used to verify this UI (screenshots, axe-core audits, HARs, layout diffs).
+
 ---
 
 ## 🚀 Quick Start
@@ -72,15 +75,21 @@ Open your browser at `http://127.0.0.1:8000`.
 Run all automated test suites:
 
 ```bash
-# Run engine unit and integration tests (82 tests)
+# Run engine unit and integration tests (121 tests)
 uv run pytest -v
 
 # Verify bundled UI examples match engine verdicts (19 examples)
 uv run python ui/verify_examples.py
+
+# Verify the documented CNL capability matrix (87 claims)
+uv run python ui/verify_capabilities.py
 
 # Verify FastAPI server and export endpoints (including PDF compilation)
 uv run python ui/verify_server.py
 
 # Verify CodeMirror tokenizer and frontend assets
 node ui/verify_frontend.mjs
+
+# Verify real-browser behaviour (keybindings, panels, theme)
+uv run python ui/verify_browser.py
 ```

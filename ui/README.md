@@ -39,9 +39,11 @@ uv run uvicorn ui.app:app --reload
 | Feature | Where |
 | --- | --- |
 | Write/edit proofs with line numbers, 4-space Tab, Enter auto-indent | left pane |
-| Load any of 8 worked examples | "Load an example…" menu |
+| Load any of 19 worked examples | "Load an example…" menu |
 | Overall verdict | pill in the header |
 | Toggle strict domain checking | switch in the header |
+| Rearrange the three panels: four presets, drag-to-swap, arrow keys on a grip | layout menu in the toolbar |
+| Colourised syntax, or keep the editor near-monochrome (remembered) | button in the toolbar |
 | Parse errors with line + column | auditor pane |
 | Per-step status, backend badge, message, counterexample, domain warnings | auditor pane |
 | Move between steps with `↑` `↓` `Home` `End` | auditor pane |
@@ -99,6 +101,36 @@ or the quota is full — the UI says so once rather than losing work silently.
 Loading an example, resetting, restoring a snapshot or opening a dropped file
 all snapshot the buffer they are about to replace first, so none of them can
 destroy something you meant to keep.
+
+### Panel arrangements
+
+The three panes live in a CSS grid, and a pane's *position* in it is a
+`data-slot` attribute (`a`, `b`, `c`, in reading order). Each arrangement is a
+`grid-template-areas` rule keyed off `data-layout` on the grid, so moving a
+panel is only ever a swap of two slots.
+
+Four presets are offered from the toolbar menu, each shown as a miniature of
+itself — **Columns** (the default), **Stack**, **Split** and **Focus**. Two of
+them deliberately merge panes: in Split and Focus the auditor and the context
+pane share a column, which is the nearest thing here to docking one panel
+inside another. Beyond the presets, panes can be reordered freely:
+
+- **Drag a grip** — the six dots at the left of a panel head — onto another
+  panel to swap the two. The whole panel is the drop target, not just its head,
+  which is what makes it feel like docking rather than aiming at a handle.
+- **Focus a grip and press an arrow key** to move that panel one slot along the
+  order. Movement is clamped at the ends rather than wrapped, and focus stays on
+  the grip, so you can keep pressing.
+
+Both are written to `localStorage["aether:layout"]` as `{v, arrangement,
+order}`. Nothing read back is trusted: an unknown arrangement falls back to
+Columns, the order is rebuilt from the panes that actually exist, and a pane
+missing from the stored order is appended rather than dropped. The grid is
+resolved before the first paint, because the module is deferred and applies the
+layout during evaluation. On every change the panes are also reordered *in the
+DOM*, which is what keeps tab order and screen-reader order in step with what is
+on screen — and what the narrow-screen rule lays out from, since it drops the
+slot areas entirely and stacks the panes in a single column.
 
 ## API
 
@@ -167,7 +199,8 @@ ui/
   vendor_codemirror.py     regenerates static/vendor/esm/
   vendor_webawesome.py     regenerates static/vendor/webawesome/
   verify_examples.py       asserts every example matches its blurb
-  verify_frontend.mjs      asserts imports resolve + tokenizer output
+  verify_capabilities.py   pins the documented CNL capability surface
+  verify_frontend.mjs      asserts imports resolve + tokenizer + layout rules
   verify_server.py         HTTP smoke test (endpoints, MIME types)
   verify_browser.py        headless-Chrome behaviour regression suite
   static/
@@ -187,6 +220,7 @@ ui/
       dom.js               element references
       state.js             mutable UI state
       store.js             localStorage: buffer, snapshots, timeline
+      layout.js            panel arrangement: presets, drag-to-swap, keyboard
       permalink.js         URL fragment encode/decode
       files.js             download, clipboard, drag-and-drop
       history.js           the workspace panel
@@ -228,6 +262,9 @@ Worth eyeballing, and where to look:
 | The panel follows the caret as you arrow up/down | Click a step line, then press `↑` / `↓` |
 | The panel does *not* jump around while you type | Type inside a valid line and watch the panel hold still |
 | Theme toggle, and it survives a reload | Header button; check DevTools → Application → Local Storage |
+| Panels can be swapped by grip | Drag a panel's grip onto another panel, or focus one and press an arrow key |
+| A preset rearranges all three panes at once | Layout menu in the toolbar; pick Split or Focus |
+| Syntax colours flip between mono and vivid | The three-dot button in the toolbar; the editor repaints |
 | A reload restores what you were typing | Type an edit, reload, watch it come back |
 | The verdict dims while a re-check is pending | Type in a valid proof and watch the pill |
 | Snapshots are taken before anything replaces your buffer | Load an example, then open the workspace panel |
@@ -238,11 +275,12 @@ Worth eyeballing, and where to look:
 ### Automated checks
 
 ```bash
-uv run python ui/verify_examples.py   # engine: every example matches its blurb
-node ui/verify_frontend.mjs           # static: imports resolve, tokenizer correct
-uv run python ui/verify_server.py     # HTTP: endpoints, and MIME types for all 44 modules
-uv run python ui/verify_browser.py    # real Chrome: key bindings, debounce, workspace
-uv run pytest                         # the engine's own suite (untouched)
+uv run python ui/verify_examples.py    # engine: every example matches its blurb
+uv run python ui/verify_capabilities.py  # engine: 87 documented snippets still behave
+node ui/verify_frontend.mjs            # static: imports resolve, tokenizer correct
+uv run python ui/verify_server.py      # HTTP: endpoints, MIME types, both export styles
+uv run python ui/verify_browser.py     # real Chrome: key bindings, debounce, workspace
+uv run pytest                          # the engine's own suite (untouched)
 ```
 
 `verify_server.py` and `verify_browser.py` each start and stop their own server
@@ -253,6 +291,19 @@ Why each one earns its place:
 
 - **`verify_examples.py`** — every example advertises an expected outcome in the
   UI. This fails loudly if an engine change silently turns a blurb into a lie.
+- **`verify_capabilities.py`** — the same idea for the *documentation*. What a
+  proof may contain, and where the engine stops, is advertised across
+  `USER_GUIDE.md` sections 3, 5 and 6 and pinned here as 87 snippets plus the
+  verdict each must still produce — including the deliberate refusals
+  (`ChainGuard`, `ScopeGuard`, variable capture), the few known gaps, and the
+  rejections that are simply correct. It also fails when the table embedded in
+  `USER_GUIDE.md` (§8) no longer matches the pins, so a flipped expectation
+  cannot stop at the code. `--markdown` prints that table. Each snippet runs in
+  a worker process under a wall-clock budget (`--budget`, 10s), because Z3's soft
+  `timeout` is not honoured by its model-based quantifier instantiation: one
+  query can run from seconds to half an hour, and that must not make this
+  worthless as a gate. A snippet that overruns is reported as `TIMEOUT` —
+  expected for the one that is documented as such, a failure for anything else.
 - **`verify_server.py`** — includes the check that every vendored module is
   served as a JavaScript MIME type. Get that wrong and browsers silently refuse
   to load the editor, with a blank pane as the only symptom. It now covers the
@@ -261,6 +312,9 @@ Why each one earns its place:
 - **`verify_browser.py`** — the only check that can catch a key-binding
   regression. It exists because `Tab` was inserting a literal tab character
   (CodeMirror's `insertTab` ignores `indentUnit`), which no static check noticed.
+  It is also where the two pure-logic modules get their wiring tested: the panel
+  grips are focused and stepped with real arrow keys, and the syntax button is
+  clicked and the editor's *rendered* token colours are compared.
 - **`verify_frontend.mjs`** — catches the failure mode where a name is imported
   from the wrong vendored package and silently resolves to `undefined`. Web
   Awesome cannot be imported here at all (it needs a DOM), so its tree is
@@ -370,6 +424,20 @@ worth keeping:
   from the `--cm-token-*` tokens. The CNL keywords take the accent; types are
   inked and separated by weight; operators, glue words, strings and comments
   recede.
+- **Two syntax schemes, one vocabulary.** The same thirteen token keys are
+  pointed at two different sets of colours by an attribute on `<html>`.
+  `[data-syntax="mono"]` (the default) aliases them back to the interface's own
+  palette — keywords to the accent, names and numbers to ink, operators, glue
+  words and comments to a dim of it — so the editor keeps the page's
+  near-monochrome voice, while `[data-syntax="vivid"]` gives each category a hue
+  of its own, the way a Python file does. Because the mono scheme is written as
+  aliases rather than literals it follows the dark theme for free; only vivid
+  needs a second block, since its hues are chosen against one ground apiece. The
+  toolbar button flips it, the choice is remembered under
+  `localStorage["aether-syntax"]`, and it is resolved before first paint
+  alongside the theme. Nothing is re-rendered — the keys are read once and the
+  colours are CSS — so every token has to stay legible on its own against both
+  grounds.
 - **A failure is stated once.** The engine repeats itself — a failing obligation
   arrives as both the message and a warning, and an algebraic failure's message
   ends with the same `Counterexample at x=3: …` sentence the callout shows.
@@ -402,8 +470,8 @@ Only the PDF is designed. `ui/app.py` passes `style="fancy"` from
 thing you can paste into a paper while the PDF is the thing you would be
 pleased to hand in.
 
-Both documents are the proof first, then, each starting on a fresh page under a
-hairline rule:
+The `plain` document is the proof first, then each report section, each starting
+on a fresh page under a hairline rule:
 
 | Section | Contents |
 | --- | --- |
@@ -412,15 +480,32 @@ hairline rule:
 | Session | the workspace panel's verdict timeline and snapshots, which live in `localStorage` and so are sent by the client |
 | Original Proof Source | the Aether source, verbatim |
 
-The designed document carries exactly the same facts and adds a closing
-`About` section. Its opening is a printed twin of the UI topbar: brand left,
-rail-and-word verdict right, the theorem as the hero title, then a tight mono
-meta strip — and the proof continues on the same page. The audit is not a
-spreadsheet: it is a vertical step list (left rail, line, statement, status,
-backend) with findings hanging under the failing step, matching the on-screen
-auditor. Proof state, session, source and about follow as back matter under
-hairline section labels. Colour follows the site light theme (`#0a5fbf`
-accent; green / amber / red only for status).
+The designed document carries exactly the same facts in a different shape. It
+opens on a **full-bleed navy cover plate**: brand and kicker, the theorem at
+31pt, the verdict at 17pt in the tone it earned, and a mono meta strip giving
+the statement counts, the date, how long the check took, and whether domains
+were strict. Everything a reader needs before the proof is on that one page.
+Then a numbered sequence:
+
+| Section | Contents |
+| --- | --- |
+| The Proof | an at-a-glance strip of four stat cards over the journal proof |
+| Findings | one callout per statement that did not clear, with its counterexample — omitted when nothing failed |
+| Auditor | every statement as a step row: rail, line, status chip, statement, backend |
+| Proof State | what was in scope at each line |
+| Session | the workspace timeline and snapshots — omitted when there is none |
+| Source | the buffer, in an editor-window panel |
+| About | how to read the document |
+
+The sections are collected and numbered in one pass at the end, so a section
+that is left out does not leave a hole in the sequence: a clean proof with no
+recorded history numbers them 01 The Proof, 02 Auditor, 03 Proof State, 04
+Source, 05 About. Auditor and Source each force a page break — the one is a long
+column of rows, the other a wall of monospace that reads badly starting halfway
+down a page — while the rest flow. Each opener is a tinted number chip, the
+title, and a rule. Colour follows the site light theme (`#0a5fbf` accent; green
+/ amber / red only for status, with a light variant of each on the navy cover,
+where the dark ones have no contrast at all).
 
 Three consequences worth knowing:
 
@@ -428,8 +513,13 @@ Three consequences worth knowing:
   `_`, `&` and friends as syntax, so an unescaped `n^2` in a table cell is a
   compile error. Escaping is one regex pass rather than a chain of
   `str.replace` calls, because replacing `\\` first and `{` second would go on
-  to escape the braces in the backslash's own replacement text. The source
-  listing is the one deliberate exception, since it is quoted verbatim.
+  to escape the braces in the backslash's own replacement text. The engine's own
+  exporter needs the same treatment for the free text *it* emits: a theorem name
+  like `Divisibility of 3^n - 1 by 2` went into `\begin{theorem}[...]` verbatim,
+  where `^` is a math-only token, and pdfTeX stopped with *Missing $ inserted* —
+  no PDF at all. `escape_latex_text()` in `aether.core.latex_export` now escapes
+  theorem names and labels, and the source listing stays the one deliberate
+  exception, since it is quoted verbatim.
 - **The PDF is compiled twice.** `longtable` measures its columns on the first
   pass and lays them out on the second; one pass leaves the report's tables
   ragged.
@@ -448,6 +538,11 @@ Two constraints the designed style has to live with, both recorded in
   trap follows from the same place — EC has no bold-extended sans below 8pt, so
   a bold sans label at 7.4pt sends pdfTeX after a bitmap that was never
   generated and the run dies outright. Every bold label here is 8pt or larger.
-- **The opening is sized to share a page with the proof.** Brand, verdict,
-  theorem title and meta strip sit above the typeset proof; vertical gaps are
-  tuned so a short theorem does not leave a lonely cover page.
+- **The source listing is a `Verbatim`, not a `verbatim`.** A statement can be
+  wider than the panel, and `verbatim` cannot break a line: a long `Claim:` ran
+  180pt into the margin. `fvextra`'s `Verbatim[breaklines,breakanywhere]` wraps
+  it and marks the continuation with a hook, which is also why the designed
+  preamble loads `fvextra`. The cover, by contrast, is a `tcolorbox` the size of
+  the paper, emitted inside `\newgeometry{margin=0pt}` with the margins restored
+  straight afterwards, and the amber bar across its foot is drawn in the shipout
+  foreground so that it applies to that page alone.

@@ -211,11 +211,84 @@ Powered by SymPy (`import sympy as sp`).
 - **Series:** Taylor / Maclaurin expansions via `sp.series(expr, var, pt, n).removeO()`.
 - **Differential Equations:** Given a declared function `y(t) = ...`, substitutions for `diff(y, t)` and `diff(y, t, 2)` into an ODE expression (e.g. `diff(y, t, 2) + w^2 * y = 0`) are evaluated by substituting the explicit function derivatives and testing $s_{\text{diff}} = 0$.
 
-### 5.2 Pre-simplification Domain Extraction
+### 5.2 Matrix Operations
+Matrices are literal (`[[1, 2], [3, 4]]`) and compared elementwise, so an equality step passes when every entry matches (`_is_zero` recurses into `sp.MatrixBase`).
+- `det(A)` / `determinant(A)` → `A.det()`
+- `tr(A)` / `trace(A)` → `A.trace()`
+- `transpose(A)` → `A.T`
+- `dot(u, v)` → `u.dot(v)`
+- `inverse(A)` / `inv(A)` → `A.inv()`, **for a square matrix only**. A non-square or non-matrix argument falls back to an uninterpreted `inv`, which is what the abstract-algebra templates rely on when they write `inv(a)` for a group element.
+
+### 5.3 Pre-simplification Domain Extraction
 `extract_domain_obligations(expr)` walks the un-simplified AST:
 - $A / B \implies B \neq 0$
 - $\sqrt{A} \implies A \ge 0$
-- $\ln(A) \implies A > 0$
+
+- Inside `sum(k, lo, hi, body)`, an obligation that mentions the index is
+  quantified over the range: `forall k : Int, lo <= k <= hi => B != 0`. So
+  `sum(k, 1, oo, 1/k^2)` owes nothing, while `sum(k, -1, 1, 1/k)` is refused.
+- An obligation between closed terms (`gcd(8, 2) != 0`) is evaluated by SymPy
+  before the solver is asked (`_evaluate_constant_relation` in `logic`).
+
+**Not extracted: $\ln(A) \implies A > 0$.** Positivity of a logarithm's argument is
+not checked. This was forced while Z3 could not prove $e^x > 0$; it now can (see
+§6.3), so the obligation could be added -- at the price of turning every `ln(x)`
+without `x > 0` in scope into a warning. (Unresolved obligations are reported as
+warnings, or as errors under `strict_domains=True`.)
+
+### 5.4 Mathematical Constants
+`pi` (and `\pi`) and `e` convert to `sp.pi` / `sp.E`, so `sin(\pi) = 0` is settled by SymPy rather than reported as `Counterexample at pi=3`. Both a `SymbolNode` named `pi`/`e` and the `GreekSymbolNode` for `\pi` are mapped; `i`/`I` → `sp.I` works the same way and predates this.
+
+Two guards keep the names usable as variables, and both are needed:
+- **Declared wins.** `ctx.get_var(name) is not None` leaves the name alone, so `Let pi : Real` restores the old behaviour.
+- **A structure's names are reserved.** `ProofContext.structure_names()` collects the symbols an active `Group`/`AbelianGroup`/`Ring`/`Field`/`Subgroup`/`NormalSubgroup` assumption binds. Without it, `e` — the identity in `Assume Group(G, op, e, inv)`, which the templates and five tests rely on — would silently become 2.718 in every algebraic step.
+
+In `logic`, the constants are real constants carrying true, if loose, bounds (`3.14159265 < pi < 3.14159266`, `2.718281828 < e < 2.718281829`) fed through `extra_constraints`. They are facts about the numbers, so adding them only narrows the models; without them `pi > 3` was answered by an arbitrary real.
+
+### 5.5 Infinity, Limits and Case Splits
+- `oo` (the grammar's `\infty`, `∞`, `infinity` all become `SymbolNode("oo")`)
+  converts to `sp.oo` unless declared. An equation with an infinite side is not
+  checked as `lhs - rhs == 0` (that is `oo - oo = nan`); the two sides must
+  agree outright, so `a + oo = oo` holds and `oo - oo = 0` does not.
+- `sp.limit` is wrapped: a two-sided limit whose sides differ (SymPy raises
+  `ValueError`), an oscillating one (`AccumBounds`), `zoo`, or an unevaluated
+  `Limit` becomes an `AlgebraConversionError` -- a refused step with the
+  reason, never an exception out of `check_source`. A limit at `+-oo` takes no
+  direction.
+- `Piecewise` and `sign(...)` in a sum or limit result are resolved by
+  `logic.refine_with_context`, which asks Z3 whether the proof's hypotheses
+  entail a branch condition (`Abs(r) < 1`, `Ne(r, 1)`, `log(rho) < 0`). A
+  branch is taken only when entailed, so an undecided split leaves the step
+  unproved.
+
+### 5.6 Group Elements and the Notes' Notation
+- `Given a : G` resolves through `ProofContext.resolve_type`: a number type as
+  before, or -- when `G` is a structure's carrier or a declared set -- the
+  `Element` type with `VarInfo.carrier = "G"` and the fact `a in G`.
+- `ProofContext.elaborate_group_notation` (applied by `expand_user_functions`,
+  so every backend sees it) rewrites `a * b`, `a \cdot b`, `a \circ b` to the
+  group's `op`, `a^-1` to `inv(a)`, literal powers to products, and `a^0` to the
+  identity -- only for operands recognisably in a group, so real arithmetic is
+  untouched.
+- `_verify_group_identity` (algebra) checks an equation built only from one
+  group's `op`/`inv`/identity as words over non-commuting SymPy symbols
+  (commuting for `AbelianGroup`). Equal reduced words are equal in the free
+  group, hence in every group. Different words are only a diagnosis -- unless
+  every fact in scope is a structure assumption or carrier membership, in which
+  case the free group is a counter-model and the result is `decisive`, which
+  stops the slow non-commutative model search in Z3.
+
+### 5.7 Unknown Calls and Wrong Arity Are Named
+A `f(...)` name no backend interprets becomes an uninterpreted function, which used to surface as a maths error: `fact(5) = 120` reported only that `fact(5) - 120 != 0`. Both backends now append a diagnosis to a failure — a near miss is offered (`fact` → did you mean `factorial`?), and an unrelated name is reported as uninterpreted. The hints never change a verdict, they only explain a rejection; `unknown_call_hints(expr, ctx)` in `algebra` is the shared implementation, and user-declared functions (`Define`) are excluded.
+
+A call whose *name* the backend knows but whose *argument list* it does not
+(`det(A, A)`, `sum(k, 1, n)`, `integrate(x)`) is refused with the count, rather
+than falling through to that same uninterpreted branch. Unchecked, `Abs(x, x)`
+raised a TypeError that escaped `check_source` altogether — a 500 from the API —
+while `log(x, 2)` silently became a base-2 logarithm, so `ln(x, 2)` quietly
+stopped meaning the natural log. The counts live in `_SYMPY_FUNC_ARITY` (the
+prelude group) and `_ALGEBRA_CALLS` (everything else) in `algebra`, and in
+`_LOGIC_CALL_ARITY` in `logic`.
 
 ---
 
@@ -235,8 +308,26 @@ When `Assume Group(G, op, e, inv)` is in scope:
 - **Subgroups:** Enforces closure, identity containment ($e \in H$), and normal subgroup conjugation ($g \cdot n \cdot g^{-1} \in N$).
 
 ### 6.2 Modular Arithmetic Axiomatization
-- `a = b (mod m)` is encoded as $\exists k \in \mathbb{Z}, a - b = m \cdot k$ (or $m \mid (a - b)$ with $m \neq 0$).
+- `a = b (mod m)` is encoded as $\exists k \in \mathbb{Z}, a - b = m \cdot k$; in Z3 as `If(m == 0, a == b, (a - b) % m == 0)` -- Z3 leaves `x % 0` unconstrained, so the plain remainder made congruences modulo a symbolic `m` unprovable. `MultipleOf` and `Divides` get the same guard.
+- With a symbolic modulus the question is non-linear, so the SymPy route rewrites the goal with the divisibility facts in scope (`_eliminate_divisibility_witnesses`: `i = k (mod n)` gives `i = k + n*t` for a fresh integer `t`) and checks that the difference over the modulus is an integer polynomial. A quotient that is `zoo` (modulus 0) is not.
 - Proves modular addition, multiplication, and power identities via Z3 integer arithmetic.
+
+### 6.3 What the Solver Cannot Decide
+Z3 has no theory of `exp`, `log`, `sin`, `cos` or `tan`: `ast_to_z3` makes them
+uninterpreted functions. Each application is given true facts about its range
+(`_range_facts`: `-1 <= sin, cos <= 1`, `exp(t) > 0` and `exp(t) >= 1 + t`,
+`log(t) <= t - 1` for `t > 0`, `cosh >= 1`, `-1 < tanh < 1`), which hold for every
+argument and so cannot make a false claim provable -- `exp(x) > 0` and
+`|x sin(1/x)| <= |x|` now go through. An inequality needing more than the range
+is still `sat` in some model, and that model is *not* a counterexample; a failed
+query whose claim mentions one of `_SYMPY_ONLY_CALLS` says so instead of
+leaving that to be read as a maths error.
+
+Comparisons with `+-oo` are decided outright (`-oo < a < oo` for any finite
+`a`); any other use of `oo` raises `LogicConversionError`, since a real-valued
+solver has no infinite element. Equalities about these functions never reach Z3 at all:
+`verify_entailment` tries `verify_algebraic_equality` first, so
+`sin(x)^2 + cos(x)^2 = 1` is settled by SymPy and does hold.
 
 ---
 

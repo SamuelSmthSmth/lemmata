@@ -14,6 +14,11 @@ export const dom = {
   contextSub: document.getElementById("context-sub"),
   themeToggle: document.getElementById("theme-toggle"),
 
+  // Syntax colour scheme.  The panel-arrangement controls are deliberately
+  // absent: layout.js owns them and looks them up itself, because that module
+  // has to stay importable in Node (where dom.js cannot be evaluated at all).
+  syntaxToggle: document.getElementById("syntax-toggle"),
+
   // Workspace panel. The panel is the content of a <wa-popup>, which owns the
   // anchoring and the `active` flag that used to be a `hidden` boolean.
   historyToggle: document.getElementById("history-toggle"),

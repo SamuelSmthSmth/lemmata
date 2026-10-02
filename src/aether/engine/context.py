@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, fields, replace
 from typing import Optional
 
 from aether.core.ast import (
@@ -17,6 +17,7 @@ from aether.core.ast import (
     RawMathNode,
     IntegralNode,
     LimitNode,
+    NumberNode,
 )
 from aether.core.types import MathType, normalize_type_name
 
@@ -215,6 +216,13 @@ class VarInfo:
     scope_depth: int
     is_witness: bool = False
     condition: Optional[ExprNode] = None
+    #: The structure an ``Element`` belongs to (``G`` in ``Given a : G``).
+    carrier: Optional[str] = None
+
+    @property
+    def type_label(self) -> str:
+        """What the variable is declared as, for display: ``Int``, ``G``, ..."""
+        return self.carrier or self.math_type.value
 
 
 @dataclass
@@ -239,9 +247,13 @@ class HypothesisInfo:
 
 @dataclass
 class DomainObligation:
-    """An automatically generated domain obligation (e.g. non-zero denominator)."""
+    """An automatically generated domain obligation (e.g. non-zero denominator).
 
-    condition: RelationNode
+    Usually a relation (``x - 2 != 0``); inside a sum it is quantified over the
+    index range (``forall k : Int, 1 <= k <= n => k^2 != 0``).
+    """
+
+    condition: ExprNode
     reason: str
     line: Optional[int] = None
     discharged: bool = False
@@ -254,6 +266,45 @@ class ChainState:
     head_lhs: ExprNode
     current_rhs: ExprNode
     effective_relation: str = "="
+
+
+@dataclass(frozen=True)
+class GroupSignature:
+    """The names a group assumption binds: ``Group(G, op, e, inv)``."""
+
+    carrier: str
+    op: str = "op"
+    identity: str = "e"
+    inverse: str = "inv"
+    abelian: bool = False
+
+
+#: Infix spellings of a group's operation when its operands are group elements.
+_GROUP_PRODUCT_OPS = frozenset({"*", "\\cdot", "\\circ"})
+
+
+def _map_children(expr: ExprNode, fn) -> ExprNode:
+    """Rebuild *expr* with ``fn`` applied to every child expression."""
+    changes = {}
+    for f in fields(expr):
+        value = getattr(expr, f.name)
+        if isinstance(value, ExprNode):
+            changes[f.name] = fn(value)
+        elif isinstance(value, list) and value and all(isinstance(v, ExprNode) for v in value):
+            changes[f.name] = [fn(v) for v in value]
+        elif isinstance(value, list) and value and all(isinstance(v, list) for v in value):
+            changes[f.name] = [[fn(x) for x in row] for row in value]
+    return replace(expr, **changes) if changes else expr
+
+
+def _integer_literal(expr: ExprNode) -> Optional[int]:
+    if isinstance(expr, NumberNode) and "." not in expr.value:
+        return int(expr.value)
+    if isinstance(expr, UnaryOpNode) and expr.op in ("-", "+"):
+        inner = _integer_literal(expr.operand)
+        if inner is not None:
+            return -inner if expr.op == "-" else inner
+    return None
 
 
 @dataclass
@@ -330,6 +381,27 @@ class ProofContext:
             merged.update(frame.functions)
         return merged
 
+    #: Structure assumptions that bind distinguished elements *by name*.
+    #: ``Assume Group(G, op, e, inv)`` makes ``e`` the identity, so a symbol of
+    #: that name is the group's identity -- not Euler's number.
+    STRUCTURE_PROPOSITIONS: frozenset[str] = frozenset(
+        {"group", "abeliangroup", "ring", "field", "subgroup", "normalsubgroup"}
+    )
+
+    def structure_names(self) -> set[str]:
+        """Names bound by an active structure assumption (identity, zero, one, ...)."""
+        names: set[str] = set()
+        for hypothesis in self.all_hypotheses():
+            proposition = hypothesis.proposition
+            if (
+                isinstance(proposition, FunctionCallNode)
+                and proposition.func.lower() in self.STRUCTURE_PROPOSITIONS
+            ):
+                for arg in proposition.args:
+                    if isinstance(arg, (SymbolNode, GreekSymbolNode)):
+                        names.add(arg.name)
+        return names
+
     def declare_function(
         self,
         name: str,
@@ -350,30 +422,185 @@ class ProofContext:
         self.current_frame.functions[name] = info
         return info
 
+    # -------------------------------------------------------------------
+    # Structures: carriers, group signatures, multiplicative notation
+    # -------------------------------------------------------------------
+
+    def _structure_calls(self) -> list[FunctionCallNode]:
+        return [
+            h.proposition
+            for h in self.all_hypotheses()
+            if isinstance(h.proposition, FunctionCallNode)
+            and h.proposition.func.lower() in self.STRUCTURE_PROPOSITIONS
+        ]
+
+    def group_signatures(self) -> dict[str, GroupSignature]:
+        """Every carrier a group assumption is about, mapped to that group's names.
+
+        ``Subgroup(H, G, op, e, inv)`` makes ``H`` a carrier with ``G``'s
+        operation, so ``Given h : H`` elements multiply with ``op`` too.
+        """
+
+        def name(arg: ExprNode) -> Optional[str]:
+            return arg.name if isinstance(arg, (SymbolNode, GreekSymbolNode)) else None
+
+        out: dict[str, GroupSignature] = {}
+        for call in self._structure_calls():
+            fn = call.func.lower()
+            names = [name(a) for a in call.args]
+            if fn in ("group", "abeliangroup") and names and names[0]:
+                rest = names[1:4]
+                out[names[0]] = GroupSignature(
+                    carrier=names[0],
+                    op=rest[0] if len(rest) > 0 and rest[0] else "op",
+                    identity=rest[1] if len(rest) > 1 and rest[1] else "e",
+                    inverse=rest[2] if len(rest) > 2 and rest[2] else "inv",
+                    abelian=fn == "abeliangroup",
+                )
+        for call in self._structure_calls():
+            fn = call.func.lower()
+            names = [name(a) for a in call.args]
+            if fn in ("subgroup", "normalsubgroup") and len(names) >= 2 and names[0] and names[0] not in out:
+                parent = out.get(names[1] or "")
+                rest = names[2:5]
+                out[names[0]] = GroupSignature(
+                    carrier=names[0],
+                    op=rest[0] if len(rest) > 0 and rest[0] else (parent.op if parent else "op"),
+                    identity=rest[1] if len(rest) > 1 and rest[1] else (parent.identity if parent else "e"),
+                    inverse=rest[2] if len(rest) > 2 and rest[2] else (parent.inverse if parent else "inv"),
+                    abelian=parent.abelian if parent else False,
+                )
+        return out
+
+    def carrier_names(self) -> set[str]:
+        """Names usable as a type: structure carriers and declared sets."""
+        names = set(self.group_signatures())
+        for call in self._structure_calls():
+            if call.args and isinstance(call.args[0], (SymbolNode, GreekSymbolNode)):
+                names.add(call.args[0].name)
+        for v in self.all_variables().values():
+            if v.math_type == MathType.Set:
+                names.add(v.name)
+        return names
+
+    def resolve_type(self, raw_type: str | MathType) -> tuple[MathType, Optional[str]]:
+        """``(math_type, carrier)`` for a declared type name.
+
+        A number type (``Int``, ``\\mathbb{R}``) resolves as before; the name of
+        a structure carrier or a declared set (``G`` after ``Assume Group(G,
+        ...)``) makes the variable an ``Element`` of it.  Raises ``ValueError``
+        for anything else.
+        """
+        if isinstance(raw_type, MathType):
+            return raw_type, None
+        try:
+            return normalize_type_name(raw_type), None
+        except ValueError:
+            carrier = raw_type.strip()
+            if carrier in self.carrier_names():
+                return MathType.Element, carrier
+            raise ValueError(
+                f"Unknown type: {raw_type!r}. Use a number type (Nat, Int, Rat, Real, Complex), "
+                f"or a structure's carrier after e.g. `Assume Group({carrier}, op, e, inv)`."
+            ) from None
+
+    def group_of(self, expr: ExprNode) -> Optional[GroupSignature]:
+        """The group *expr* is an element of, if that can be read off its form."""
+        groups = self.group_signatures()
+        if not groups:
+            return None
+        if isinstance(expr, (SymbolNode, GreekSymbolNode)):
+            v = self.get_var(expr.name)
+            if v is not None:
+                return groups.get(v.carrier or "")
+            return next((g for g in groups.values() if g.identity == expr.name), None)
+        if isinstance(expr, FunctionCallNode):
+            return next(
+                (
+                    g
+                    for g in groups.values()
+                    if (expr.func == g.op and len(expr.args) == 2)
+                    or (expr.func == g.inverse and len(expr.args) == 1)
+                ),
+                None,
+            )
+        if isinstance(expr, BinaryOpNode) and expr.op in _GROUP_PRODUCT_OPS:
+            return self.group_of(expr.left) or self.group_of(expr.right)
+        if isinstance(expr, BinaryOpNode) and expr.op in ("^", "**"):
+            return self.group_of(expr.left)
+        return None
+
+    def elaborate_group_notation(self, expr: ExprNode) -> ExprNode:
+        """Rewrite the notes' multiplicative notation into the group's own names.
+
+        For group elements ``a * b`` (or ``a \\cdot b``, ``a \\circ b``) is
+        ``op(a, b)``, ``a^-1`` is ``inv(a)``, ``a^3`` is ``op(op(a, a), a)`` and
+        ``a^0`` is the identity.  Anything not recognisably a group element
+        (a real ``x * y``) is left alone, so nothing changes for proofs that do
+        not declare elements.
+        """
+        if not self.group_signatures():
+            return expr
+
+        def walk(node: ExprNode) -> ExprNode:
+            node = _map_children(node, walk)
+            if isinstance(node, BinaryOpNode) and node.op in _GROUP_PRODUCT_OPS:
+                g = self.group_of(node.left) or self.group_of(node.right)
+                if g is not None:
+                    return FunctionCallNode(func=g.op, args=[node.left, node.right], line=node.line, col=node.col)
+            if isinstance(node, BinaryOpNode) and node.op in ("^", "**"):
+                g = self.group_of(node.left)
+                k = _integer_literal(node.right)
+                if g is not None and k is not None:
+                    return self._group_power(g, node.left, k)
+                if g is not None:
+                    # A symbolic exponent stays an opaque power of the element, never
+                    # the commutative real power `a^n * b^n = (a*b)^n` would suggest.
+                    return FunctionCallNode(func=f"{g.op}_pow", args=[node.left, node.right], line=node.line, col=node.col)
+            return node
+
+        return walk(expr)
+
+    @staticmethod
+    def _group_power(g: GroupSignature, base: ExprNode, k: int) -> ExprNode:
+        if k == 0:
+            return SymbolNode(name=g.identity)
+        acc = base
+        for _ in range(abs(k) - 1):
+            acc = FunctionCallNode(func=g.op, args=[acc, base])
+        return acc if k > 0 else FunctionCallNode(func=g.inverse, args=[acc])
+
     def expand_user_functions(self, expr: Optional[ExprNode]) -> Optional[ExprNode]:
+        """Inline user-defined functions, then elaborate group notation, in *expr*."""
+        expanded = self._expand_user_functions(expr)
+        if expanded is None:
+            return None
+        return self.elaborate_group_notation(expanded)
+
+    def _expand_user_functions(self, expr: Optional[ExprNode]) -> Optional[ExprNode]:
         """Recursively inline any calls to user-defined functions ``f(args)`` in *expr*."""
         if expr is None:
             return None
         if isinstance(expr, UnaryOpNode):
             return UnaryOpNode(
                 op=expr.op,
-                operand=self.expand_user_functions(expr.operand),  # type: ignore[arg-type]
+                operand=self._expand_user_functions(expr.operand),  # type: ignore[arg-type]
                 line=expr.line,
                 col=expr.col,
             )
         if isinstance(expr, BinaryOpNode):
             return BinaryOpNode(
                 op=expr.op,
-                left=self.expand_user_functions(expr.left),  # type: ignore[arg-type]
-                right=self.expand_user_functions(expr.right),  # type: ignore[arg-type]
+                left=self._expand_user_functions(expr.left),  # type: ignore[arg-type]
+                right=self._expand_user_functions(expr.right),  # type: ignore[arg-type]
                 line=expr.line,
                 col=expr.col,
             )
         if isinstance(expr, RelationNode):
             return RelationNode(
                 op=expr.op,
-                left=self.expand_user_functions(expr.left),  # type: ignore[arg-type]
-                right=self.expand_user_functions(expr.right),  # type: ignore[arg-type]
+                left=self._expand_user_functions(expr.left),  # type: ignore[arg-type]
+                right=self._expand_user_functions(expr.right),  # type: ignore[arg-type]
                 line=expr.line,
                 col=expr.col,
             )
@@ -382,17 +609,17 @@ class ProofContext:
                 quantifier=expr.quantifier,
                 var=expr.var,
                 var_type=expr.var_type,
-                formula=self.expand_user_functions(expr.formula),  # type: ignore[arg-type]
+                formula=self._expand_user_functions(expr.formula),  # type: ignore[arg-type]
                 line=expr.line,
                 col=expr.col,
             )
         if isinstance(expr, FunctionCallNode):
-            expanded_args = [self.expand_user_functions(a) for a in expr.args]
+            expanded_args = [self._expand_user_functions(a) for a in expr.args]
             fn_info = self.get_function(expr.func)
             if fn_info is not None and len(expanded_args) == len(fn_info.params):
                 mapping = {p: a for p, a in zip(fn_info.params, expanded_args) if a is not None}
                 inlined = substitute_mapping(fn_info.body, mapping)
-                return self.expand_user_functions(inlined)
+                return self._expand_user_functions(inlined)
             return FunctionCallNode(
                 func=expr.func,
                 args=[a for a in expanded_args if a is not None],
@@ -401,18 +628,18 @@ class ProofContext:
             )
         if isinstance(expr, IntegralNode):
             return IntegralNode(
-                body=self.expand_user_functions(expr.body),  # type: ignore[arg-type]
+                body=self._expand_user_functions(expr.body),  # type: ignore[arg-type]
                 var=expr.var,
-                lower=self.expand_user_functions(expr.lower) if expr.lower is not None else None,
-                upper=self.expand_user_functions(expr.upper) if expr.upper is not None else None,
+                lower=self._expand_user_functions(expr.lower) if expr.lower is not None else None,
+                upper=self._expand_user_functions(expr.upper) if expr.upper is not None else None,
                 line=expr.line,
                 col=expr.col,
             )
         if isinstance(expr, LimitNode):
             return LimitNode(
-                body=self.expand_user_functions(expr.body),  # type: ignore[arg-type]
+                body=self._expand_user_functions(expr.body),  # type: ignore[arg-type]
                 var=expr.var,
-                target=self.expand_user_functions(expr.target),  # type: ignore[arg-type]
+                target=self._expand_user_functions(expr.target),  # type: ignore[arg-type]
                 direction=expr.direction,
                 line=expr.line,
                 col=expr.col,
@@ -438,13 +665,17 @@ class ProofContext:
                 f"symbol '{name}' ({existing.math_type.value}) declared at scope depth {existing.scope_depth}."
             )
 
-        math_type = raw_type if isinstance(raw_type, MathType) else normalize_type_name(raw_type)
+        math_type, carrier = self.resolve_type(raw_type)
+        if carrier is not None and condition is None:
+            # `Given a : G` says a is in G; Subgroup/NormalSubgroup reasoning uses it.
+            condition = RelationNode(op="in", left=SymbolNode(name=name), right=SymbolNode(name=carrier))
         info = VarInfo(
             name=name,
             math_type=math_type,
             scope_depth=self.scope_depth,
             is_witness=is_witness,
             condition=condition,
+            carrier=carrier,
         )
         self.current_frame.variables[name] = info
 

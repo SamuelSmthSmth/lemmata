@@ -53,6 +53,31 @@ TYPE_LATEX_MAP: dict[str, str] = {
 }
 
 
+#: TeX's reserved characters, and the text-mode spelling of each.
+LATEX_TEXT_ESCAPES: dict[str, str] = {
+    "\\": "\\textbackslash{}",
+    "{": "\\{",
+    "}": "\\}",
+    "$": "\\$",
+    "&": "\\&",
+    "#": "\\#",
+    "%": "\\%",
+    "_": "\\_",
+    "~": "\\textasciitilde{}",
+    "^": "\\textasciicircum{}",
+}
+
+
+def escape_latex_text(text: str) -> str:
+    """Escape *text* so it typesets literally where LaTeX is in text mode.
+
+    Theorem names and labels are free text.  A name like ``Divisibility of 3^n
+    - 1 by 2`` dropped as-is into ``\\begin{theorem}[...]`` used to stop pdfTeX
+    with "Missing $ inserted", because ``^`` is a math-only token.
+    """
+    return "".join(LATEX_TEXT_ESCAPES.get(char, char) for char in text)
+
+
 def math_type_to_latex(type_str: str) -> str:
     """Format an Aether type string as standard LaTeX blackboard bold."""
     norm = normalize_type_name(type_str)
@@ -304,7 +329,7 @@ class LatexProofExporter:
 
     def _export_theorem(self, thm: TheoremNode) -> str:
         lines: list[str] = []
-        name_attr = f"[{thm.name}]" if thm.name else ""
+        name_attr = f"[{escape_latex_text(thm.name)}]" if thm.name else ""
         lines.append(f"\\begin{{theorem}}{name_attr}")
 
         if thm.claim is not None:
@@ -352,7 +377,7 @@ class LatexProofExporter:
 
             elif isinstance(stmt, AssumeNode):
                 p_str = expr_to_latex(stmt.proposition)
-                lbl = f"({stmt.label}) " if stmt.label else ""
+                lbl = f"({escape_latex_text(stmt.label)}) " if stmt.label else ""
                 lines.append(f"{ind}Assume {lbl}${p_str}$.")
 
             elif isinstance(stmt, ObtainNode):
@@ -373,12 +398,19 @@ class LatexProofExporter:
                 # raised AttributeError on every proof containing a subproof.
                 # The wording mirrors what the checker reports for the same
                 # node, so an exported subproof reads as it does in the auditor.
-                label = stmt.label or ("Case" if stmt.case_condition is not None else "Subproof")
+                label = escape_latex_text(
+                    stmt.label or ("Case" if stmt.case_condition is not None else "Subproof")
+                )
                 if stmt.case_condition is not None:
                     header = f"{label} ${expr_to_latex(stmt.case_condition)}$:"
                 else:
                     header = f"{label}:"
-                lines.append(f"\n{ind}\\paragraph*{{{header}}}")
+                # `\par\noindent` first: a sectioning command issued straight
+                # after `\begin{proof}` -- an `amsthm` list, whose item still has
+                # its `\everypar` pending -- leaves TeX in horizontal mode and
+                # `\paragraph` dies with "Improper \prevdepth".  Closing the
+                # paragraph first puts TeX back in vertical mode.
+                lines.append(f"\n{ind}\\par\\noindent\\paragraph*{{{header}}}")
                 lines.append(self._export_statements(stmt.statements, indent_level + 1))
 
             i += 1

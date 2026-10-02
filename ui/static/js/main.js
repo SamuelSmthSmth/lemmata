@@ -12,7 +12,10 @@ import { checkProof, exportLatex, exportPdf, fetchExamples } from "./api.js";
 import { initAuditNav, selectStepForLine } from "./audit.js";
 import { renderContext } from "./context.js";
 import { dom } from "./dom.js";
-import { createEditor, currentTheme } from "./editor.js";
+import { createEditor, currentSyntax, currentTheme } from "./editor.js";
+// Side-effect import: reads the stored panel arrangement and applies it during
+// module evaluation, which is still before the first paint.
+import "./layout.js";
 import {
   ACCEPTED_EXTENSIONS,
   copyText,
@@ -38,6 +41,7 @@ const DEBOUNCE_MS = 300;
 // should not race the verification the user is actually watching.
 const SAVE_DEBOUNCE_MS = 500;
 const THEME_STORAGE_KEY = "aether-theme";
+const SYNTAX_STORAGE_KEY = "aether-syntax";
 const DEFAULT_EXAMPLE_ID = "even-square";
 
 // Storage warnings are one-shot; repeating them on every keystroke would be
@@ -409,6 +413,32 @@ dom.themeToggle.addEventListener("click", () => {
   applyTheme(currentTheme() === "dark" ? "light" : "dark", { persist: true });
 });
 
+// ---------------------------------------------------------------------------
+// Syntax colours
+//
+// Two schemes, and only the editor is affected: the auditor and the source
+// listing colour-code by status, which is a different job from tokenising.
+// The colours themselves are CSS (--cm-token-* under [data-syntax]); this only
+// flips the attribute and asks the editor to rebuild its highlight style.
+// ---------------------------------------------------------------------------
+
+function applySyntax(name, { persist = false } = {}) {
+  document.documentElement.dataset.syntax = name;
+  dom.syntaxToggle.setAttribute("aria-pressed", String(name === "vivid"));
+  editor.setSyntax();
+  if (persist) {
+    try {
+      localStorage.setItem(SYNTAX_STORAGE_KEY, name);
+    } catch (error) {
+      // Storage can be unavailable; the choice simply will not persist.
+    }
+  }
+}
+
+dom.syntaxToggle.addEventListener("click", () => {
+  applySyntax(currentSyntax() === "vivid" ? "mono" : "vivid", { persist: true });
+});
+
 dom.strict.addEventListener("change", () => {
   runCheck();
   saveWorkspace();
@@ -426,6 +456,9 @@ document.addEventListener("visibilitychange", () => {
 // ---------------------------------------------------------------------------
 
 async function init() {
+  // index.html resolved both before first paint so they apply during
+  // evaluation; this only brings the controls and the editor in step.
+  applySyntax(currentSyntax());
   initAuditNav();
   initHistory(historyHandlers);
   setHistoryOpen(false);

@@ -70,6 +70,7 @@ witness_clause: "[" "witness"i ":" expr "]"
 var_list:  var_ident ("," var_ident)*
 type_name: CNAME
          | "\\" "mathbb" "{" CNAME "}"
+         | TYPE_SET
 
 // -----------------------------------------------------------------------
 // Expression / proposition hierarchy
@@ -80,6 +81,11 @@ type_name: CNAME
 
 ?quant_expr: QUANT_EXISTS var_ident (":" type_name)? "," quant_expr -> exists_expr
            | QUANT_FORALL var_ident (":" type_name)? "," quant_expr -> forall_expr
+           // Bounded forms, as the notes write them: `forall \epsilon > 0, ...`,
+           // `exists x in S, ...`, `∀ x ∈ ℝ, ...`.  The transformer decides whether
+           // the bound names a type (`in Real`) or is a guard (`> 0`).
+           | QUANT_EXISTS var_ident REL_OP arith_expr "," quant_expr -> exists_bounded
+           | QUANT_FORALL var_ident REL_OP arith_expr "," quant_expr -> forall_bounded
            | iff_expr
 
 // Logic levels — kept as non-? rules so children include the operator tokens
@@ -102,10 +108,14 @@ mod_spec: MOD_PAR_KW arith_expr ")"
         | PMOD_KW atom
         | MOD_KW atom
 
-REL_OP.2: "<=" | ">=" | "!=" | "/=" | "\\neq" | "\\le" | "\\leq"
-        | "\\ge" | "\\geq" | "<" | ">" | "=" | "\\equiv" | "\\in" | /\bin\b/i
-        | "\\notin" | /\bnot\s+in\b/i
-        | "\\subset" | /\bsubset\b/i | "\\subseteq" | /\bsubseteq\b/i
+// A LaTeX command ends at the first non-letter, so `\in` never eats the start
+// of `\infty` and `\le` never the start of `\left`.
+REL_OP.2: "<=" | ">=" | "!=" | "/=" | /\\neq(?![a-zA-Z])/
+        | /\\le(?![a-zA-Z])/ | /\\leq(?![a-zA-Z])/ | /\\ge(?![a-zA-Z])/ | /\\geq(?![a-zA-Z])/
+        | "<" | ">" | "=" | /\\equiv(?![a-zA-Z])/ | /\\in(?![a-zA-Z])/ | /\bin\b/i
+        | /\\notin(?![a-zA-Z])/ | /\bnot\s+in\b/i
+        | /\\subset(?![a-zA-Z])/ | /\bsubset\b/i | /\\subseteq(?![a-zA-Z])/ | /\bsubseteq\b/i
+        | "≤" | "≥" | "≠" | "≡" | "∈" | "∉" | "⊂" | "⊆"
 
 // arith_expr / term: left-recursive named rules so op is always present
 arith_expr: arith_expr ADDOP term
@@ -118,8 +128,14 @@ term: term MULOP unary_factor
              | power
 
 // power is right-recursive; keep as non-? so transformer sees [base, POW_OP, exp]
-power: atom POW_OP power
-     | atom
+// The exponent may carry a sign, so `a^-1` and `x^(-1)` both parse.
+power: postfix POW_OP unary_factor
+     | postfix
+
+// Postfix operators bind tighter than ^ : `n!`, `(n - 1)!`, `a⁻¹`, `x²`.
+?postfix: atom
+        | postfix BANG          -> factorial_op
+        | postfix SUPERSCRIPT   -> superscript_op
 
 ?atom: NUMBER                              -> number
      | STRING                              -> string_literal
@@ -131,6 +147,9 @@ power: atom POW_OP power
      | LIM_KW "_" "{" CNAME TO_OP expr LIM_DIR? "}" term                                 -> latex_limit
      | PIPE arith_expr PIPE                -> abs_expr
      | EMPTYSET_KW                         -> empty_set
+     | INFTY_KW                            -> infinity
+     | TYPE_SET                            -> type_symbol
+     | SQRT_OP atom                        -> sqrt_prefix
      | vector_literal
      | CNAME "(" (expr ("," expr)*)? ")"  -> func_call
      | GREEK_LETTER                       -> greek_symbol
@@ -146,15 +165,21 @@ vector_literal: "[" (expr ("," expr)*)? "]"
 // -----------------------------------------------------------------------
 
 PIPE:    "|"
-ADDOP.2:   "+" | "-" | "\\cup" | /\bunion\b/i | "\\setminus" | /\bsetminus\b/i
-MULOP.2:   "*" | "/" | "\\cap" | /\bintersect\b/i | "\\circ" | "\\cdot"
+ADDOP.2:   "+" | "-" | "\\cup" | /\bunion\b/i | "\\setminus" | /\bsetminus\b/i | "−" | "∪"
+MULOP.2:   "*" | "/" | "\\cap" | /\bintersect\b/i | "\\circ" | "\\cdot" | /\\times(?![a-zA-Z])/
+         | "·" | "×" | "∩" | "∘"
 POW_OP:  "^" | "**"
-IFF_OP.3:  "<=>" | "<->" | "\\iff" | /\biff\b/i
-IMPL_OP.3: "=>" | "->" | "\\implies" | /\bimplies\b/i
-OR_OP.2:   "\\lor" | "\\/" | /\bor\b/i
-AND_OP.2:  "\\land" | "/\\" | /\band\b/i
-NOT_OP.2:  "\\neg" | "~" | /\bnot\b/i
-EMPTYSET_KW.2: "\\emptyset" | "\\empty" | /EmptySet\b/ | /\bemptyset\b/i
+BANG.2:  /!(?!=)/
+SUPERSCRIPT.2: /[⁺⁻]?[⁰¹²³⁴-⁹]+/
+SQRT_OP.2: "√"
+INFTY_KW.3: /\\infty(?![a-zA-Z])/ | "∞" | /\b(oo|infinity)\b/
+TYPE_SET.2: "ℝ" | "ℤ" | "ℕ" | "ℚ" | "ℂ"
+IFF_OP.3:  "<=>" | "<->" | "\\iff" | /\biff\b/i | "⇔" | "⟺" | "↔"
+IMPL_OP.3: "=>" | "->" | "\\implies" | /\bimplies\b/i | "⇒" | "⟹"
+OR_OP.2:   "\\lor" | "\\/" | /\bor\b/i | "∨"
+AND_OP.2:  "\\land" | "/\\" | /\band\b/i | "∧"
+NOT_OP.2:  "\\neg" | "~" | /\bnot\b/i | "¬"
+EMPTYSET_KW.2: "\\emptyset" | "\\empty" | "\\varnothing" | /EmptySet\b/ | /\bemptyset\b/i | "∅"
 
 // -----------------------------------------------------------------------
 // Statement keywords (priority 2 so they beat CNAME)
@@ -163,14 +188,16 @@ EMPTYSET_KW.2: "\\emptyset" | "\\empty" | /EmptySet\b/ | /\bemptyset\b/i
 SUM_KW.2:       "\\sum"
 INT_KW.3:       "\\int"
 LIM_KW.3:       "\\lim"
-LIM_DIR.3:      "^+" | "^-"
+// A direction only where it closes the limit subscript (`0^+}`); anywhere
+// else `^-` is a power with a signed exponent (`a^-1`).
+LIM_DIR.3:      /\^[+-](?=\s*\})/
 DIFF_D.2:       "\\mathrm{d}" | "\\,d" | "\\, d" | "\\operatorname{d}" | "\\d"
-TO_OP.2:        "\\to" | "\\rightarrow" | "->"
+TO_OP.2:        /\\to(?![a-zA-Z])/ | "\\rightarrow" | "->" | "→"
 MOD_PAR_KW.3:   /\(\s*mod\b/i
 MOD_KW.3:       /\bmod\b/i
 PMOD_KW.3:      "\\pmod"
-QUANT_EXISTS.2: /exists/i | "\\exists"
-QUANT_FORALL.2: /forall/i | "\\forall"
+QUANT_EXISTS.2: /exists/i | "\\exists" | "∃"
+QUANT_FORALL.2: /forall/i | "\\forall" | "∀"
 THEOREM_KW.2:   /theorem/i | /lemma/i | /proposition/i
 CLAIM_KW.2:     /claim/i
 PROOF_KW.2:     /proof/i
@@ -192,7 +219,8 @@ JUST_TEXT: /[a-zA-Z0-9_,.^+*\-\\\/"']+(\s+[a-zA-Z0-9_,.^+*\-\\\/"']+)*/
 
 NUMBER:       /[0-9]+(\.[0-9]+)?/
 STRING:       /\"[^\"]*\"/
-GREEK_LETTER: /\\(alpha|beta|gamma|delta|epsilon|varepsilon|zeta|eta|theta|iota|kappa|lambda|mu|nu|xi|pi|rho|sigma|tau|upsilon|phi|chi|psi|omega|Delta|Gamma|Theta|Lambda|Xi|Pi|Sigma|Phi|Psi|Omega)/
+GREEK_LETTER: /\\(alpha|beta|gamma|delta|epsilon|varepsilon|zeta|eta|theta|iota|kappa|lambda|mu|nu|xi|pi|rho|sigma|tau|upsilon|phi|varphi|chi|psi|omega|Delta|Gamma|Theta|Lambda|Xi|Pi|Sigma|Phi|Psi|Omega)(?![a-zA-Z])/
+            | /[α-ωϵϕΓΔΘΛΞΠΣΦΨΩ]/
 CNAME:        /[a-zA-Z_][a-zA-Z0-9_]*/
 
 _NL:    /(\r?\n[\t ]*)+/

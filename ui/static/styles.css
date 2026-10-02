@@ -116,6 +116,48 @@
   --wa-color-neutral-border-normal: #262b32;
 }
 
+/* --- Syntax: the vivid scheme ----------------------------------------------
+   Opted into from the topbar (see js/editor.js and aether-language.js).  Same
+   token vocabulary as above, different values: each *category* of word gets
+   its own hue, the way a general-purpose language colours strings, calls and
+   keywords apart.  Chosen to survive on a white page first; the dark block
+   below re-picks every one of them for a near-black one.
+
+   Glue words (such, that, from, by) and comments stay quiet in both schemes --
+   they are connective tissue, and colouring them would bury the real
+   structure. */
+:root[data-syntax="vivid"] {
+  --cm-token-structure: #6d28d9; /* Theorem, Proof, QED, Case */
+  --cm-token-intro: #0a5fbf; /* Let, Given, Assume, Obtain, Step */
+  --cm-token-flow: #0d7a6b; /* Therefore, Hence, exists, forall */
+  --cm-token-join: #6b7280; /* such, that, from, by -- quiet */
+  --cm-token-logic: #c2410c; /* and, or, not, in, mod */
+  --cm-token-math-fn: #4338ca; /* sqrt, det, lim, integrate */
+  --cm-token-macro: #0e7490; /* \\mathbb{N}, \\epsilon */
+  --cm-token-type: #b02a7a; /* Int, Real, Even, MultipleOf */
+  --cm-token-ink: #16181d; /* names and binders */
+  --cm-token-number: #b45309;
+  --cm-token-operator: #4b5563;
+  --cm-token-string: #0a7a4a;
+  --cm-token-comment: #8b929c; /* quiet */
+}
+
+:root[data-theme="dark"][data-syntax="vivid"] {
+  --cm-token-structure: #c4a7ff;
+  --cm-token-intro: #7cb7ff;
+  --cm-token-flow: #5fd3be;
+  --cm-token-join: #8b929c;
+  --cm-token-logic: #ffa678;
+  --cm-token-math-fn: #a5b4ff;
+  --cm-token-macro: #67d6e8;
+  --cm-token-type: #f9a8d4;
+  --cm-token-ink: #e6e8ec;
+  --cm-token-number: #f5c97b;
+  --cm-token-operator: #9aa1ac;
+  --cm-token-string: #7bd98f;
+  --cm-token-comment: #6e7681;
+}
+
 /* --- Type and the app's own vocabulary ------------------------------------ */
 :root {
   /* The formal layer.  See fonts.css for the subsets and ui/vendor_fonts.py for
@@ -172,15 +214,29 @@
   --cm-tooltip-bg: var(--wa-color-surface-raised);
   --cm-tooltip-border: var(--wa-color-surface-border);
 
-  /* Syntax.  Nearly monochrome by design: the CNL keywords are the skeleton of
-     the proof and take the accent, types are inked and separated by weight,
-     and operators, glue words, strings and comments recede.  The result should
-     read as text with a structure rather than as a rainbow. */
-  --cm-token-keyword: var(--accent);
+  /* Syntax -- the "mono" scheme, which is the default.
+
+     Nearly monochrome by design: the CNL keywords are the skeleton of the
+     proof and take the accent, types are inked and separated by weight, and
+     operators, glue words, strings and comments recede.  The result reads as
+     text with a structure rather than as a rainbow.
+
+     Every token is its own variable because the "vivid" scheme below needs to
+     colour the categories apart; here they simply share values.  These are
+     aliases of the palette rather than literals, so they follow the dark theme
+     with no second definition -- only the vivid scheme needs both, since its
+     hues are chosen for contrast against one background apiece. */
+  --cm-token-structure: var(--accent);
+  --cm-token-intro: var(--accent);
+  --cm-token-flow: var(--accent);
+  --cm-token-join: var(--muted-dim);
+  --cm-token-logic: var(--accent);
+  --cm-token-math-fn: var(--accent);
+  --cm-token-macro: var(--text);
   --cm-token-type: var(--text);
   --cm-token-ink: var(--text);
+  --cm-token-number: var(--text);
   --cm-token-operator: var(--muted);
-  --cm-token-glue: var(--muted-dim);
   --cm-token-string: var(--muted);
   --cm-token-comment: var(--muted-dim);
 }
@@ -274,6 +330,14 @@ wa-button.icon-button--slim {
 /* Show the theme you would switch *to*. */
 [data-theme="light"] .icon--sun,
 [data-theme="dark"] .icon--moon {
+  display: none;
+}
+
+/* Same idea for syntax colours: the icon shows the scheme you would switch
+   *to*, so one filled dot reads "click for a single hue" and three read
+   "click for colour". */
+[data-syntax="mono"] .icon--vivid,
+[data-syntax="vivid"] .icon--mono {
   display: none;
 }
 
@@ -463,13 +527,68 @@ wa-spinner {
    Layout
    ========================================================================= */
 
+/* The grid.  Placement is by *slot name*, not by DOM order: js/layout.js
+   stamps data-slot="a|b|c" on the three panes in whatever order the user has
+   them, and each arrangement below says where those three slots sit.  Swapping
+   two panels is therefore a swap of two slot names, so no arrangement rule has
+   to know which panel is which, and every arrangement stays meaningful after
+   any swap. */
 .layout {
   flex: 1 1 auto;
   min-height: 0;
   display: grid;
-  grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr) minmax(0, 0.85fr);
   gap: 1px;
   background: var(--border);
+}
+
+.layout[data-layout="columns"],
+.layout:not([data-layout]) {
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr) minmax(0, 0.85fr);
+  grid-template-areas: "a b c";
+}
+
+/* Three panels in one column: reading rather than comparing. */
+.layout[data-layout="stack"] {
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1.15fr) minmax(0, 1fr) minmax(0, 0.9fr);
+  grid-template-areas: "a" "b" "c";
+}
+
+/* Editor above; the auditor and the context pair up beneath it. */
+.layout[data-layout="split"] {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1.75fr) minmax(0, 1fr);
+  grid-template-areas: "a a" "b c";
+}
+
+/* Editor beside the pair, which stack in the second column -- the closest
+   thing to docking one panel inside another. */
+.layout[data-layout="focus"] {
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr) minmax(0, 1fr);
+  grid-template-areas: "a b" "a c";
+}
+
+.pane[data-slot="a"] {
+  grid-area: a;
+}
+
+.pane[data-slot="b"] {
+  grid-area: b;
+}
+
+.pane[data-slot="c"] {
+  grid-area: c;
+}
+
+/* While a panel is being dragged, the one under the pointer is outlined. */
+.pane[data-drop-target] {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+.pane[data-dragging] {
+  opacity: 0.55;
 }
 
 .pane {
@@ -1133,6 +1252,124 @@ kbd {
 }
 
 /* =========================================================================
+   Panel arrangement
+   ========================================================================= */
+
+/* The grip is the drag handle: six dots, quiet until touched.  It is a real
+   button rather than a decoration, so it is reachable by Tab and the arrow
+   keys can be bound to it -- a drag is not the only way to move a panel. */
+.pane-grip {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 14px;
+  height: 16px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius);
+  background: none;
+  color: var(--muted-dim);
+  font-size: 11px;
+  cursor: grab;
+}
+
+.pane-grip:hover,
+.pane-grip:focus-visible {
+  color: var(--text);
+  background: var(--panel-2);
+}
+
+.pane-grip:active {
+  cursor: grabbing;
+}
+
+.layout-panel {
+  display: block;
+  width: 268px;
+  max-width: calc(100vw - 28px);
+  padding: 10px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.2);
+}
+
+.layout-panel h3 {
+  margin: 0 0 8px;
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.layout-options {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+/* A menu row: the name and what it does on the left, a miniature of the
+   result on the right. */
+.layout-option {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 34px;
+  grid-template-rows: auto auto;
+  align-items: center;
+  gap: 0 10px;
+  padding: 6px 7px;
+  border: 0;
+  border-radius: var(--radius);
+  background: none;
+  color: var(--text);
+  font-family: inherit;
+  font-size: 11px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.layout-option:hover,
+.layout-option:focus-visible {
+  background: var(--panel-2);
+}
+
+.layout-option[data-active="true"] {
+  background: var(--accent-bg);
+}
+
+.layout-option-label {
+  grid-column: 1;
+  grid-row: 1;
+  font-weight: 600;
+}
+
+.layout-option-hint {
+  grid-column: 1;
+  grid-row: 2;
+  font-size: 10px;
+  color: var(--muted);
+}
+
+.layout-preview {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  width: 34px;
+  height: 22px;
+}
+
+/* Hairline boxes; the slot the arrangement is *about* carries the accent, so
+   four small pictures stay tellable apart at a glance. */
+.layout-preview rect {
+  fill: none;
+  stroke: var(--border);
+  stroke-width: 1.5;
+}
+
+.layout-preview rect[data-accent] {
+  fill: var(--accent-bg);
+  stroke: var(--accent);
+}
+
+/* =========================================================================
    Responsive
    ========================================================================= */
 
@@ -1141,11 +1378,28 @@ kbd {
     overflow: auto;
   }
 
-  .layout {
+  /* One column, whatever arrangement is stored.  The slots have to stop
+     driving placement here or the panels would overlap in a single-column
+     grid -- and they are attributes rather than inline styles precisely so
+     that this can win. */
+  .layout[data-layout] {
     grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: none;
+    grid-template-areas: none;
     /* Do not shrink to the viewport: the panes below are content-sized, so
        letting the layout stay flex-shrinkable squeezes them to their headers. */
     flex: 0 0 auto;
+  }
+
+  .pane[data-slot] {
+    grid-area: auto;
+  }
+
+  /* Ordering in a single column follows the DOM, which layout.js keeps in
+     step with the slot order -- so a swapped panel still stacks where the
+     user put it. */
+  .pane-grip {
+    cursor: pointer;
   }
 
   .pane--editor {
