@@ -267,7 +267,7 @@ for (const selector of [
 // those rules is required to use all three slot names.
 
 const layoutModule = await moduleAt("js/layout.js");
-const { ARRANGEMENTS, DEFAULT_ORDER, SLOTS, layout, layoutApi } = layoutModule;
+const { ARRANGEMENTS, DEFAULT_ARRANGEMENT, DEFAULT_ORDER, SLOTS, layout, layoutApi } = layoutModule;
 
 check(ARRANGEMENTS.length >= 4, `expected at least four arrangements, found ${ARRANGEMENTS.length}`);
 check(
@@ -317,7 +317,7 @@ const repaired = layoutModule.normalizeLayout({
   order: ["context", "ghost", "context"],
 });
 check(
-  repaired.arrangement === ARRANGEMENTS[0].id,
+  repaired.arrangement === DEFAULT_ARRANGEMENT,
   `an unknown arrangement became ${repaired.arrangement}`,
 );
 check(
@@ -362,9 +362,9 @@ check(
 );
 
 check(
-  layout.arrangement === ARRANGEMENTS[0].id &&
+  layout.arrangement === DEFAULT_ARRANGEMENT &&
     JSON.stringify(layoutApi.current.order) === JSON.stringify(DEFAULT_ORDER),
-  `a fresh session did not start on ${ARRANGEMENTS[0].id}`,
+  `a fresh session did not start on ${DEFAULT_ARRANGEMENT}`,
 );
 
 // The controls layout.js looks for must exist, since it bails silently when
@@ -519,6 +519,63 @@ for (const { line, want } of CASES) {
     failures.push(`tokenizer mismatch for ${JSON.stringify(line)}`);
   }
 }
+
+// --- 4. workspace archives --------------------------------------------------
+//
+// The workspace exports and imports as .zip with a hand-written codec, so it
+// is checked against a real implementation in both directions: Python's
+// zipfile must read what we write, and we must read what it writes (deflated,
+// as every desktop archiver does).
+
+const { writeZip, readZip } = await moduleAt("js/zip.js");
+const { execFileSync } = await import("node:child_process");
+const { mkdtempSync, writeFileSync } = await import("node:fs");
+const { tmpdir } = await import("node:os");
+const { join } = await import("node:path");
+
+const sample = [
+  { path: "Even square.aether", text: 'Theorem: "Even square"\nProof:\n    Given n : Int\nQED\n' },
+  { path: "sheets/week 1/ε–δ.aether", text: "Therefore ∀ ε > 0, ∃ δ > 0, δ < ε\n" },
+];
+const roundTrip = await readZip(writeZip(sample));
+check(JSON.stringify(roundTrip) === JSON.stringify(sample), "zip.js does not round-trip its own archive");
+
+const scratch = mkdtempSync(join(tmpdir(), "aether-zip-"));
+const ours = join(scratch, "ours.zip");
+writeFileSync(ours, writeZip(sample));
+const python = (code, ...args) => execFileSync("python3", ["-c", code, ...args], { encoding: "utf8" });
+try {
+  const listed = JSON.parse(
+    python(
+      "import json,sys,zipfile; z=zipfile.ZipFile(sys.argv[1]); assert z.testzip() is None; print(json.dumps([[i.filename, z.read(i).decode()] for i in z.infolist()]))",
+      ours,
+    ),
+  );
+  check(
+    JSON.stringify(listed) === JSON.stringify(sample.map((e) => [e.path, e.text])),
+    "Python's zipfile does not read the archive zip.js writes",
+  );
+  const theirs = join(scratch, "theirs.zip");
+  python(
+    "import sys,zipfile; z=zipfile.ZipFile(sys.argv[1],'w',zipfile.ZIP_DEFLATED); z.writestr('folder/', ''); z.writestr('folder/lemma.aether', 'Let x : Real\\n' * 40); z.close()",
+    theirs,
+  );
+  const read = await readZip(readFileSync(theirs));
+  check(
+    read.length === 1 && read[0].path === "folder/lemma.aether" && read[0].text === "Let x : Real\n".repeat(40),
+    "zip.js cannot read a deflated archive written by Python's zipfile",
+  );
+} catch (error) {
+  check(false, `zip interop check could not run: ${error.message}`);
+}
+let rejected = false;
+try {
+  await readZip(new TextEncoder().encode("not an archive"));
+} catch (error) {
+  rejected = /not a ZIP/.test(error.message);
+}
+check(rejected, "zip.js does not reject a non-archive with a readable message");
+console.log("workspace archives checked");
 
 console.log();
 if (failures.length) {

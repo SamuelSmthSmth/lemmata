@@ -9,6 +9,7 @@ Endpoints
 GET  /               -> the single-page frontend
 GET  /api/examples   -> bundled sample proofs
 GET  /api/library    -> course packs (courses/*.json) plus the examples, for the Library
+GET  /api/capabilities -> the capability matrix (pins), for the Guide
 POST /api/check      -> verify a proof source string
 GET  /api/health     -> liveness probe
 
@@ -255,6 +256,29 @@ def library() -> list[dict[str, Any]]:
     for pack_file in sorted(COURSES_DIR.glob("*.json")):
         packs.append(json.loads(pack_file.read_text(encoding="utf-8")))
     return packs
+
+
+@app.get("/api/capabilities")
+def capabilities() -> list[dict[str, str]]:
+    """The capability matrix the Guide publishes: the pins in verify_capabilities.
+
+    Served as metadata only -- nothing is checked on request.  The pins are
+    re-verified by `ui/verify_capabilities.py`, so what the Guide shows is
+    exactly what that gate holds the engine to.
+    """
+    from .verify_capabilities import PROBES
+
+    return [
+        {
+            "area": probe.area,
+            "name": probe.name,
+            "source": probe.source,
+            "expect": probe.expect,
+            "note": probe.gap or probe.guard or probe.why,
+            "kind": "gap" if probe.gap else "guard" if probe.guard else "why" if probe.why else "",
+        }
+        for probe in PROBES
+    ]
 
 
 @app.post("/api/check", response_model=CheckResponse)

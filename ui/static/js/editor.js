@@ -13,6 +13,8 @@ import { Compartment } from "../vendor/esm/@codemirror/state@6.mjs";
 import { indentLess, indentMore } from "../vendor/esm/@codemirror/commands@6.mjs";
 import { indentUnit, syntaxHighlighting } from "../vendor/esm/@codemirror/language@6.mjs";
 import { aetherLanguage, makeHighlightStyle } from "../aether-language.js";
+import { completionExtensions } from "./complete.js";
+import { lintCommands, lintExtensions } from "./lint.js";
 
 // Mirrors aether.parser.indenter.AetherIndenter.tab_len = 4.
 export const INDENT = "    ";
@@ -80,7 +82,9 @@ function editorTheme(name, p) {
       ".cm-activeLine": { backgroundColor: p.activeLine },
       ".cm-scroller": {
         fontFamily: p.fontMono,
-        fontSize: "13px",
+        // Set from Settings through a custom property, so changing it needs no
+        // reconfiguration: the variable is resolved by the browser, not here.
+        fontSize: "var(--editor-size, 13px)",
         lineHeight: "1.6",
         // JetBrains Mono's ligatures map !=, <=, >= and => onto the symbols a
         // mathematician reads, which is right for the auditor -- that is the
@@ -168,6 +172,9 @@ const aetherKeymap = keymap.of([
   { key: "Tab", run: insertAetherTab },
   { key: "Shift-Tab", run: indentLess },
   { key: "Enter", run: insertAetherNewline },
+  // Problems: the next and previous failing or warning step.
+  { key: "F8", run: lintCommands.nextDiagnostic },
+  { key: "Shift-F8", run: lintCommands.previousDiagnostic },
 ]);
 
 // ---------------------------------------------------------------------------
@@ -183,8 +190,9 @@ const aetherKeymap = keymap.of([
  * when the caret moves without editing -- including a click that lands where
  * the caret already was, which fires no selection change at all.
  */
-export function createEditor({ parent, onDocChanged, onSelectionMoved }) {
+export function createEditor({ parent, onDocChanged, onSelectionMoved, onCaret = () => {}, wrap = false }) {
   const themeCompartment = new Compartment();
+  const wrapCompartment = new Compartment();
 
   // Declared before the view; the update listener below captures it.
   let programmaticChange = false;
@@ -198,9 +206,19 @@ export function createEditor({ parent, onDocChanged, onSelectionMoved }) {
       aetherLanguage,
       indentUnit.of(INDENT),
       themeCompartment.of(themeExtensions(currentTheme())),
+      wrapCompartment.of(wrap ? EditorView.lineWrapping : []),
+      // Before basicSetup, so this source and config win over its defaults.
+      completionExtensions(),
       basicSetup,
-      placeholder("Write an Aether proof here, or load an example above…"),
+      lintExtensions(),
+      placeholder("Write a proof here — start with Theorem, Let or Given, or insert a template above."),
       EditorView.updateListener.of((update) => {
+        if (update.docChanged || update.selectionSet) {
+          const { state } = update;
+          const head = state.selection.main.head;
+          const line = state.doc.lineAt(head);
+          onCaret({ line: line.number, col: head - line.from + 1 });
+        }
         if (update.docChanged) {
           if (!programmaticChange) onDocChanged();
           return;
@@ -233,8 +251,25 @@ export function createEditor({ parent, onDocChanged, onSelectionMoved }) {
 
     setContent(text) {
       programmaticChange = true;
-      view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: text } });
+      view.dispatch({
+        changes: { from: 0, to: view.state.doc.length, insert: text },
+        // A different file: start at the top, not wherever the last one's caret was.
+        selection: { anchor: 0 },
+        scrollIntoView: true,
+      });
       programmaticChange = false;
+    },
+
+    setWrap(on) {
+      view.dispatch({ effects: wrapCompartment.reconfigure(on ? EditorView.lineWrapping : []) });
+    },
+
+    /** Put the caret at the start of line *n* and bring it into view. */
+    goToLine(n) {
+      const line = view.state.doc.line(Math.min(Math.max(1, n), view.state.doc.lines));
+      const indent = line.text.length - line.text.trimStart().length;
+      view.dispatch({ selection: { anchor: line.from + indent }, scrollIntoView: true });
+      view.focus();
     },
 
     setTheme(name) {

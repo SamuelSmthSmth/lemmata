@@ -41,6 +41,16 @@ export function renderContext() {
   dom.contextSub.textContent = `Line ${result.line ?? "?"}`;
   dom.context.append(el("p", "ctx-title", result.statement));
 
+  // An unanswered exercise: what is known at this line, but not whether it holds.
+  if (document.body.dataset.exercise === "hidden") {
+    dom.context.append(
+      el("p", "ctx-empty", "Verdicts are hidden until you choose the line you think fails."),
+      section("Declared variables & types", [chipList(Object.entries(result.active_variables), "No variables in scope.")]),
+      section("Active hypotheses & derived facts", [bulletList(result.active_hypotheses, "No hypotheses in scope.")]),
+    );
+    return;
+  }
+
   const facts = el("dl", "ctx-facts");
   const addFact = (label, value) => {
     facts.append(el("dt", null, label), el("dd", null, value));

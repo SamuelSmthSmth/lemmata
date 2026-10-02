@@ -1,0 +1,60 @@
+<h1>Writing a proof</h1>
+<p class="lede">Indentation matters, as in Python: four spaces open a nested block. Everything else reads like the proofs in your notes.</p>
+
+<h2>Statements</h2>
+<table class="guide-table">
+  <thead><tr><th>Write</th><th>Means</th></tr></thead>
+  <tbody>
+    <tr><td><code>Theorem: "Name"</code> · <code>Lemma:</code></td><td>Starts a named result. <code>Claim:</code> on the next line states exactly what <code>QED</code> will check.</td></tr>
+    <tr><td><code>Proof:</code> … <code>QED</code></td><td>The indented proof body.</td></tr>
+    <tr><td><code>Let x, y : Real</code> · <code>Given n : Int</code></td><td>Introduce variables. Types: <code>Nat</code>, <code>Int</code>, <code>Rat</code>, <code>Real</code>, <code>Complex</code>, <code>Bool</code>, or <code>ℕ ℤ ℚ ℝ ℂ</code>.</td></tr>
+    <tr><td><code>Given ε : Real where ε &gt; 0</code></td><td>A variable with a condition.</td></tr>
+    <tr><td><code>Let δ = ε / 3</code></td><td>Define a variable by its value.</td></tr>
+    <tr><td><code>Assume h1: Even(n)</code></td><td>A hypothesis; the label <code>h1</code> is optional.</td></tr>
+    <tr><td><code>Obtain k : Int such that n = 2 * k from h1</code></td><td>Unpack an existential into a fresh witness.</td></tr>
+    <tr><td><code>Step: a = b</code> · <code>Step: &lt; c</code></td><td>A calculation; leaving out the left side continues the chain. Directions may not mix (<code>&lt;=</code> then <code>&gt;=</code>).</td></tr>
+    <tr><td><code>Therefore P</code> · <code>Hence</code> · <code>Thus</code></td><td>Deduce a new fact. Add <code>[witness: e]</code> for an existential.</td></tr>
+    <tr><td><code>Case x &gt;= 0:</code></td><td>One case of a split; the cases must cover every possibility.</td></tr>
+    <tr><td><code>Base case n = 0:</code> · <code>Inductive step:</code></td><td>A proof by induction.</td></tr>
+    <tr><td><code>Subproof:</code></td><td>A nested scope: what is assumed inside is discharged at its end.</td></tr>
+    <tr><td><code>Define P(x) &lt;=&gt; …</code></td><td>A reusable predicate.</td></tr>
+    <tr><td><code>import "lemmas.aether"</code></td><td>Use the theorems of another proof in your workspace.</td></tr>
+  </tbody>
+</table>
+
+<h2>Justifying a step</h2>
+<p>Append <code>[by algebra]</code>, <code>[by definition]</code> or <code>[using h1]</code> to say why a step holds. A justification that names something out of scope is refused, so it doubles as a check on your own reasoning.</p>
+<pre class="try" data-expect="VALID">Let k, n : Int
+Assume h1: n = 2 * k
+Step: n = 2 * k [using h1]</pre>
+
+<h2>A claim checked at QED</h2>
+<p>With a <code>Claim:</code>, QED checks that the proof really established it — every assumption you made must be licensed by the claim's own hypotheses.</p>
+<pre class="try" data-expect="VALID">Theorem: "Goal"
+Claim: forall n : Int, Even(n) => MultipleOf(n^2, 4)
+Proof:
+    Given n : Int
+    Assume hn: Even(n)
+    Obtain k : Int such that n = 2 * k from hn
+    Step: n^2 = 4 * k^2
+    Hence MultipleOf(n^2, 4)
+QED</pre>
+
+<h2>Induction</h2>
+<pre class="try" data-expect="VALID">Theorem: "Sum of odds"
+Claim: forall n : Nat, sum(k, 1, n, 2 * k - 1) = n^2
+Proof:
+    Base case n = 0:
+        Step: sum(k, 1, 0, 2 * k - 1) = 0
+        Step: = 0^2
+    Inductive step:
+        Fix n : Nat
+        Assume ih: sum(k, 1, n, 2 * k - 1) = n^2
+        Step: sum(k, 1, n + 1, 2 * k - 1) = n^2 + (2 * (n + 1) - 1)
+        Step: = n^2 + 2 * n + 1
+        Step: = (n + 1)^2
+    Therefore forall n : Nat, sum(k, 1, n, 2 * k - 1) = n^2
+QED</pre>
+
+<h2>Several files</h2>
+<p>A proof can <code>import</code> another file in your workspace. The path is relative to the importing file's folder, falling back to the top of the workspace; the imported file's theorems become facts you can use.</p>

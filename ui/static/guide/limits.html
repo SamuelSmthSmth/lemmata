@@ -1,0 +1,14 @@
+<h1>What the checker can decide</h1>
+<p class="lede">Aether is honest about where it stops. When it cannot decide a step it says so, rather than presenting a solver artefact as a counterexample.</p>
+
+<h2>Where it stops</h2>
+<ul>
+  <li><strong>Transcendental functions.</strong> The solver knows the ranges of <code>exp</code>, <code>log</code>, <code>sin</code> and <code>cos</code>, but not the functions themselves. An inequality that needs more than the range — <code>exp(x) ≥ 1 + x + x²/2</code> for <code>x ≥ 0</code> — cannot be decided, and the message says so. Equalities about them are settled by algebra and do work.</li>
+  <li><strong>Hard non-linear questions.</strong> Every check has a time budget (20 seconds). A step that asks something the solver cannot settle quickly is stopped and reported as <em>TIMEOUT</em>; split it into smaller steps, or add the hypothesis it depends on.</li>
+  <li><strong>Sets and topology.</strong> Membership, subsets, unions and intersections work; set literals <code>{a, b, c}</code>, <code>sup</code> and <code>inf</code> as operators, and open covers are not part of the language yet.</li>
+  <li><strong>Powers of group elements.</strong> Literal powers (<code>a^3</code>, <code>a^-1</code>) expand; a symbolic power <code>a^n</code> of a group element stays opaque.</li>
+</ul>
+
+<h2>The capability matrix</h2>
+<p>Every row below is a snippet and the verdict it must produce. They are re-checked against the engine by the project's own test suite, so this table cannot drift from what the checker actually does. Rows with a note are deliberate refusals or known gaps.</p>
+<div id="capability-matrix" class="capability-matrix"><p class="guide-loading">Loading the matrix…</p></div>

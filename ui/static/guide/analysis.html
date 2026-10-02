@@ -1,0 +1,47 @@
+<h1>Real analysis</h1>
+<p class="lede">Limits, infinity, sums and the ε–δ arguments that tie them together.</p>
+
+<h2>ε–δ arguments</h2>
+<p>Fix ε, construct δ, prove the inner implication in a <code>Subproof</code>, then conclude the existential with the δ you built as its witness.</p>
+<pre class="try" data-expect="VALID">Theorem: "lim 3x = 6 at x = 2"
+Claim: ∀ ε > 0, ∃ δ > 0, ∀ x ∈ ℝ, |x − 2| < δ ⇒ |3·x − 6| < ε
+Proof:
+    Given ε : ℝ where ε > 0
+    Let δ = ε / 3
+    Subproof:
+        Given x : ℝ
+        Assume |x − 2| < δ
+        Step: |3·x − 6| = 3·|x − 2|
+        Step: < 3·δ
+        Step: = ε
+    Therefore ∃ δ > 0, ∀ x ∈ ℝ, |x − 2| < δ ⇒ |3·x − 6| < ε [witness: ε / 3]
+QED</pre>
+
+<h2>Limits</h2>
+<p><code>lim(f, x, a)</code> or <code>\lim_{x \to a} (f)</code>; add <code>"+"</code> or <code>"-"</code> for one side, and use <code>oo</code> or <code>\infty</code> for limits at infinity. A limit that does not exist is refused with the reason: the one-sided limits differ, the expression oscillates, or it tends to +∞ on one side and −∞ on the other.</p>
+<pre class="try" data-expect="VALID">Step: lim((9 - x^2)/(x + 1), x, 2) = 5/3
+Step: lim(x/|x|, x, 0, "+") = 1
+Step: lim(1/x, x, 0, "+") = oo
+Step: \lim_{x \to \infty} (1 - 1/x^2) = 1
+Step: lim((1 + 1/x)^x, x, oo) = e</pre>
+<pre class="try" data-expect="INVALID">Step: lim(x/|x|, x, 0) = 1</pre>
+<p>In the LaTeX form the limit takes one term, so wrap a sum in parentheses: without them, <code>\lim_{x \to \infty} 1 - 1/x^2</code> is the limit of <code>1</code>, minus <code>1/x^2</code>.</p>
+
+<h2>Infinity</h2>
+<p><code>oo</code> follows the notes' extended-real arithmetic: <code>a + oo = oo</code>, <code>a / oo = 0</code> and <code>-oo &lt; a &lt; oo</code> hold for every real <code>a</code>, while the indeterminate forms <code>oo − oo</code> and <code>0 · oo</code> are refused.</p>
+
+<h2>Series</h2>
+<p>When a closed form depends on a case — <code>r = 1</code> or not, <code>|r| &lt; 1</code> or not — the hypotheses you have stated choose the case. With nothing in scope to decide it, the step is refused rather than guessed.</p>
+<pre class="try" data-expect="VALID">Let r : Real
+Let n : Nat
+Assume r != 1
+Step: sum(k, 0, n, r^k) = (1 - r^(n + 1))/(1 - r)
+Assume |r| < 1
+Step: \sum_{k=0}^{\infty} r^k = 1/(1 - r)</pre>
+
+<h2>Bounds with sin, cos and exp</h2>
+<p>The solver knows the true ranges of these functions — <code>|sin x| ≤ 1</code>, <code>exp x &gt; 0</code> and <code>exp t ≥ 1 + t</code> — which covers most inequalities in a first analysis course.</p>
+<pre class="try" data-expect="VALID">Let x : Real
+Assume x != 0
+Step: |x * sin(1/x)| = |x| * |sin(1/x)|
+Step: <= |x|</pre>

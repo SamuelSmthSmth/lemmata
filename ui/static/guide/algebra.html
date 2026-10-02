@@ -1,0 +1,45 @@
+<h1>Algebra</h1>
+<p class="lede">Groups, subgroups, homomorphisms and modular arithmetic, in the notes' own multiplicative notation.</p>
+
+<h2>Groups and their elements</h2>
+<p><code>Assume Group(G, op, e, inv)</code> makes <code>G</code> a group with operation <code>op</code>, identity <code>e</code> and inverse <code>inv</code>. After that, <code>G</code> is a type: <code>Given a, b : G</code> declares elements, and <code>∀ x ∈ G, …</code> quantifies over them.</p>
+<p>For elements, <code>a * b</code> (or <code>a·b</code>) means <code>op(a, b)</code>, <code>a^-1</code> (or <code>a⁻¹</code>) means <code>inv(a)</code>, and <code>a^3</code> means <code>a·a·a</code>. Variables of a number type keep ordinary, commuting multiplication.</p>
+<pre class="try" data-expect="VALID">Assume Group(G, op, e, inv)
+Given a, b : G
+Step: (a·b)⁻¹ = b⁻¹·a⁻¹
+Step: a²·a³ = a⁵
+Step: a·a⁻¹ = e</pre>
+
+<h2>Identities that hold in every group</h2>
+<p>An equation built only from the group's operations is checked as an identity of <em>every</em> group, so it is not misled by commutativity. <code>ab = ba</code> is refused in a <code>Group</code> — the two sides are different words — and accepted in an <code>AbelianGroup</code>.</p>
+<pre class="try" data-expect="INVALID">Assume Group(G, op, e, inv)
+Given a, b : G
+Step: (a * b)^-1 = a^-1 * b^-1</pre>
+
+<h2>Using hypotheses</h2>
+<pre class="try" data-expect="VALID">Theorem: "Left cancellation"
+Proof:
+    Assume Group(G, op, e, inv)
+    Given a, u, v : G
+    Assume h: op(a, u) = op(a, v)
+    Step: u = op(inv(a), op(a, u))
+    Step: = op(inv(a), op(a, v))
+    Step: = v
+QED</pre>
+
+<h2>Subgroups and normal subgroups</h2>
+<p><code>Subgroup(H, G, op, e, inv)</code> and <code>NormalSubgroup(N, G, op, e, inv)</code> add closure, identity and (for a normal subgroup) conjugation. <code>H</code> becomes a type as well.</p>
+<pre class="try" data-expect="VALID">Assume Group(G, op, e, inv)
+Assume Subgroup(H, G, op, e, inv)
+Given x, y, z : G
+Assume h1: op(inv(x), y) in H
+Assume h2: op(inv(y), z) in H
+Step: op(op(inv(x), y), op(inv(y), z)) = op(inv(x), z)
+Therefore op(inv(x), z) in H</pre>
+
+<h2>Modular arithmetic</h2>
+<p>Congruences are checked over the integers, including a symbolic modulus: the congruences you assume are turned into witnesses (<code>i − k = n·t</code>) before the goal is tested. Modulo 0, congruence is equality.</p>
+<pre class="try" data-expect="VALID">Let i, j, k, l, n : Int
+Assume hk: i = k (mod n)
+Assume hl: j = l (mod n)
+Therefore i + j = k + l (mod n)</pre>

@@ -2,51 +2,100 @@
 //
 // Module scripts are deferred until the document is parsed, and the entry
 // point is loaded at the end of <body>, so these are all present by now.
+// layout.js looks its own controls up itself: it has to stay importable in
+// Node, where this module cannot be evaluated.
+
+const byId = (id) => document.getElementById(id);
 
 export const dom = {
-  verdict: document.getElementById("verdict"),
-  verdictMeta: document.getElementById("verdict-meta"),
-  strict: document.getElementById("strict"),
-  examples: document.getElementById("examples"),
-  blurb: document.getElementById("example-blurb"),
-  audit: document.getElementById("audit"),
-  context: document.getElementById("context"),
-  contextSub: document.getElementById("context-sub"),
-  themeToggle: document.getElementById("theme-toggle"),
+  // Shell
+  railButtons: [...document.querySelectorAll(".rail-button[data-view]")],
+  views: {
+    workspace: byId("view-workspace"),
+    library: byId("view-library"),
+    guide: byId("view-guide"),
+    settings: byId("view-settings"),
+  },
+  themeToggle: byId("theme-toggle"),
+  paletteOpen: byId("palette-open"),
 
-  // Syntax colour scheme.  The panel-arrangement controls are deliberately
-  // absent: layout.js owns them and looks them up itself, because that module
-  // has to stay importable in Node (where dom.js cannot be evaluated at all).
-  syntaxToggle: document.getElementById("syntax-toggle"),
+  // Reading pane
+  desk: byId("desk"),
+  deskTabs: [...document.querySelectorAll(".desk-tab")],
+  deskPanels: {
+    files: byId("desk-files"),
+    notes: byId("desk-notes"),
+    history: byId("desk-history"),
+  },
+  deskCollapse: byId("desk-collapse"),
+  deskOpen: byId("desk-open"),
+  explorer: byId("explorer"),
+  fileNew: byId("file-new"),
+  folderNew: byId("folder-new"),
+  workspaceImport: byId("workspace-import"),
+  workspaceImportInput: byId("workspace-import-input"),
+  workspaceExport: byId("workspace-export"),
+  notes: byId("notes"),
 
-  // Workspace panel. The panel is the content of a <wa-popup>, which owns the
-  // anchoring and the `active` flag that used to be a `hidden` boolean.
-  historyToggle: document.getElementById("history-toggle"),
-  historyPopup: document.getElementById("history-popup"),
-  historyPanel: document.getElementById("history-panel"),
-  historyClose: document.getElementById("history-close"),
-  timeline: document.getElementById("timeline"),
-  timelineNote: document.getElementById("timeline-note"),
-  snapshots: document.getElementById("snapshots"),
-  snapshotNow: document.getElementById("snapshot-now"),
-  copyLink: document.getElementById("copy-link"),
-  resetWorkspace: document.getElementById("reset-workspace"),
-  clearHistory: document.getElementById("clear-history"),
-  downloadProof: document.getElementById("download-proof"),
+  // History (inside the reading pane)
+  historyPanel: byId("history-panel"),
+  timeline: byId("timeline"),
+  timelineNote: byId("timeline-note"),
+  snapshots: byId("snapshots"),
+  snapshotNow: byId("snapshot-now"),
+  copyLink: byId("copy-link"),
+  resetWorkspace: byId("reset-workspace"),
+  clearHistory: byId("clear-history"),
 
-  // File drop + notifications
-  dropOverlay: document.getElementById("drop-overlay"),
-  toast: document.getElementById("toast"),
+  // Working pane
+  tabs: byId("tabs"),
+  templatesMenu: byId("templates-menu"),
+  symbols: byId("symbols"),
+  strict: byId("strict"),
+  syntaxToggle: byId("syntax-toggle"),
+  downloadProof: byId("download-proof"),
+  editorPath: byId("editor-path"),
+  exerciseBanner: byId("exercise-banner"),
+  editor: byId("editor"),
+  welcome: byId("welcome"),
+  audit: byId("audit"),
+  context: byId("context"),
+  contextSub: byId("context-sub"),
 
-  // LaTeX & PDF Export dialog
-  exportLatex: document.getElementById("export-latex"),
-  // <wa-dialog> supplies its own close button and light-dismiss, so there is
-  // no dialog-close element to wire up any more.
-  latexDialog: document.getElementById("latex-dialog"),
-  latexStandalone: document.getElementById("latex-standalone"),
-  latexBreakdown: document.getElementById("latex-breakdown"),
-  latexOutput: document.getElementById("latex-output"),
-  copyLatex: document.getElementById("copy-latex"),
-  downloadTex: document.getElementById("download-tex"),
-  downloadPdf: document.getElementById("download-pdf"),
+  // Library
+  librarySearch: byId("library-search"),
+  libraryFilters: byId("library-filters"),
+  libraryPacks: byId("library-packs"),
+  libraryList: byId("library-list"),
+
+  // Guide and settings
+  guideToc: byId("guide-toc"),
+  guideArticle: byId("guide-article"),
+  settingsForm: byId("settings-form"),
+
+  // Status bar
+  verdict: byId("verdict"),
+  verdictMeta: byId("verdict-meta"),
+  statusProblem: byId("status-problem"),
+  statusPos: byId("status-pos"),
+  statusFile: byId("status-file"),
+  statusStorage: byId("status-storage"),
+
+  // Overlays
+  dropOverlay: byId("drop-overlay"),
+  toast: byId("toast"),
+  palette: byId("palette"),
+  paletteInput: byId("palette-input"),
+  paletteList: byId("palette-list"),
+
+  // LaTeX & PDF export dialog.  <wa-dialog> supplies its own close button and
+  // light-dismiss, so there is no close element to wire up.
+  exportLatex: byId("export-latex"),
+  latexDialog: byId("latex-dialog"),
+  latexStandalone: byId("latex-standalone"),
+  latexBreakdown: byId("latex-breakdown"),
+  latexOutput: byId("latex-output"),
+  copyLatex: byId("copy-latex"),
+  downloadTex: byId("download-tex"),
+  downloadPdf: byId("download-pdf"),
 };

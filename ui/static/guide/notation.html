@@ -1,0 +1,47 @@
+<h1>Notation</h1>
+<p class="lede">Type the notes' symbols directly, or their ASCII spellings — both mean the same thing. The symbol strip above the editor inserts the common ones.</p>
+
+<h2>Symbols</h2>
+<table class="guide-table">
+  <thead><tr><th>Symbol</th><th>Or type</th><th>Symbol</th><th>Or type</th></tr></thead>
+  <tbody>
+    <tr><td><code>∀ ∃</code></td><td><code>forall exists</code></td><td><code>≤ ≥ ≠</code></td><td><code>&lt;= &gt;= !=</code></td></tr>
+    <tr><td><code>∈ ∉ ⊆</code></td><td><code>in notin subseteq</code></td><td><code>⇒ ⇔</code></td><td><code>=&gt; &lt;=&gt;</code></td></tr>
+    <tr><td><code>∧ ∨ ¬</code></td><td><code>and or not</code></td><td><code>∪ ∩ ∅</code></td><td><code>union intersect \emptyset</code></td></tr>
+    <tr><td><code>ε δ</code></td><td><code>\epsilon \delta</code></td><td><code>∞</code></td><td><code>oo \infty</code></td></tr>
+    <tr><td><code>√x</code></td><td><code>sqrt(x)</code></td><td><code>x² a⁻¹</code></td><td><code>x^2 a^-1</code></td></tr>
+    <tr><td><code>n!</code></td><td><code>factorial(n)</code></td><td><code>ℝ ℤ ℕ</code></td><td><code>Real Int Nat</code></td></tr>
+  </tbody>
+</table>
+
+<h2>Quantifiers, as the notes write them</h2>
+<p><code>∀ ε &gt; 0, …</code> means “for every ε, if ε &gt; 0 then …”, and <code>∃ δ &gt; 0, …</code> means “there is a δ with δ &gt; 0 and …”. A bound like <code>∀ x ∈ ℝ</code> gives the variable its type.</p>
+<pre class="try" data-expect="VALID">Theorem: "Triangle inequality"
+Claim: ∀ a ∈ ℝ, ∀ b ∈ ℝ, |a + b| ≤ |a| + |b|
+Proof:
+    Let a, b : ℝ
+    Step: |a + b| ≤ |a| + |b|
+QED</pre>
+
+<h2>Expressions</h2>
+<ul>
+  <li>Arithmetic <code>+ − * / ^</code>, absolute value <code>|x|</code>, <code>min</code>, <code>max</code>.</li>
+  <li>Functions: <code>sqrt exp ln log sin cos tan sinh cosh tanh asin acos atan floor ceil sign binomial</code>.</li>
+  <li><code>gcd(a, b)</code> and <code>lcm(a, b)</code> are computed for numbers (<code>gcd(8, 6) = 2</code>); for symbols they stay unevaluated, because <code>gcd(n, k)</code> has no closed form.</li>
+  <li>Constants: <code>pi</code>, <code>e</code> and <code>oo</code> (∞). Declaring one of these names makes it an ordinary variable again.</li>
+  <li>Congruence: <code>a = b (mod m)</code>, <code>a \equiv b \pmod{m}</code> or <code>Congruent(a, b, m)</code>.</li>
+  <li>Predicates: <code>Even</code>, <code>Odd</code>, <code>MultipleOf(a, b)</code>, <code>Divides(b, a)</code>, <code>Positive</code>, <code>NonNegative</code>.</li>
+</ul>
+<pre class="try" data-expect="VALID">Let n : ℕ
+Assume n ≥ 1
+Step: n! = n·(n − 1)!
+Step: 5! = 120
+Step: gcd(8, 6) = 2</pre>
+
+<h2>Domain conditions</h2>
+<p>Dividing by <code>B</code> needs <code>B ≠ 0</code>, and <code>√A</code> needs <code>A ≥ 0</code>. If nothing in scope guarantees it, the step is marked with a domain warning — or refused outright with <strong>Strict domains</strong> switched on. Inside a sum, the condition only has to hold over the index's range.</p>
+<pre class="try" data-expect="WARN">Let x : Real
+Step: (x^2 - 4) / (x - 2) = x + 2</pre>
+<pre class="try" data-expect="VALID">Let x : Real
+Assume h: x != 2
+Step: (x^2 - 4) / (x - 2) = x + 2</pre>

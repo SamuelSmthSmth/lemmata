@@ -47,6 +47,12 @@ export const ARRANGEMENTS = [
 
 const ARRANGEMENT_IDS = ARRANGEMENTS.map((arrangement) => arrangement.id);
 
+/**
+ * Editor above, auditor and context beneath: the working half of the
+ * "notes beside the proof" desk, where the reading pane already takes a column.
+ */
+export const DEFAULT_ARRANGEMENT = "split";
+
 export function isArrangement(id) {
   return ARRANGEMENT_IDS.includes(id);
 }
@@ -64,7 +70,7 @@ export function normalizeLayout(stored, available = DEFAULT_ORDER) {
   const arrangement =
     stored && typeof stored.arrangement === "string" && isArrangement(stored.arrangement)
       ? stored.arrangement
-      : ARRANGEMENTS[0].id;
+      : DEFAULT_ARRANGEMENT;
 
   const order = [];
   if (stored && Array.isArray(stored.order)) {
@@ -147,7 +153,7 @@ export const layoutApi = {
     return { arrangement: layout.arrangement, order: layout.order.slice() };
   },
   reset() {
-    layout.arrangement = ARRANGEMENTS[0].id;
+    layout.arrangement = DEFAULT_ARRANGEMENT;
     layout.order = [...DEFAULT_ORDER];
     layoutApi.setArrangement?.(layout.arrangement);
     layoutApi.setOrder?.(layout.order);

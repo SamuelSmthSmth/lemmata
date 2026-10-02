@@ -31,6 +31,9 @@ import { setBasePath } from "../vendor/webawesome/webawesome.js";
 
 import "../vendor/webawesome/components/button/button.js";
 import "../vendor/webawesome/components/dialog/dialog.js";
+import "../vendor/webawesome/components/dropdown/dropdown.js";
+import "../vendor/webawesome/components/dropdown-item/dropdown-item.js";
+import "../vendor/webawesome/components/input/input.js";
 import "../vendor/webawesome/components/icon/icon.js";
 import "../vendor/webawesome/components/option/option.js";
 import "../vendor/webawesome/components/popup/popup.js";

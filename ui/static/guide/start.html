@@ -1,0 +1,31 @@
+<h1>Getting started</h1>
+<p class="lede">Aether checks a proof one line at a time. You write the proof the way your notes write it; each step goes to a computer algebra system (SymPy) or a logic solver (Z3), and the first step that does not follow is marked, with the reason and — where one exists — a concrete counterexample.</p>
+
+<h2>Your first proof</h2>
+<p>A proof is a list of statements. <code>Let</code> or <code>Given</code> introduces variables, <code>Assume</code> a hypothesis, <code>Step:</code> a calculation, and <code>Therefore</code> a conclusion. Leave out the left-hand side of a <code>Step:</code> to continue the chain from the previous one.</p>
+<pre class="try" data-expect="VALID">Theorem: "Even square theorem"
+Proof:
+    Given n : Int
+    Assume h1: Even(n)
+    Obtain k : Int such that n = 2 * k from h1
+    Step: n^2 = (2 * k)^2
+    Step: = 4 * k^2
+    Step: = 2 * (2 * k^2)
+    Therefore exists m : Int, n^2 = 4 * m [witness: k^2]
+    Hence MultipleOf(n^2, 4)
+QED</pre>
+
+<h2>Reading the result</h2>
+<p>The <strong>status bar</strong> at the foot of the window gives the verdict for the whole proof: <em>VALID</em>, <em>VALID (with domain warnings)</em>, <em>INVALID</em> or <em>PARSE ERROR</em>. The <strong>auditor</strong> lists every statement with what checked it; a step that fails carries a red rule in the margin, and so does everything after it, because everything after it rests on it. The editor marks the same line in its gutter, and hovering the mark shows the reason.</p>
+<p>Click any line — in the editor or in the auditor — and <strong>Context &amp; state</strong> shows what the checker knows at that point: the variables in scope with their types, and every hypothesis and derived fact.</p>
+
+<h2>When a step is wrong</h2>
+<pre class="try" data-expect="INVALID">Let x : Real
+Step: (x + 1)^2 = x^2 + 1</pre>
+<p>The auditor reports the step as invalid and gives a value of <code>x</code> where the two sides differ. A counterexample is the most useful thing a checker can hand you: it shows not just <em>that</em> the step is wrong, but where to look.</p>
+
+<h2>Where your work lives</h2>
+<p>Everything is kept in this browser: open proofs, folders, snapshots and settings. Use <strong>Files</strong> in the reading pane to organise proofs, and the export button there to download the whole workspace as a <code>.zip</code> — that file is your backup. Dropping <code>.aether</code> files or a <code>.zip</code> anywhere on the window adds them back.</p>
+
+<h2>Working from the notes</h2>
+<p>The <strong>Library</strong> holds course packs: proofs transcribed from a module's lecture notes, keyed to the notes' own numbering, such as <em>MTH2008 · Example 2.18</em>. Opening one keeps the entry beside a copy of its proof in the <strong>Notes</strong> tab while you work on it. <em>Traps</em> are deliberate mistakes; open one as an exercise and find the failing line before the checker tells you.</p>

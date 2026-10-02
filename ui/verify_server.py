@@ -87,6 +87,38 @@ class Server:
             return err.code, err.headers.get("content-type", ""), err.read()
 
 
+def guide_checks() -> None:
+    """Every runnable example in the in-app Guide produces the verdict it states.
+
+    The Guide's ``<pre class="try" data-expect=...>`` blocks are what a student
+    copies first, so they are held to the engine like the bundled examples.
+    """
+    import html as html_lib
+
+    from aether import ParseError, ProofChecker
+
+    print("== in-app guide examples ==")
+    checker = ProofChecker()
+    pattern = re.compile(r'<pre class="try" data-expect="([A-Z ]+)">(.*?)</pre>', re.S)
+    total = 0
+    for page in sorted((STATIC / "guide").glob("*.html")):
+        for expect, body in pattern.findall(page.read_text(encoding="utf-8")):
+            total += 1
+            source = html_lib.unescape(body)
+            try:
+                reports = checker.check_source(source)
+                if not all(r.is_valid for r in reports):
+                    got = "INVALID"
+                elif any(r.has_warnings for r in reports):
+                    got = "WARN"
+                else:
+                    got = "VALID"
+            except ParseError:
+                got = "PARSE ERROR"
+            check(got == expect, f"{page.name}: {source.splitlines()[0][:50]!r} -> {got} (says {expect})")
+    check(total >= 15, f"the guide carries runnable examples ({total})")
+
+
 def main() -> int:
     with Server() as server:
         print("== pages and static assets ==")
@@ -439,6 +471,8 @@ def main() -> int:
         status, _, body = server.request("/api/check", "POST", {"source": "Let x : Real\nStep: x + 0 = x\n"})
         data = json.loads(body)
         check(status == 200 and data["verdict"] == "VALID", f"the next check is still answered ({data.get('verdict')})")
+
+    guide_checks()
 
     print()
     if failures:

@@ -1,12 +1,11 @@
-// The workspace panel: this session's verdict timeline, saved snapshots, and
-// the destructive actions (reset, clear).
+// The History panel: this proof's checks over time and its snapshots.
 //
-// All four actions are injected as callbacks rather than imported, so this
-// module never reaches into the editor or the checker.
+// Reads from workspace.js; the actions that replace the buffer (restore,
+// reset) are injected by main.js, because they need the editor.
 
 import { dom } from "./dom.js";
 import { el } from "./format.js";
-import { clearSnapshots, clearTimeline, removeSnapshot, timeline, workspace } from "./store.js";
+import { clearTimeline, model, removeSnapshot, snapshotsFor } from "./workspace.js";
 
 const TIMELINE_TONE = {
   VALID: "valid",
@@ -16,22 +15,30 @@ const TIMELINE_TONE = {
   TIMEOUT: "parse",
 };
 
+let handlers = {};
+
 function clock(ts) {
   return new Date(ts).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 }
 
+function day(ts) {
+  const date = new Date(ts);
+  const today = new Date();
+  return date.toDateString() === today.toDateString()
+    ? clock(ts)
+    : `${date.toLocaleDateString([], { day: "numeric", month: "short" })} ${clock(ts)}`;
+}
+
 function renderTimeline() {
   dom.timeline.replaceChildren();
-
-  const entries = timeline.entries;
+  // Run-length encoded: each segment grows with the number of consecutive
+  // checks that produced the same verdict.
+  const entries = model.timeline.filter((entry) => !entry.fileId || entry.fileId === model.activeId);
   if (!entries.length) {
-    dom.timeline.append(el("p", "ctx-none", "No checks yet this session."));
+    dom.timeline.append(el("p", "ctx-none", "No checks of this proof yet."));
     dom.timelineNote.textContent = "";
     return;
   }
-
-  // Run-length encoded: each segment grows with the number of consecutive
-  // checks that produced the same verdict.
   const strip = el("div", "tl-strip");
   for (const entry of entries) {
     const n = entry.n ?? 1;
@@ -41,110 +48,65 @@ function renderTimeline() {
     strip.append(bar);
   }
   dom.timeline.append(strip);
-
   const total = entries.reduce((sum, entry) => sum + (entry.n ?? 1), 0);
   const latest = entries[entries.length - 1];
   dom.timelineNote.textContent = `${total} check${total === 1 ? "" : "s"} · latest ${latest.verdict.toLowerCase()}`;
 }
 
-function renderSnapshots({ onRestore }) {
+async function renderSnapshots() {
+  const id = model.activeId;
+  const list = id ? await snapshotsFor(id) : [];
+  if (id !== model.activeId) return; // switched files while loading
   dom.snapshots.replaceChildren();
-
-  if (!workspace.snapshots.length) {
+  if (!list.length) {
     dom.snapshots.append(
-      el(
-        "p",
-        "ctx-none",
-        "Nothing saved yet. Snapshots are taken automatically before an example, reset or restore replaces your buffer.",
-      ),
+      el("p", "ctx-none", "Nothing saved yet. A snapshot is taken automatically before anything replaces this proof — a reset, a restore, a file dropped onto it."),
     );
     return;
   }
-
-  for (const snapshot of workspace.snapshots) {
+  for (const snapshot of list) {
     const row = el("div", "snapshot");
-
     const meta = el("div", "snapshot-meta");
     meta.append(el("span", "snapshot-name", snapshot.name));
-    meta.append(
-      el(
-        "span",
-        "snapshot-sub",
-        `${clock(snapshot.ts)}${snapshot.strict ? " · strict" : ""}${snapshot.auto ? " · automatic" : ""}`,
-      ),
-    );
+    meta.append(el("span", "snapshot-sub", `${day(snapshot.ts)}${snapshot.strict ? " · strict" : ""}${snapshot.auto ? " · automatic" : ""}`));
     row.append(meta);
-
     const actions = el("div", "snapshot-actions");
-
-    const restore = document.createElement("wa-button");
-    restore.size = "xs";
-    restore.appearance = "filled-outlined";
-    restore.textContent = "Restore";
-    restore.addEventListener("click", () => onRestore(snapshot));
-    actions.append(restore);
-
-    const drop = document.createElement("wa-button");
-    drop.size = "xs";
-    drop.appearance = "filled-outlined";
-    drop.variant = "danger";
-    drop.textContent = "Delete";
+    const restore = el("button", "text-button", "Restore");
+    restore.type = "button";
+    restore.addEventListener("click", () => handlers.onRestore?.(snapshot));
+    const drop = el("button", "text-button text-button--danger", "Delete");
+    drop.type = "button";
     drop.setAttribute("aria-label", `Delete snapshot ${snapshot.name}`);
-    drop.addEventListener("click", () => {
-      removeSnapshot(snapshot.id);
-      renderSnapshots({ onRestore });
+    drop.addEventListener("click", async () => {
+      await removeSnapshot(snapshot.id);
+      renderHistory();
     });
-    actions.append(drop);
-
+    actions.append(restore, drop);
     row.append(actions);
     dom.snapshots.append(row);
   }
 }
 
-export function renderHistory(handlers) {
+export function renderHistory() {
   renderTimeline();
-  renderSnapshots(handlers);
+  return renderSnapshots();
 }
 
-// The panel is the content of a <wa-popup>, which owns the anchoring and the
-// `active` flag that used to be a `hidden` boolean here.
-export function setHistoryOpen(open) {
-  dom.historyPopup.active = open;
-  dom.historyToggle.setAttribute("aria-expanded", open ? "true" : "false");
-}
-
-export function isHistoryOpen() {
-  return Boolean(dom.historyPopup.active);
-}
-
-export function initHistory(handlers) {
-  dom.historyToggle.addEventListener("click", () => setHistoryOpen(!isHistoryOpen()));
-  dom.historyClose.addEventListener("click", () => setHistoryOpen(false));
-
-  dom.snapshotNow.addEventListener("click", () => {
-    handlers.onSnapshot();
-    renderHistory(handlers);
+export function initHistory(actions) {
+  handlers = actions;
+  dom.snapshotNow.addEventListener("click", async () => {
+    await handlers.onSnapshot?.();
+    renderHistory();
   });
-
-  dom.copyLink.addEventListener("click", () => handlers.onCopyLink());
-
-  dom.resetWorkspace.addEventListener("click", () => {
-    handlers.onReset();
-    renderHistory(handlers);
+  dom.copyLink.addEventListener("click", () => handlers.onCopyLink?.());
+  dom.resetWorkspace.addEventListener("click", async () => {
+    await handlers.onReset?.();
+    renderHistory();
   });
-
-  dom.clearHistory.addEventListener("click", () => {
+  dom.clearHistory.addEventListener("click", async () => {
     clearTimeline();
-    clearSnapshots();
-    renderHistory(handlers);
+    await handlers.onClearSnapshots?.();
+    renderHistory();
     handlers.onCleared?.();
-  });
-
-  // Escape closes the panel, matching the usual behaviour of a popover.
-  dom.historyPanel.addEventListener("keydown", (event) => {
-    if (event.key === "Escape") {
-      setHistoryOpen(false);
-      dom.historyToggle.focus();
-    }
   });
 }

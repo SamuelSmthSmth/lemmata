@@ -93,7 +93,7 @@ export async function copyText(text) {
  * target, and the dragenter/dragleave depth counter stops a drag passing over
  * child elements from flickering the overlay off.
  */
-export function setupDropZone({ onFile, onDragState }) {
+export function setupDropZone({ onFiles, onDragState }) {
   let depth = 0;
   const carriesFiles = (event) => Array.from(event.dataTransfer?.types ?? []).includes("Files");
 
@@ -125,7 +125,7 @@ export function setupDropZone({ onFile, onDragState }) {
     event.preventDefault();
     depth = 0;
     onDragState(false);
-    const file = event.dataTransfer?.files?.[0];
-    if (file) onFile(file);
+    const files = [...(event.dataTransfer?.files ?? [])];
+    if (files.length) onFiles(files);
   });
 }
