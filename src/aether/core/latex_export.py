@@ -78,9 +78,55 @@ def escape_latex_text(text: str) -> str:
     return "".join(LATEX_TEXT_ESCAPES.get(char, char) for char in text)
 
 
+#: Greek names the grammar accepts, so a quantified `epsilon` prints as `\\epsilon`.
+GREEK_NAMES = frozenset(
+    "alpha beta gamma delta epsilon varepsilon zeta eta theta iota kappa lambda mu nu xi "
+    "pi rho sigma tau upsilon phi varphi chi psi omega Delta Gamma Theta Lambda Xi Pi "
+    "Sigma Phi Psi Omega".split()
+)
+
+#: One spelling per relation, shared by inline formulas and aligned step chains.
+RELATION_LATEX: dict[str, str] = {
+    "=": "=",
+    "\\equiv": "\\equiv",
+    "!=": "\\neq",
+    "/=": "\\neq",
+    "\\neq": "\\neq",
+    "<=": "\\le",
+    "\\le": "\\le",
+    "\\leq": "\\le",
+    ">=": "\\ge",
+    "\\ge": "\\ge",
+    "\\geq": "\\ge",
+    "<": "<",
+    ">": ">",
+    "in": "\\in",
+    "\\in": "\\in",
+    "notin": "\\notin",
+    "not in": "\\notin",
+    "\\notin": "\\notin",
+    "subset": "\\subset",
+    "\\subset": "\\subset",
+    "subseteq": "\\subseteq",
+    "\\subseteq": "\\subseteq",
+}
+
+
+def identifier_to_latex(name: str) -> str:
+    """A bound or declared name: Greek names become their macro."""
+    return f"\\{name}" if name in GREEK_NAMES else name
+
+
 def math_type_to_latex(type_str: str) -> str:
-    """Format an Aether type string as standard LaTeX blackboard bold."""
-    norm = normalize_type_name(type_str)
+    """Format an Aether type string as standard LaTeX blackboard bold.
+
+    A structure's carrier (``G`` in ``Given a : G``) is not a number type; it
+    is typeset as the set it names.
+    """
+    try:
+        norm = normalize_type_name(type_str)
+    except ValueError:
+        return identifier_to_latex(type_str.strip())
     return TYPE_LATEX_MAP.get(norm.value, f"\\text{{{type_str}}}")
 
 
@@ -99,6 +145,8 @@ def expr_to_latex(expr: Optional[ExprNode], precedence: int = 0) -> str:
         return f"\\{expr.name}"
 
     if isinstance(expr, SymbolNode):
+        if expr.name == "oo":
+            return "\\infty"
         if expr.name.lower() in ("i", "i_unit"):
             return "i"
         if expr.name.startswith("\\"):
@@ -165,31 +213,7 @@ def expr_to_latex(expr: Optional[ExprNode], precedence: int = 0) -> str:
         return res
 
     if isinstance(expr, RelationNode):
-        rel_map = {
-            "=": " = ",
-            "\\equiv": " \\equiv ",
-            "!=": " \\neq ",
-            "/=": " \\neq ",
-            "\\neq": " \\neq ",
-            "<=": " \\le ",
-            "\\le": " \\le ",
-            "\\leq": " \\le ",
-            ">=": " \\ge ",
-            "\\ge": " \\ge ",
-            "\\geq": " \\ge ",
-            "<": " < ",
-            ">": " > ",
-            "in": " \\in ",
-            "\\in": " \\in ",
-            "notin": " \\notin ",
-            "not in": " \\notin ",
-            "\\notin": " \\notin ",
-            "subset": " \\subset ",
-            "\\subset": " \\subset ",
-            "subseteq": " \\subseteq ",
-            "\\subseteq": " \\subseteq ",
-        }
-        op_str = rel_map.get(expr.op.lower(), f" {expr.op} ")
+        op_str = f" {RELATION_LATEX.get(expr.op.lower(), expr.op)} "
         l_str = expr_to_latex(expr.left)
         r_str = expr_to_latex(expr.right)
         return f"{l_str}{op_str}{r_str}"
@@ -230,6 +254,8 @@ def expr_to_latex(expr: Optional[ExprNode], precedence: int = 0) -> str:
             return f"\\frac{{\\partial {target}}}{{\\partial {var}}}"
         if fn in ("congruent", "cong") and len(expr.args) == 3:
             return f"{expr_to_latex(expr.args[0])} \\equiv {expr_to_latex(expr.args[1])} \\pmod{{{expr_to_latex(expr.args[2])}}}"
+        if fn == "factorial" and len(expr.args) == 1:
+            return f"{expr_to_latex(expr.args[0], precedence=70)}!"
         if fn in ("inv", "inverse") and len(expr.args) == 1:
             return f"{{{expr_to_latex(expr.args[0])}}}^{{-1}}"
         if fn == "sum" and len(expr.args) == 4:
@@ -245,9 +271,25 @@ def expr_to_latex(expr: Optional[ExprNode], precedence: int = 0) -> str:
 
     if isinstance(expr, QuantifierNode):
         q_sym = "\\forall" if expr.quantifier.lower() == "forall" else "\\exists"
+        var_str = identifier_to_latex(expr.var)
+        formula = expr.formula
+        # `forall \\epsilon > 0, P` is parsed as `forall \\epsilon, \\epsilon > 0 => P`;
+        # print it back the way it was written.
+        guard_op = "=>" if expr.quantifier.lower() == "forall" else "and"
+        if (
+            expr.var_type is None
+            and isinstance(formula, BinaryOpNode)
+            and formula.op.lower() == guard_op
+            and isinstance(formula.left, RelationNode)
+            and isinstance(formula.left.left, (SymbolNode, GreekSymbolNode))
+            and formula.left.left.name == expr.var
+        ):
+            guard = formula.left
+            bound = f" {RELATION_LATEX.get(guard.op.lower(), guard.op)} {expr_to_latex(guard.right)}"
+            return f"{q_sym} {var_str}{bound},\\; {expr_to_latex(formula.right)}"
         type_annot = f" \\in {math_type_to_latex(expr.var_type)}" if expr.var_type else ""
-        form_str = expr_to_latex(expr.formula)
-        return f"{q_sym} {expr.var}{type_annot},\\; {form_str}"
+        form_str = expr_to_latex(formula)
+        return f"{q_sym} {var_str}{type_annot},\\; {form_str}"
 
     if isinstance(expr, IntegralNode):
         body_str = expr_to_latex(expr.body)
@@ -368,7 +410,7 @@ class LatexProofExporter:
                 continue
 
             if isinstance(stmt, VarDeclNode):
-                vars_str = ", ".join(stmt.variables)
+                vars_str = ", ".join(identifier_to_latex(v) for v in stmt.variables)
                 t_latex = math_type_to_latex(stmt.type_name)
                 decl_str = f"Let ${vars_str} \\in {t_latex}$"
                 if stmt.condition is not None:
@@ -384,7 +426,7 @@ class LatexProofExporter:
                 t_str = f" \\in {math_type_to_latex(stmt.type_name)}" if stmt.type_name else ""
                 c_str = expr_to_latex(stmt.condition)
                 from_str = f" from {stmt.source_label}" if stmt.source_label else ""
-                lines.append(f"{ind}Obtain ${stmt.variable}{t_str}$ such that ${c_str}${from_str}.")
+                lines.append(f"{ind}Obtain ${identifier_to_latex(stmt.variable)}{t_str}$ such that ${c_str}${from_str}.")
 
             elif isinstance(stmt, DeduceNode):
                 c_str = expr_to_latex(stmt.claim)
@@ -422,23 +464,17 @@ class LatexProofExporter:
         lines: list[str] = [f"{ind}\\begin{{align*}}"]
 
         for idx, step in enumerate(steps):
-            rel = step.relation or "="
-            rel_map = {
-                "=": "=",
-                "!=": "\\neq",
-                "<=": "\\le",
-                ">=": "\\ge",
-                "<": "<",
-                ">": ">",
-            }
-            rel_sym = rel_map.get(rel.lower(), rel)
             rhs_str = expr_to_latex(step.rhs)
-
-            if step.lhs is not None:
-                lhs_str = expr_to_latex(step.lhs)
-                line_str = f"{ind}    {lhs_str} &{rel_sym} {rhs_str}"
+            if not step.relation:
+                # A bare proposition (`Step: Even(n)`) has no relation to align on.
+                line_str = f"{ind}    & {rhs_str}"
             else:
-                line_str = f"{ind}    &{rel_sym} {rhs_str}"
+                rel_sym = RELATION_LATEX.get(step.relation.lower(), step.relation)
+                if step.lhs is not None:
+                    lhs_str = expr_to_latex(step.lhs)
+                    line_str = f"{ind}    {lhs_str} &{rel_sym} {rhs_str}"
+                else:
+                    line_str = f"{ind}    &{rel_sym} {rhs_str}"
 
             if step.justification:
                 line_str += f" && \\text{{({step.justification})}}"

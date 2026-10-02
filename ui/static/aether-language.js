@@ -25,7 +25,21 @@ const LOGIC_KW = new Set([
 const MATH_FN_KW = new Set([
   "diff", "det", "tr", "norm", "dot", "transpose", "conj", "re", "im", "abs", "sqrt", "sum",
   "cauchyriemann", "orthogonal", "integrate", "lim", "inv",
+  "sin", "cos", "tan", "exp", "log", "ln", "min", "max", "factorial", "gcd", "lcm",
+  "sinh", "cosh", "tanh", "asin", "acos", "atan", "arcsin", "arccos", "arctan",
+  "sec", "csc", "cot", "floor", "ceil", "ceiling", "sign", "binomial",
 ]);
+// Named constants: `oo` / `infinity` is the engine's infinity, as `\infty` is.
+const CONSTANT_KW = new Set(["oo", "infinity"]);
+
+// The notes' own symbols, typed directly (src/aether/parser/grammar.lark
+// accepts each of them alongside its ASCII spelling).
+const UNICODE_FLOW = /^[∀∃]/;
+const UNICODE_LOGIC = /^[∈∉⊂⊆∪∩∧∨¬⇒⇔⟹⟺↔∘]/;
+const UNICODE_OPERATOR = /^[≤≥≠≡−·×√→!]/;
+const UNICODE_TYPE = /^[ℝℤℕℚℂ]/;
+const UNICODE_GREEK = /^[α-ωϵϕΓΔΘΛΞΠΣΦΨΩ]/;
+const SUPERSCRIPT = /^[⁺⁻]?[⁰¹²³⁴-⁹]+/;
 
 // Token names are custom and mapped explicitly.  StreamLanguage's built-in
 // table only knows CM5-style names and warns ("Unknown highlighting tag") for
@@ -67,8 +81,14 @@ export function aetherToken(stream) {
   if (stream.match(/not\s+in/i)) return "logicKw";
 
   if (stream.match(/"[^"]*"/)) return "string";
+  if (stream.match(/\\infty(?![a-zA-Z])/) || stream.match("∞")) return "number";
   if (stream.match(/\\[a-zA-Z]+/)) return "macro"; // \mathbb{N}, \epsilon, ...
   if (stream.match(/\d+(\.\d+)?/)) return "number";
+  if (stream.match(SUPERSCRIPT)) return "number";
+  if (stream.match(UNICODE_GREEK)) return "macro";
+  if (stream.match(UNICODE_TYPE)) return "typeName";
+  if (stream.match(UNICODE_FLOW)) return "flow";
+  if (stream.match(UNICODE_LOGIC)) return "logicKw";
 
   // Use the match result rather than stream.current(): `current()` is not
   // scoped to this token, so keyword lookups would silently miss.
@@ -82,6 +102,7 @@ export function aetherToken(stream) {
     if (FLOW_KW.has(lower)) return "flow";
     if (JOIN_KW.has(lower)) return "join";
     if (LOGIC_KW.has(lower)) return "logicKw";
+    if (CONSTANT_KW.has(lower)) return "number";
     // Capitalised identifiers are types and prelude predicates: Int, Real,
     // Even, MultipleOf.  Keywords above are matched first, so Theorem/QED keep
     // their structure colouring.
@@ -89,6 +110,7 @@ export function aetherToken(stream) {
   }
 
   if (stream.match(/<=>|<=|>=|!=|\/=|=>|->/)) return "operator";
+  if (stream.match(UNICODE_OPERATOR)) return "operator";
   if (stream.match(/[+\-*/^=<>:,()[\]{}|]/)) return "operator";
 
   stream.next();

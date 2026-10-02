@@ -9,6 +9,7 @@ Run with:  uv run python ui/verify_server.py
 from __future__ import annotations
 
 import json
+import os
 import re
 import socket
 import subprocess
@@ -43,7 +44,8 @@ def free_port() -> int:
 
 
 class Server:
-    def __init__(self) -> None:
+    def __init__(self, env: dict[str, str] | None = None) -> None:
+        self.env = env
         self.port = free_port()
         self.base = f"http://127.0.0.1:{self.port}"
         self.proc: subprocess.Popen[bytes] | None = None
@@ -54,6 +56,7 @@ class Server:
             cwd=str(PROJECT),
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
+            env={**os.environ, **self.env} if self.env else None,
         )
         for _ in range(80):
             try:
@@ -372,6 +375,26 @@ def main() -> int:
             if status != 200 or body[:4] != b"wOF2":
                 bad_fonts.append(f"{rel} -> {status} {ctype or 'none'}")
         check(not bad_fonts, f"all {len(fonts)} font subsets served as woff2 {bad_fonts[:2]}")
+
+    # A check that runs past its budget must come back as TIMEOUT -- not hang
+    # the request -- and the next check must still be answered, by the worker
+    # that replaced the killed one or by the other in the pool.
+    with Server(env={"AETHER_CHECK_BUDGET": "1"}) as server:
+        print("== check budget ==")
+        slow = (
+            "Let x, y, z : Int\nAssume h1: x^3 + y^3 = z^3\nAssume h2: x * y * z != 0\n"
+            "Step: x = 0\nStep: y = 0\nStep: z = 0\n"
+        )
+        started = time.monotonic()
+        status, _, body = server.request("/api/check", "POST", {"source": slow})
+        data = json.loads(body)
+        took = time.monotonic() - started
+        check(status == 200 and data["verdict"] == "TIMEOUT", f"a stalled check answers TIMEOUT ({data.get('verdict')})")
+        check(took < 10, f"and promptly ({took:.1f} s for a 1 s budget)")
+        check("stopped after 1 s" in (data.get("parse_error") or {}).get("headline", ""), "the headline names the budget")
+        status, _, body = server.request("/api/check", "POST", {"source": "Let x : Real\nStep: x + 0 = x\n"})
+        data = json.loads(body)
+        check(status == 200 and data["verdict"] == "VALID", f"the next check is still answered ({data.get('verdict')})")
 
     print()
     if failures:

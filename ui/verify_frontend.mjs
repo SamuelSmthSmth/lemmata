@@ -457,6 +457,25 @@ const CASES = [
   { line: "    Base case n = 0:", want: ["structure:Base case", "variableName:n", "operator:=", "number:0", "operator::"] },
   { line: "    Inductive step:", want: ["structure:Inductive step", "operator::"] },
   { line: "    QED", want: ["structure:QED"] },
+  // The notes' notation: Unicode symbols, infinity and postfix factorial.
+  {
+    line: "Therefore ∀ ε > 0, ∃ δ ∈ ℝ, δ ≤ ε",
+    want: [
+      "flow:Therefore", "flow:∀", "macro:ε", "operator:>", "number:0", "operator:,",
+      "flow:∃", "macro:δ", "logicKw:∈", "typeName:ℝ", "operator:,", "macro:δ", "operator:≤", "macro:ε",
+    ],
+  },
+  {
+    line: "Step: lim(1/x, x, oo) = \\infty",
+    want: [
+      "intro:Step", "operator::", "mathFn:lim", "operator:(", "number:1", "operator:/", "variableName:x",
+      "operator:,", "variableName:x", "operator:,", "number:oo", "operator:)", "operator:=", "number:\\infty",
+    ],
+  },
+  { line: "Step: n! = gcd(a⁻¹, x²)", want: [
+    "intro:Step", "operator::", "variableName:n", "operator:!", "operator:=", "mathFn:gcd", "operator:(",
+    "variableName:a", "number:⁻¹", "operator:,", "variableName:x", "number:²", "operator:)",
+  ] },
   // Math functions are call-shaped, so they get their own token rather than
   // sharing the introduction keywords -- the vivid scheme colours them apart.
   {

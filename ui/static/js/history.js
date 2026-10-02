@@ -13,6 +13,7 @@ const TIMELINE_TONE = {
   "VALID (with domain warnings)": "warning",
   INVALID: "invalid",
   "PARSE ERROR": "parse",
+  TIMEOUT: "parse",
 };
 
 function clock(ts) {

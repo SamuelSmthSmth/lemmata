@@ -10,11 +10,16 @@ GET  /               -> the single-page frontend
 GET  /api/examples   -> bundled sample proofs
 POST /api/check      -> verify a proof source string
 GET  /api/health     -> liveness probe
+
+Every engine call (checking and the LaTeX/PDF report, which re-checks) runs in
+a worker process from ``checking.pool()`` under a hard wall-clock budget, so a
+stalled solver query can cost a request its answer but never a server thread.
 """
 
 from __future__ import annotations
 
 import time
+from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Any, Literal, Optional
 
@@ -23,15 +28,13 @@ from fastapi.responses import FileResponse, Response, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
-from aether import ParseError, ProofChecker, ProofReport
-
+from .checking import CheckTimeout, WorkerCrashed, pool
 from .examples import EXAMPLES
-from .latex_report import export_report_latex
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
 
 StepStatusName = Literal["VALID", "WARNING", "INVALID"]
-Verdict = Literal["VALID", "VALID (with domain warnings)", "INVALID", "PARSE ERROR"]
+Verdict = Literal["VALID", "VALID (with domain warnings)", "INVALID", "PARSE ERROR", "TIMEOUT"]
 
 
 # ---------------------------------------------------------------------------
@@ -129,61 +132,23 @@ class LatexExportResponse(BaseModel):
 
 
 # ---------------------------------------------------------------------------
-# Verdict helpers
-# ---------------------------------------------------------------------------
-
-
-def _report_verdict(report: ProofReport) -> str:
-    """Mirror ``ProofReport.format_report``'s verdict wording."""
-    if not report.is_valid:
-        return "INVALID"
-    if report.has_warnings:
-        return "VALID (with domain warnings)"
-    return "VALID"
-
-
-def _overall_verdict(reports: list[ProofReport]) -> Verdict:
-    if any(not r.is_valid for r in reports):
-        return "INVALID"
-    if any(r.has_warnings for r in reports):
-        return "VALID (with domain warnings)"
-    return "VALID"
-
-
-def _source_line(lines: list[str], line: Optional[int]) -> Optional[str]:
-    if line is None or not (1 <= line <= len(lines)):
-        return None
-    return lines[line - 1]
-
-
-def _to_step(result, lines: list[str]) -> StepModel:
-    return StepModel(
-        line=result.line,
-        col=getattr(result, "col", None),
-        statement=str(result.statement),
-        source_line=_source_line(lines, result.line),
-        status=result.status.value,
-        message=result.message,
-        backend=result.backend,
-        scope_depth=result.scope_depth,
-        active_variables=dict(result.active_variables),
-        active_hypotheses=list(result.active_hypotheses),
-        domain_warnings=list(result.domain_warnings),
-        counterexample=result.counterexample,
-        counterexample_dict=getattr(result, "counterexample_dict", None),
-        diagnostic_range=getattr(result, "diagnostic_range", None),
-        subproof_metadata=getattr(result, "subproof_metadata", None),
-    )
-
-
-# ---------------------------------------------------------------------------
 # App
 # ---------------------------------------------------------------------------
+
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    # Warm the workers while the server comes up, so the first check does not
+    # pay for starting them.
+    pool().start()
+    yield
+    pool().close()
+
 
 app = FastAPI(
     title="Aether Proof Checker",
     description="Controlled-natural-language proof intern for undergraduate mathematics.",
     version="0.1.0",
+    lifespan=lifespan,
 )
 
 app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
@@ -213,78 +178,42 @@ def check_proof(request: CheckRequest) -> CheckResponse:
     the event loop.
     """
     started = time.perf_counter()
-    lines = request.source.splitlines()
-    checker = ProofChecker(strict_domains=request.strict_domains)
-
     try:
-        reports = checker.check_source(request.source)
-    except ParseError as err:
-        headline = str(err.message).splitlines()[0] if err.message else str(err)
+        payload = pool().run(
+            "check", {"source": request.source, "strict_domains": request.strict_domains}
+        )
+    except (CheckTimeout, WorkerCrashed) as exc:
+        if isinstance(exc, CheckTimeout):
+            headline = f"Checking stopped after {exc.budget:g} s"
+            message = (
+                "One of the steps asks the solver something it cannot settle quickly, so the check "
+                "was stopped rather than left running. Split the step into smaller ones, or add the "
+                "hypothesis it depends on."
+            )
+        else:
+            headline = "The checker stopped unexpectedly"
+            message = "The worker checking this proof exited mid-check (it may have run out of memory)."
         return CheckResponse(
-            verdict="PARSE ERROR",
+            verdict="TIMEOUT",
             reports=[],
-            parse_error=ParseErrorModel(
-                message=str(err.message),
-                headline=headline,
-                line=err.line,
-                col=err.col,
-            ),
+            parse_error=ParseErrorModel(message=message, headline=headline, line=None, col=None),
             summary=SummaryModel(total=0, valid=0, warnings=0, invalid=0),
             strict_domains=request.strict_domains,
             duration_ms=(time.perf_counter() - started) * 1000.0,
         )
-    except Exception as exc:
-        headline = f"Engine error: {type(exc).__name__}"
-        return CheckResponse(
-            verdict="INVALID",
-            reports=[],
-            parse_error=ParseErrorModel(
-                message=str(exc),
-                headline=headline,
-                line=None,
-                col=None,
-            ),
-            summary=SummaryModel(total=0, valid=0, warnings=0, invalid=1),
-            strict_domains=request.strict_domains,
-            duration_ms=(time.perf_counter() - started) * 1000.0,
-        )
+    return CheckResponse(**payload)
 
-    report_models: list[ReportModel] = []
-    counts = {"VALID": 0, "WARNING": 0, "INVALID": 0}
-    total = 0
 
-    for report in reports:
-        steps = [_to_step(result, lines) for result in report.results]
-        total += len(steps)
-        for step in steps:
-            counts[step.status] += 1
-        report_models.append(
-            ReportModel(
-                theorem_name=report.theorem_name,
-                is_valid=report.is_valid,
-                has_warnings=report.has_warnings,
-                verdict=_report_verdict(report),
-                results=steps,
-            )
-        )
-
-    return CheckResponse(
-        verdict=_overall_verdict(reports),
-        reports=report_models,
-        parse_error=None,
-        summary=SummaryModel(
-            total=total,
-            valid=counts["VALID"],
-            warnings=counts["WARNING"],
-            invalid=counts["INVALID"],
-        ),
-        strict_domains=request.strict_domains,
-        duration_ms=(time.perf_counter() - started) * 1000.0,
-    )
+def _latex_job(source: str, **options: Any) -> str:
+    """Render the report in a worker; the export re-checks, so it is budgeted too."""
+    try:
+        return pool().run("latex", {"source": source, **options})
+    except CheckTimeout as exc:
+        raise RuntimeError(f"checking the proof for the report stopped after {exc.budget:g} s") from exc
 
 
 @app.post("/api/export/latex", response_model=LatexExportResponse)
-async def export_latex(request: LatexExportRequest) -> LatexExportResponse:
+def export_latex(request: LatexExportRequest) -> LatexExportResponse:
     """Export proof source text to clean LaTeX markup.
 
     This is the ``.tex`` a user takes away to edit, so it stays the plain
@@ -292,7 +221,7 @@ async def export_latex(request: LatexExportRequest) -> LatexExportResponse:
     the document itself (see ``export_pdf``).
     """
     try:
-        latex_code = export_report_latex(
+        latex_code = _latex_job(
             request.source,
             strict_domains=request.strict_domains,
             standalone=request.standalone,
@@ -301,8 +230,6 @@ async def export_latex(request: LatexExportRequest) -> LatexExportResponse:
             style="plain",
         )
         return LatexExportResponse(latex=latex_code)
-    except ParseError as err:
-        return LatexExportResponse(latex="", error=str(err.message))
     except Exception as exc:
         return LatexExportResponse(latex="", error=str(exc))
 
@@ -330,7 +257,7 @@ def export_pdf(request: PdfExportRequest) -> Response:
     try:
         # The PDF is a finished document, so it gets the designed presentation:
         # a site-matched layout with journal proof and auditor step list.
-        tex_code = export_report_latex(
+        tex_code = _latex_job(
             request.source,
             strict_domains=request.strict_domains,
             standalone=True,

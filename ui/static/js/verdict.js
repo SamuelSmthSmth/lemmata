@@ -22,7 +22,9 @@ export function renderVerdict(data) {
   dom.verdict.textContent = data.verdict;
 
   const bits = [];
-  if (data.parse_error) {
+  if (data.verdict === "TIMEOUT") {
+    bits.push(data.parse_error?.headline ?? "stopped");
+  } else if (data.parse_error) {
     bits.push(
       data.parse_error.line != null
         ? `line ${data.parse_error.line}, col ${data.parse_error.col ?? "?"}`

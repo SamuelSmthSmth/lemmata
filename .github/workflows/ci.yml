@@ -1,0 +1,44 @@
+name: CI
+
+# The same gates AGENTS.md lists, minus the real-browser check
+# (ui/verify_browser.py drives a local Chrome through agent-browser).
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+
+jobs:
+  engine:
+    name: Engine and lecture-note corpus
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+      - run: uv sync --frozen
+      - run: uv run pytest -q
+
+  ui:
+    name: UI contract checks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Install pdflatex and the packages the PDF export uses
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            texlive-latex-base texlive-latex-recommended texlive-latex-extra \
+            texlive-fonts-recommended cm-super
+      - run: uv sync --frozen
+      - run: uv run python ui/verify_examples.py
+      - run: uv run python ui/verify_capabilities.py
+      - run: uv run python ui/verify_server.py
+      - run: node ui/verify_frontend.mjs
