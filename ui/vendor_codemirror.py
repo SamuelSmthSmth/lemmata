@@ -45,6 +45,8 @@ ENTRIES = [
     "@codemirror/language@6",
     "@codemirror/commands@6",
     "@codemirror/search@6",
+    "@codemirror/lint@6",
+    "@codemirror/autocomplete@6",
     "@lezer/highlight@1",
 ]
 

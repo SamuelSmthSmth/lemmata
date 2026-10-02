@@ -106,6 +106,50 @@ def main() -> int:
         check(status == 200 and len(examples) == 19, f"GET /api/examples -> {len(examples)} examples")
         by_id = {e["id"]: e for e in examples}
 
+        print("== GET /api/library ==")
+        status, _, body = server.request("/api/library")
+        packs = json.loads(body)
+        codes = [p["code"] for p in packs]
+        check(status == 200 and codes[:1] == ["EXAMPLES"], f"library packs: {codes}")
+        check({"MTH2008", "MTH2010", "NOTATION"} <= set(codes), "the course packs are served")
+        traps = [e for p in packs for e in p["entries"] if e["kind"] == "trap"]
+        check(traps and all(e.get("explanation") for e in traps), f"{len(traps)} traps, each with an explanation")
+        check(
+            all(e["expected"] in ("VALID", "INVALID", "WARN", "PARSE ERROR") for p in packs for e in p["entries"]),
+            "every entry's expected verdict is one the UI knows",
+        )
+
+        print("== POST /api/check (workspace imports) ==")
+        lemma = 'Theorem: "Reflexive"\nClaim: forall x : Real, x = x\nProof:\n    Given x : Real\n    Step: x = x\nQED\n'
+        main_src = 'import "shared/lemma.aether"\nLet y : Real\nStep: y = y\n'
+        _, _, body = server.request(
+            "/api/check",
+            "POST",
+            {"source": main_src, "path": "sheets/one.aether", "files": {"shared/lemma.aether": lemma, "sheets/one.aether": main_src}},
+        )
+        data = json.loads(body)
+        # As on disk (cwd), the workspace root is the fallback import root.
+        check(data["verdict"] == "VALID", f"a root-relative import resolves from a subfolder ({data['verdict']})")
+        _, _, body = server.request(
+            "/api/check",
+            "POST",
+            {"source": main_src.replace("shared/", "missing/"), "path": "sheets/one.aether", "files": {"shared/lemma.aether": lemma}},
+        )
+        data = json.loads(body)
+        check(data["verdict"] == "INVALID", f"a file the workspace does not hold is not found ({data['verdict']})")
+        _, _, body = server.request(
+            "/api/check",
+            "POST",
+            {
+                "source": main_src.replace('"shared/', '"../shared/'),
+                "path": "sheets/one.aether",
+                "files": {"shared/lemma.aether": lemma},
+            },
+        )
+        data = json.loads(body)
+        first = data["reports"][-1]["results"][0]["message"] if data["reports"] else data
+        check(data["verdict"] == "VALID", f"an import from another workspace folder verifies ({data['verdict']}: {first})")
+
         print("== POST /api/check ==")
         _, _, body = server.request(
             "/api/check", "POST", {"source": by_id["even-square"]["source"], "strict_domains": False}

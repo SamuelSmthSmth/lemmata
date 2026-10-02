@@ -86,6 +86,7 @@ def check_payload(
     strict_domains: bool,
     files: Optional[Mapping[str, str]] = None,
     checker=None,
+    path: Optional[str] = None,
 ) -> dict[str, Any]:
     """Check *source* and shape the result as the ``/api/check`` response body."""
     from aether import ParseError, ProofChecker
@@ -100,7 +101,8 @@ def check_payload(
 
     try:
         if files:
-            reports = checker.check_source(source, sources=dict(files))
+            # The workspace: imports resolve against these files, relative to `path`.
+            reports = checker.check_source(source, file_path=path, sources=dict(files))
         else:
             reports = checker.check_source(source)
     except ParseError as err:
@@ -183,7 +185,11 @@ def _worker_main(conn) -> None:
             if kind == "check":
                 strict = bool(payload["strict_domains"])
                 result = check_payload(
-                    payload["source"], strict, payload.get("files"), checker=checkers[strict]
+                    payload["source"],
+                    strict,
+                    payload.get("files"),
+                    checker=checkers[strict],
+                    path=payload.get("path"),
                 )
                 checkers[strict].clear_cache()
             elif kind == "latex":

@@ -234,3 +234,67 @@ Step: z * 1 = z [by MidLemma]
         reports = checker.check_file(f_top)
         top_rep = reports[-1]
         assert top_rep.is_valid, top_rep.format_report()
+
+
+LEMMA = """\
+Theorem: "Even times even is even"
+Claim: forall a : Int, Even(a) => Even(a * 2)
+Proof:
+    Given a : Int
+    Assume h: Even(a)
+    Obtain k : Int such that a = 2 * k from h
+    Step: a * 2 = 2 * (2 * k)
+    Hence Even(a * 2)
+QED
+"""
+
+USES_LEMMA = """\
+import "lemmas.aether"
+
+Theorem: "Uses the lemma"
+Proof:
+    Given n : Int
+    Assume h: Even(n)
+    Therefore Even(n * 2)
+QED
+"""
+
+
+class TestWorkspaceSources:
+    """Imports resolved against files held in memory (the browser workspace)."""
+
+    def test_a_sibling_file_is_imported(self, checker: ProofChecker):
+        reports = checker.check_source(USES_LEMMA, sources={"lemmas.aether": LEMMA})
+        assert all(r.is_valid for r in reports), "\n".join(r.format_report() for r in reports)
+        assert "Imported 'lemmas.aether'" in reports[-1].results[0].message
+
+    def test_a_relative_import_resolves_from_the_importers_folder(self, checker: ProofChecker):
+        nested = USES_LEMMA.replace('"lemmas.aether"', '"../shared/lemmas.aether"')
+        reports = checker.check_source(
+            nested,
+            file_path="sheets/week1.aether",
+            sources={"shared/lemmas.aether": LEMMA, "sheets/week1.aether": nested},
+        )
+        assert all(r.is_valid for r in reports), "\n".join(r.format_report() for r in reports)
+
+    def test_a_missing_workspace_file_is_named(self, checker: ProofChecker):
+        reports = checker.check_source(USES_LEMMA, sources={"other.aether": LEMMA})
+        message = reports[-1].results[0].message
+        assert "Import not found: 'lemmas.aether'" in message and "the workspace" in message
+
+    def test_a_cycle_inside_the_workspace_is_reported(self, checker: ProofChecker):
+        a = 'import "b.aether"\nLet x : Real\nStep: x = x\n'
+        b = 'import "a.aether"\nLet y : Real\nStep: y = y\n'
+        reports = checker.check_source(a, file_path="a.aether", sources={"a.aether": a, "b.aether": b})
+        assert "Cyclic import" in reports[-1].results[0].message
+
+    def test_the_workspace_wins_over_a_file_on_disk(self, checker: ProofChecker, tmp_path: Path, monkeypatch):
+        (tmp_path / "lemmas.aether").write_text('Theorem: "Broken"\nProof:\n    Step: 1 = 2\nQED\n')
+        monkeypatch.chdir(tmp_path)
+        reports = checker.check_source(USES_LEMMA, sources={"lemmas.aether": LEMMA})
+        assert all(r.is_valid for r in reports)
+
+    def test_an_edited_workspace_file_is_re_read(self, checker: ProofChecker):
+        broken = LEMMA.replace("Step: a * 2 = 2 * (2 * k)", "Step: a * 2 = 3 * k")
+        assert not checker.check_source(USES_LEMMA, sources={"lemmas.aether": broken})[-1].results[0].status == StepStatus.VALID
+        assert checker.check_source(USES_LEMMA, sources={"lemmas.aether": LEMMA})[-1].results[0].status == StepStatus.VALID

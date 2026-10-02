@@ -1,4 +1,4 @@
-"""Run the lecture-note corpora and report every entry whose verdict is off.
+"""Run the course packs (courses/*.json) and report every entry whose verdict is off.
 
     uv run python tests/lecture_notes/run_corpus.py [filter] [-v] [-j N] [--budget S]
 
@@ -9,23 +9,27 @@ interrupted from Python, so an in-process timeout would not fire.
 from __future__ import annotations
 
 import argparse
+import json
 import multiprocessing as mp
 import os
 import sys
 import time
 import traceback
+from pathlib import Path
 
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+COURSES = Path(__file__).resolve().parents[2] / "courses"
 
-from corpus_algebra import CORPUS as ALGEBRA  # noqa: E402
-from corpus_notation_and_soundness import CORPUS as NOTATION  # noqa: E402
-from corpus_real_analysis import CORPUS as REAL_ANALYSIS  # noqa: E402
 
-ALL = (
-    [("MTH2008", *e) for e in REAL_ANALYSIS]
-    + [("MTH2010", *e) for e in ALGEBRA]
-    + [("NOTATION", *e) for e in NOTATION]
-)
+def _load() -> list[tuple[str, str, str, str]]:
+    rows = []
+    for pack_file in sorted(COURSES.glob("*.json")):
+        pack = json.loads(pack_file.read_text(encoding="utf-8"))
+        for entry in pack["entries"]:
+            rows.append((pack["code"], f"{entry['ref']} {entry['title']}", entry["expected"], entry["source"]))
+    return rows
+
+
+ALL = _load()
 
 
 def verdict(source: str, strict: bool = False) -> tuple[str, str]:

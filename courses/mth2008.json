@@ -1,0 +1,643 @@
+{
+  "id": "mth2008",
+  "code": "MTH2008",
+  "title": "Real Analysis",
+  "note": "Transcribed from the MTH2008 lecture notes into Aether; references follow the notes' numbering.",
+  "chapters": [
+    {
+      "id": "1",
+      "title": "The Real Numbers"
+    },
+    {
+      "id": "2",
+      "title": "Differential Calculus of Functions of One Variable"
+    },
+    {
+      "id": "3",
+      "title": "Infinite Sequences and Series"
+    },
+    {
+      "id": "4",
+      "title": "Continuity and Differentiability"
+    },
+    {
+      "id": "5",
+      "title": "Integrability"
+    }
+  ],
+  "entries": [
+    {
+      "id": "1-1-field-manipulations",
+      "chapter": "1",
+      "ref": "§1.1",
+      "title": "Field manipulations",
+      "kind": "proof",
+      "expected": "VALID",
+      "source": "Let a, b, c, d : Real\nStep: (a + b)^2 = a^2 + 2*a*b + b^2\nStep: (3*a + 2*b)*(4*c + 2*d) = 12*a*c + 6*a*d + 8*b*c + 4*b*d\nStep: -a = (-1)*a\nStep: a*(-b) = (-a)*b\nAssume hb: b != 0\nAssume hd: d != 0\nStep: a/b + c/d = (a*d + b*c)/(b*d)\n"
+    },
+    {
+      "id": "1-1-1-1-1-2-the-two-element-field",
+      "chapter": "1",
+      "ref": "§1.1 (1.1)–(1.2)",
+      "title": "The two-element field",
+      "kind": "proof",
+      "expected": "VALID",
+      "source": "Step: 1 + 1 = 0 (mod 2)\nStep: 1 * 1 = 1 (mod 2)\nStep: 0 + 1 = 1 (mod 2)\n"
+    },
+    {
+      "id": "theorem-1-1-the-triangle-inequality-by-the-four-cases",
+      "chapter": "1",
+      "ref": "Theorem 1.1",
+      "title": "The triangle inequality, by the four cases",
+      "kind": "proof",
+      "expected": "VALID",
+      "source": "Theorem: \"The Triangle Inequality\"\nClaim: forall a : Real, forall b : Real, |a + b| <= |a| + |b|\nProof:\n    Given a, b : Real\n    Case a >= 0 and b >= 0:\n        Step: |a + b| = a + b\n        Step: = |a| + |b|\n    Case a <= 0 and b <= 0:\n        Step: |a + b| = -a + (-b)\n        Step: = |a| + |b|\n    Case a >= 0 and b <= 0:\n        Step: a + b = |a| - |b|\n        Step: |a + b| <= |a| + |b|\n    Case a <= 0 and b >= 0:\n        Step: a + b = -|a| + |b|\n        Step: |a + b| <= |a| + |b|\n    Therefore |a + b| <= |a| + |b|\nQED\n"
+    },
+    {
+      "id": "corollary-1-2-the-reverse-triangle-inequality",
+      "chapter": "1",
+      "ref": "Corollary 1.2",
+      "title": "The reverse triangle inequality",
+      "kind": "proof",
+      "expected": "VALID",
+      "source": "Let a, b : Real\nStep: |a| = |(a - b) + b|\nStep: <= |a - b| + |b|\nStep: |a - b| >= |a| - |b|\nStep: |b - a| = |a - b|\nStep: |a - b| >= | |a| - |b| |\nStep: |a + b| >= | |a| - |b| |\n"
+    },
+    {
+      "id": "corollary-1-2-reversing-the-inequality",
+      "chapter": "1",
+      "ref": "Corollary 1.2",
+      "title": "Reversing the inequality",
+      "kind": "trap",
+      "expected": "INVALID",
+      "source": "Let a, b : Real\nStep: |a - b| <= |a| - |b|\n",
+      "explanation": "The corollary says |a − b| ≥ |a| − |b|. With the inequality flipped the claim fails at a = 0, b = 1: |−1| = 1 is not ≤ −1."
+    },
+    {
+      "id": "theorem-1-4-uniqueness-of-the-supremum",
+      "chapter": "1",
+      "ref": "Theorem 1.4",
+      "title": "Uniqueness of the supremum",
+      "kind": "proof",
+      "expected": "VALID",
+      "source": "Theorem: \"Uniqueness of sup\"\nProof:\n    Let b1, b2, x0 : Real\n    Assume h1: b1 < b2\n    Let \\epsilon = b2 - b1\n    Step: \\epsilon > 0\n    Assume h2: x0 > b2 - \\epsilon\n    Step: x0 > b2 - (b2 - b1)\n    Step: = b1\n    Therefore x0 > b1\nQED\n"
+    },
+    {
+      "id": "theorem-1-5-the-archimedean-step",
+      "chapter": "1",
+      "ref": "Theorem 1.5",
+      "title": "The Archimedean step",
+      "kind": "proof",
+      "expected": "VALID",
+      "source": "Let n : Int\nLet \\epsilon, \\beta : Real\nAssume h: (n + 1) * \\epsilon <= \\beta\nStep: n * \\epsilon <= \\beta - \\epsilon\n"
+    },
+    {
+      "id": "theorem-1-7-the-rationals-are-dense",
+      "chapter": "1",
+      "ref": "Theorem 1.7",
+      "title": "The rationals are dense",
+      "kind": "proof",
+      "expected": "VALID",
+      "source": "Theorem: \"Density of the rationals (closing algebra)\"\nProof:\n    Let a, b : Real\n    Let p, q : Int\n    Assume hab: a < b\n    Assume hq: q > 0\n    Assume h1: q * (b - a) > 1\n    Assume h2: q * a < p\n    Assume h3: p <= q * a + 1\n    Step: p < q * a + q * (b - a)\n    Step: = q * b\n    Therefore a < p / q and p / q < b\nQED\n"
+    },
+    {
+      "id": "theorem-1-9-the-irrationals-are-dense",
+      "chapter": "1",
+      "ref": "Theorem 1.9",
+      "title": "The irrationals are dense",
+      "kind": "proof",
+      "expected": "VALID",
+      "source": "Let a, b, r1, r2 : Real\nAssume a < r1\nAssume r1 < r2\nAssume r2 < b\nLet t = r1 + (r2 - r1) / sqrt(2)\nStep: t > r1\nStep: t < r2\nTherefore a < t and t < b\n"
+    },
+    {
+      "id": "theorem-1-9-placing-t-on-the-wrong-side",
+      "chapter": "1",
+      "ref": "Theorem 1.9",
+      "title": "Placing t on the wrong side",
+      "kind": "trap",
+      "expected": "INVALID",
+      "source": "Let r1, r2 : Real\nAssume r1 < r2\nLet t = r1 + (r2 - r1) / sqrt(2)\nStep: t < r1\n",
+      "explanation": "t = r1 + (r2 − r1)/√2 adds a positive amount to r1, so t > r1; claiming t < r1 contradicts r1 < r2."
+    },
+    {
+      "id": "1-1-arithmetic-in-the-extended-reals",
+      "chapter": "1",
+      "ref": "§1.1",
+      "title": "Arithmetic in the extended reals",
+      "kind": "proof",
+      "expected": "VALID",
+      "source": "Let a : Real\nStep: a + oo = oo\nStep: a - oo = -oo\nStep: a / oo = 0\nStep: oo * oo = oo\nStep: (-oo) * (-oo) = oo\nStep: -oo < a\nStep: a < oo\n"
+    },
+    {
+      "id": "1-1-cancelling-infinities",
+      "chapter": "1",
+      "ref": "§1.1",
+      "title": "Cancelling infinities",
+      "kind": "trap",
+      "expected": "INVALID",
+      "source": "Step: oo - oo = 0\n",
+      "explanation": "∞ − ∞ is an indeterminate form: the notes leave it undefined, so it cannot equal 0."
+    },
+    {
+      "id": "example-1-17-open-intervals-are-open",
+      "chapter": "1",
+      "ref": "Example 1.17",
+      "title": "Open intervals are open",
+      "kind": "proof",
+      "expected": "VALID",
+      "source": "Let a, b, x0, x, \\epsilon : Real\nAssume a < x0 and x0 < b\nAssume \\epsilon > 0 and \\epsilon <= min(x0 - a, b - x0)\nAssume |x - x0| < \\epsilon\nTherefore a < x and x < b\n"
+    },
+    {
+      "id": "example-2-2-x-defines-a-function",
+      "chapter": "2",
+      "ref": "Example 2.2",
+      "title": "√x defines a function",
+      "kind": "proof",
+      "expected": "VALID",
+      "source": "Let x : Real\nAssume x >= 0\nStep: sqrt(x)^2 = x\nStep: sqrt(x) >= 0\nStep: (-sqrt(x))^2 = x\n"
+    },
+    {
+      "id": "example-2-4-a-product-of-square-root-functions",
+      "chapter": "2",
+      "ref": "Example 2.4",
+      "title": "A product of square-root functions",
+      "kind": "proof",
+      "expected": "VALID",
+      "source": "Let x : Real\nAssume 1 <= x and x <= 2\nStep: sqrt(4 - x^2) * sqrt(x - 1) = sqrt((4 - x^2) * (x - 1))\n"
+    },
+    {
+      "id": "example-2-7-lim-cx-cx-by",
+      "chapter": "2",
+      "ref": "Example 2.7",
+      "title": "lim cx = cx₀, by ε–δ",
+      "kind": "proof",
+      "expected": "VALID",
+      "source": "Theorem: \"Limit of cx\"\nProof:\n    Let c, x0 : Real\n    Assume hc: c != 0\n    Given \\epsilon : Real where \\epsilon > 0\n    Let \\delta = \\epsilon / |c|\n    Step: \\delta > 0\n    Subproof:\n        Given x : Real\n        Assume |x - x0| < \\delta\n        Step: |c * x - c * x0| = |c| * |x - x0|\n        Step: < |c| * \\delta\n        Step: = \\epsilon\n    Therefore exists \\delta : Real, \\delta > 0 and (forall x : Real, |x - x0| < \\delta => |c * x - c * x0| < \\epsilon) [witness: \\epsilon / |c|]\nQED\n"
+    },
+    {
+      "id": "example-2-8-x-sin-1-x-0",
+      "chapter": "2",
+      "ref": "Example 2.8",
+      "title": "x sin(1/x) → 0",
+      "kind": "proof",
+      "expected": "VALID",
+      "source": "Let x, \\epsilon : Real\nAssume \\epsilon > 0\nAssume hx: 0 < |x| and |x| < \\epsilon\nStep: |x * sin(1/x)| = |x| * |sin(1/x)|\nStep: <= |x|\nStep: < \\epsilon\nStep: lim(x * sin(1/x), x, 0) = 0\n"
+    },
+    {
+      "id": "example-2-8-a-bound-that-is-too-tight",
+      "chapter": "2",
+      "ref": "Example 2.8",
+      "title": "A bound that is too tight",
+      "kind": "trap",
+      "expected": "INVALID",
+      "source": "Let x : Real\nAssume x != 0\nStep: |x * sin(1/x)| <= |x| / 2\n",
+      "explanation": "|sin(1/x)| can reach 1, so |x sin(1/x)| can equal |x|; it is not bounded by |x|/2."
+    },
+    {
+      "id": "theorem-2-9-limits-are-unique",
+      "chapter": "2",
+      "ref": "Theorem 2.9",
+      "title": "Limits are unique",
+      "kind": "proof",
+      "expected": "VALID",
+      "source": "Let x, L1, L2, \\epsilon : Real\nAssume \\epsilon > 0\nAssume h1: |f(x) - L1| < \\epsilon\nAssume h2: |f(x) - L2| < \\epsilon\nStep: |L1 - L2| = |(L1 - f(x)) + (f(x) - L2)|\nStep: <= |L1 - f(x)| + |f(x) - L2|\nStep: < 2 * \\epsilon\n"
+    },
+    {
+      "id": "theorem-2-10-the-product-limit-identity",
+      "chapter": "2",
+      "ref": "Theorem 2.10",
+      "title": "The product-limit identity",
+      "kind": "proof",
+      "expected": "VALID",
+      "source": "Let x, L1, L2 : Real\nStep: f(x) * g(x) - L1 * L2 = f(x) * (g(x) - L2) + L2 * (f(x) - L1)\nStep: |f(x)| <= |f(x) - L1| + |L1|\n"
+    },
+    {
+      "id": "example-2-11-limits-by-theorem-2-10",
+      "chapter": "2",
+      "ref": "Example 2.11",
+      "title": "Limits by Theorem 2.10",
+      "kind": "proof",
+      "expected": "VALID",
+      "source": "Step: lim(9 - x^2, x, 2) = 5\nStep: lim(x + 1, x, 2) = 3\nStep: lim((9 - x^2)/(x + 1), x, 2) = 5/3\nStep: lim((9 - x^2)*(x + 1), x, 2) = 15\nStep: \\lim_{x \\to 2} (9 - x^2)/(x + 1) = 5/3\n"
+    },
+    {
+      "id": "example-2-11-dividing-the-limits-wrongly",
+      "chapter": "2",
+      "ref": "Example 2.11",
+      "title": "Dividing the limits wrongly",
+      "kind": "trap",
+      "expected": "INVALID",
+      "source": "Step: lim((9 - x^2)/(x + 1), x, 2) = 5\n",
+      "explanation": "lim (9 − x²)/(x + 1) at x = 2 is 5/3: the numerator tends to 5 and the denominator to 3, not 1."
+    },
+    {
+      "id": "examples-2-13-2-15-one-sided-limits",
+      "chapter": "2",
+      "ref": "Examples 2.13, 2.15",
+      "title": "One-sided limits",
+      "kind": "proof",
+      "expected": "VALID",
+      "source": "Step: lim(x/|x|, x, 0, \"-\") = -1\nStep: lim(x/|x|, x, 0, \"+\") = 1\nStep: lim(|x|/x + x, x, 0, \"+\") = 1\nStep: lim(|x|/x + x, x, 0, \"-\") = -1\nStep: lim(x * sin(sqrt(x)), x, 0, \"+\") = 0\nStep: \\lim_{x \\to 0^+} x/|x| = 1\n"
+    },
+    {
+      "id": "theorem-2-16-a-two-sided-limit-that-does-not-exist",
+      "chapter": "2",
+      "ref": "Theorem 2.16",
+      "title": "A two-sided limit that does not exist",
+      "kind": "trap",
+      "expected": "INVALID",
+      "source": "Step: lim(x/|x|, x, 0) = 1\n",
+      "explanation": "x/|x| tends to −1 from the left and 1 from the right; by Theorem 2.16 the two-sided limit does not exist."
+    },
+    {
+      "id": "example-2-18-limits-at-infinity",
+      "chapter": "2",
+      "ref": "Example 2.18",
+      "title": "Limits at infinity",
+      "kind": "proof",
+      "expected": "VALID",
+      "source": "Step: lim(1 - 1/x^2, x, oo) = 1\nStep: lim(2*|x|/(1 + x), x, oo) = 2\nStep: lim(1 - 1/x^2, x, -oo) = 1\nStep: lim(2*|x|/(1 + x), x, -oo) = -2\nStep: \\lim_{x \\to \\infty} (1 - 1/x^2) = 1\n"
+    },
+    {
+      "id": "example-2-18-the-argument-for-g",
+      "chapter": "2",
+      "ref": "Example 2.18",
+      "title": "The ε argument for g",
+      "kind": "proof",
+      "expected": "VALID",
+      "source": "Let x, \\epsilon : Real\nAssume he: \\epsilon > 0\nAssume hx: x > 2 / \\epsilon\nStep: x > 0\nStep: |2*x/(1 + x) - 2| = 2/(1 + x)\nStep: < 2/x\nStep: < \\epsilon\n"
+    },
+    {
+      "id": "example-2-20-infinite-limits",
+      "chapter": "2",
+      "ref": "Example 2.20",
+      "title": "Infinite limits",
+      "kind": "proof",
+      "expected": "VALID",
+      "source": "Step: lim(1/x, x, 0, \"-\") = -oo\nStep: lim(1/x, x, 0, \"+\") = oo\nStep: lim(1/x^2, x, 0) = oo\nStep: lim(x^2, x, oo) = oo\nStep: lim(x^3, x, oo) = oo\nStep: lim(x^3, x, -oo) = -oo\n"
+    },
+    {
+      "id": "example-2-20-a-two-sided-infinite-limit",
+      "chapter": "2",
+      "ref": "Example 2.20",
+      "title": "A two-sided infinite limit",
+      "kind": "trap",
+      "expected": "INVALID",
+      "source": "Step: lim(1/x, x, 0) = oo\n",
+      "explanation": "1/x tends to +∞ from the right but −∞ from the left, so the two-sided limit is not ∞."
+    },
+    {
+      "id": "examples-2-21-2-23-limits-via-theorem-2-10",
+      "chapter": "2",
+      "ref": "Examples 2.21–2.23",
+      "title": "Limits via Theorem 2.10",
+      "kind": "proof",
+      "expected": "VALID",
+      "source": "Step: lim(sinh(x), x, oo) = oo\nStep: lim(sinh(x), x, -oo) = -oo\nStep: lim(exp(-x)/x, x, oo) = 0\nStep: lim(exp(2*x) - exp(x), x, oo) = oo\nStep: lim((2*x^2 - x + 1)/(3*x^2 + 2*x - 1), x, oo) = 2/3\nLet x : Real\nStep: sinh(x) = (exp(x) - exp(-x))/2\n"
+    },
+    {
+      "id": "example-2-28-one-sided-limits-of-a-piecewise-function",
+      "chapter": "2",
+      "ref": "Example 2.28",
+      "title": "One-sided limits of a piecewise function",
+      "kind": "proof",
+      "expected": "VALID",
+      "source": "Step: lim(x^2, x, 0, \"+\") = 0\nStep: lim(x^2, x, 1, \"-\") = 1\nStep: lim(x + 1, x, 1, \"+\") = 2\nStep: lim(x + 1, x, 2, \"-\") = 3\nLet x, x0 : Real\nAssume 0 < x and x < 1 and 0 < x0 and x0 < 1\nStep: |x^2 - x0^2| = |x - x0| * |x + x0|\nStep: <= 2 * |x - x0|\n"
+    },
+    {
+      "id": "example-2-30-x-is-continuous",
+      "chapter": "2",
+      "ref": "Example 2.30",
+      "title": "√x is continuous",
+      "kind": "proof",
+      "expected": "VALID",
+      "source": "Let x, x0 : Real\nAssume x >= 0\nAssume x0 > 0\nStep: |sqrt(x) - sqrt(x0)| = |x - x0| / (sqrt(x) + sqrt(x0))\nStep: <= |x - x0| / sqrt(x0)\n"
+    },
+    {
+      "id": "example-2-39-a-composite-function",
+      "chapter": "2",
+      "ref": "Example 2.39",
+      "title": "A composite function",
+      "kind": "proof",
+      "expected": "VALID",
+      "source": "Let f(t) = log(t)\nLet g(t) = 1/(1 - t^2)\nLet x : Real\nAssume -1 < x and x < 1\nStep: f(g(x)) = log(1/(1 - x^2))\nStep: g(x) > 0\n"
+    },
+    {
+      "id": "example-2-49-2x-is-uniformly-continuous",
+      "chapter": "2",
+      "ref": "Example 2.49",
+      "title": "2x is uniformly continuous",
+      "kind": "proof",
+      "expected": "VALID",
+      "source": "Let x, y, \\epsilon : Real\nAssume \\epsilon > 0\nAssume |x - y| < \\epsilon / 2\nStep: |2*x - 2*y| = 2 * |x - y|\nStep: < \\epsilon\n"
+    },
+    {
+      "id": "example-2-50-x-is-uniformly-continuous-on-r-r",
+      "chapter": "2",
+      "ref": "Example 2.50",
+      "title": "x² is uniformly continuous on [−r, r]",
+      "kind": "proof",
+      "expected": "VALID",
+      "source": "Let x, y, r : Real\nAssume r > 0\nAssume |x| <= r and |y| <= r\nStep: |x^2 - y^2| = |x - y| * |x + y|\nStep: <= 2 * r * |x - y|\n"
+    },
+    {
+      "id": "example-2-51-x-is-not-uniformly-continuous-on",
+      "chapter": "2",
+      "ref": "Example 2.51",
+      "title": "x² is not uniformly continuous on ℝ",
+      "kind": "proof",
+      "expected": "VALID",
+      "source": "Let x, y, \\delta : Real\nAssume \\delta > 0\nAssume x > 1/\\delta and y > 1/\\delta\nAssume |x - y| = \\delta / 2\nStep: |x^2 - y^2| = |x - y| * |x + y|\nStep: > (\\delta / 2) * (1/\\delta + 1/\\delta)\nStep: = 1\n"
+    },
+    {
+      "id": "example-2-52-cos-1-x-is-not-uniformly-continuous",
+      "chapter": "2",
+      "ref": "Example 2.52",
+      "title": "cos(1/x) is not uniformly continuous",
+      "kind": "proof",
+      "expected": "VALID",
+      "source": "Let n : Int\nStep: |cos(n * pi) - cos((n + 1) * pi)| = 2\n"
+    },
+    {
+      "id": "examples-2-57-2-58-inverse-functions",
+      "chapter": "2",
+      "ref": "Examples 2.57–2.58",
+      "title": "Inverse functions",
+      "kind": "proof",
+      "expected": "VALID",
+      "source": "Let f(t) = 2*t + 4\nLet g(s) = (s - 4)/2\nLet x, y : Real\nStep: g(f(x)) = x\nStep: f(g(y)) = y\nLet F(t) = t^2\nLet G(s) = sqrt(s)\nLet u : Real\nAssume u >= 0\nStep: G(F(u)) = u\nStep: F(G(u)) = u\n"
+    },
+    {
+      "id": "example-2-60-d-dx-x-n-x",
+      "chapter": "2",
+      "ref": "Example 2.60",
+      "title": "d/dx xⁿ = n xⁿ⁻¹",
+      "kind": "proof",
+      "expected": "VALID",
+      "source": "Let n : Nat\nLet x, x0 : Real\nStep: diff(x^n, x) = n * x^(n - 1)\nStep: lim((x^3 - x0^3)/(x - x0), x, x0) = 3 * x0^2\nAssume x != x0\nStep: (x^3 - x0^3)/(x - x0) = x^2 + x*x0 + x0^2\n"
+    },
+    {
+      "id": "example-2-60-forgetting-to-lower-the-power",
+      "chapter": "2",
+      "ref": "Example 2.60",
+      "title": "Forgetting to lower the power",
+      "kind": "trap",
+      "expected": "INVALID",
+      "source": "Let x : Real\nStep: diff(x^3, x) = 3 * x^3\n",
+      "explanation": "d/dx x³ = 3x², not 3x³: differentiating lowers the exponent by one."
+    },
+    {
+      "id": "example-2-63-x-has-different-one-sided-derivatives-at-0",
+      "chapter": "2",
+      "ref": "Example 2.63",
+      "title": "|x| has different one-sided derivatives at 0",
+      "kind": "proof",
+      "expected": "VALID",
+      "source": "Step: lim((|x| - 0)/(x - 0), x, 0, \"+\") = 1\nStep: lim((|x| - 0)/(x - 0), x, 0, \"-\") = -1\n"
+    },
+    {
+      "id": "theorem-2-64-the-product-and-quotient-rules",
+      "chapter": "2",
+      "ref": "Theorem 2.64",
+      "title": "The product and quotient rules",
+      "kind": "proof",
+      "expected": "VALID",
+      "source": "Let f(t) = t^2 + 1\nLet g(t) = exp(t)\nLet x : Real\nStep: diff(f(x) * g(x), x) = diff(f(x), x) * g(x) + f(x) * diff(g(x), x)\nStep: diff(f(x) / g(x), x) = (diff(f(x), x) * g(x) - f(x) * diff(g(x), x)) / g(x)^2\n"
+    },
+    {
+      "id": "example-2-66-the-chain-rule",
+      "chapter": "2",
+      "ref": "Example 2.66",
+      "title": "The chain rule",
+      "kind": "proof",
+      "expected": "VALID",
+      "source": "Let x : Real\nAssume x != 0\nStep: diff(sin(1/x), x) = cos(1/x) * (-1/x^2)\n"
+    },
+    {
+      "id": "example-2-67-one-sided-derivatives-at-0",
+      "chapter": "2",
+      "ref": "Example 2.67",
+      "title": "One-sided derivatives at 0",
+      "kind": "proof",
+      "expected": "VALID",
+      "source": "Step: lim((x^2 * sin(1/x) - 0)/(x - 0), x, 0, \"+\") = 0\nStep: lim((x^3 - 0)/(x - 0), x, 0, \"-\") = 0\n"
+    },
+    {
+      "id": "theorem-2-73-h-a-h-b-in-the-generalised-mvt",
+      "chapter": "2",
+      "ref": "Theorem 2.73",
+      "title": "h(a) = h(b) in the generalised MVT",
+      "kind": "proof",
+      "expected": "VALID",
+      "source": "Let fa, fb, ga, gb : Real\nStep: (gb - ga)*fa - (fb - fa)*ga = (gb - ga)*fb - (fb - fa)*gb\n"
+    },
+    {
+      "id": "theorem-2-74-the-mean-value-theorem-for-x-on-0-3",
+      "chapter": "2",
+      "ref": "Theorem 2.74",
+      "title": "The mean value theorem for x³ on [0, 3]",
+      "kind": "proof",
+      "expected": "VALID",
+      "source": "Let f(x) = x^3\nLet fp(x) = 3 * x^2\nLet t : Real\nStep: diff(f(t), t) = fp(t)\nLet c = sqrt(3)\nStep: c > 0 and c < 3\nStep: fp(c) = (f(3) - f(0)) / (3 - 0)\n"
+    },
+    {
+      "id": "theorem-2-71-rolle-s-theorem-for-x-2x-on-0-2",
+      "chapter": "2",
+      "ref": "Theorem 2.71",
+      "title": "Rolle's theorem for x² − 2x on [0, 2]",
+      "kind": "proof",
+      "expected": "VALID",
+      "source": "Let f(x) = x^2 - 2*x\nLet t : Real\nStep: f(0) = f(2)\nStep: diff(f(t), t) = 2*t - 2\nStep: 2*1 - 2 = 0\n"
+    },
+    {
+      "id": "example-3-3-2n-1-n-1-2",
+      "chapter": "3",
+      "ref": "Example 3.3",
+      "title": "(2n + 1)/(n + 1) → 2",
+      "kind": "proof",
+      "expected": "VALID",
+      "source": "Theorem: \"Example 3.3\"\nProof:\n    Given \\epsilon : Real where \\epsilon > 0\n    Let N : Int where N >= 1 / \\epsilon and N >= 1\n    Given n : Int where n >= N\n    Step: |(2*n + 1)/(n + 1) - 2| = 1/(n + 1)\n    Step: < 1/N\n    Step: <= \\epsilon\n    Step: lim((2*n + 1)/(n + 1), n, oo) = 2\nQED\n"
+    },
+    {
+      "id": "example-3-4-sequences-diverging-to",
+      "chapter": "3",
+      "ref": "Example 3.4",
+      "title": "Sequences diverging to ±∞",
+      "kind": "proof",
+      "expected": "VALID",
+      "source": "Let n, a : Real\nAssume n > 0 and n >= 2 * a\nStep: n/2 + 1/n > a\nStep: lim(n/2 + 1/n, n, oo) = oo\nStep: lim(n - n^2, n, oo) = -oo\n"
+    },
+    {
+      "id": "examples-3-6-3-7-sequences-of-functional-values",
+      "chapter": "3",
+      "ref": "Examples 3.6–3.7",
+      "title": "Sequences of functional values",
+      "kind": "proof",
+      "expected": "VALID",
+      "source": "Step: lim(log(x)/x, x, oo) = 0\nStep: lim(x * log(1 + 1/x), x, oo) = 1\nStep: lim((1 + 1/x)^x, x, oo) = e\n"
+    },
+    {
+      "id": "example-3-8-0-for-0-1",
+      "chapter": "3",
+      "ref": "Example 3.8",
+      "title": "ρⁿ → 0 for 0 < ρ < 1",
+      "kind": "proof",
+      "expected": "VALID",
+      "source": "Let \\rho : Real\nAssume 0 < \\rho and \\rho < 1\nStep: lim(\\rho^n, n, oo) = 0\n"
+    },
+    {
+      "id": "example-3-11-convergent-subsequences",
+      "chapter": "3",
+      "ref": "Example 3.11",
+      "title": "Convergent subsequences",
+      "kind": "proof",
+      "expected": "VALID",
+      "source": "Step: lim(1 + 1/(2*k), k, oo) = 1\nStep: lim(-1 - 1/(2*k + 1), k, oo) = -1\n"
+    },
+    {
+      "id": "example-3-16-1-n-is-cauchy",
+      "chapter": "3",
+      "ref": "Example 3.16",
+      "title": "1/n is Cauchy",
+      "kind": "proof",
+      "expected": "VALID",
+      "source": "Let n, m, N : Int\nAssume N >= 1 and n >= N and m >= N\nStep: |1/n - 1/m| <= 1/n + 1/m\nStep: <= 2/N\n"
+    },
+    {
+      "id": "lemma-3-17-convergent-implies-cauchy",
+      "chapter": "3",
+      "ref": "Lemma 3.17",
+      "title": "Convergent implies Cauchy",
+      "kind": "proof",
+      "expected": "VALID",
+      "source": "Let sn, sm, s, \\epsilon : Real\nAssume \\epsilon > 0\nAssume |sn - s| < \\epsilon / 2\nAssume |sm - s| < \\epsilon / 2\nStep: |sn - sm| = |(sn - s) - (sm - s)|\nStep: <= |sn - s| + |sm - s|\nStep: < \\epsilon / 2 + \\epsilon / 2\nStep: = \\epsilon\n"
+    },
+    {
+      "id": "example-3-22-the-geometric-series",
+      "chapter": "3",
+      "ref": "Example 3.22",
+      "title": "The geometric series",
+      "kind": "proof",
+      "expected": "VALID",
+      "source": "Let r : Real\nLet n : Nat\nAssume r != 1\nStep: sum(k, 0, n, r^k) = (1 - r^(n + 1))/(1 - r)\nAssume |r| < 1\nStep: sum(k, 0, oo, r^k) = 1/(1 - r)\nStep: \\sum_{k=0}^{\\infty} r^k = 1/(1 - r)\n"
+    },
+    {
+      "id": "example-3-22-an-off-by-one-partial-sum",
+      "chapter": "3",
+      "ref": "Example 3.22",
+      "title": "An off-by-one partial sum",
+      "kind": "trap",
+      "expected": "INVALID",
+      "source": "Let r : Real\nLet n : Nat\nAssume r != 1\nStep: sum(k, 0, n, r^k) = (1 - r^n)/(1 - r)\n",
+      "explanation": "1 + r + … + rⁿ has n + 1 terms, so its closed form is (1 − rⁿ⁺¹)/(1 − r), not (1 − rⁿ)/(1 − r)."
+    },
+    {
+      "id": "example-3-27-the-tail-of-the-geometric-series",
+      "chapter": "3",
+      "ref": "Example 3.27",
+      "title": "The tail of the geometric series",
+      "kind": "proof",
+      "expected": "VALID",
+      "source": "Let r : Real\nLet m : Nat\nAssume |r| < 1\nStep: sum(k, m, oo, r^k) = r^m / (1 - r)\n"
+    },
+    {
+      "id": "example-3-30-the-derivative-of-x-e",
+      "chapter": "3",
+      "ref": "Example 3.30",
+      "title": "The derivative of xⁿe⁻ⁿˣ",
+      "kind": "proof",
+      "expected": "VALID",
+      "source": "Let x : Real\nLet n : Nat\nAssume n >= 1\nStep: diff(x^n * exp(-n*x), x) = n * x^(n - 1) * exp(-n*x) * (1 - x)\n"
+    },
+    {
+      "id": "example-3-45-partial-sums-of-x",
+      "chapter": "3",
+      "ref": "Example 3.45",
+      "title": "Partial sums of Σ xʲ",
+      "kind": "proof",
+      "expected": "VALID",
+      "source": "Let x : Real\nLet n : Nat\nAssume x != 1\nStep: sum(j, 0, n, x^j) = (1 - x^(n + 1))/(1 - x)\nStep: 1/(1 - x) - (1 - x^(n + 1))/(1 - x) = x^(n + 1)/(1 - x)\n"
+    },
+    {
+      "id": "example-3-49-bounds-for-the-weierstrass-test",
+      "chapter": "3",
+      "ref": "Example 3.49",
+      "title": "Bounds for the Weierstrass test",
+      "kind": "proof",
+      "expected": "VALID",
+      "source": "Let x : Real\nLet n : Int\nAssume n >= 1\nStep: 1/(x^2 + n^2) <= 1/n^2\nStep: |sin(n*x)/n^2| <= 1/n^2\nStep: sum(k, 1, oo, 1/k^2) = pi^2/6\n"
+    },
+    {
+      "id": "example-3-50-x-1-x-r",
+      "chapter": "3",
+      "ref": "Example 3.50",
+      "title": "|x/(1 + x)| ≤ r",
+      "kind": "proof",
+      "expected": "VALID",
+      "source": "Let x, r : Real\nAssume 0 < r and r < 1\nAssume -r/(1 + r) <= x and x <= r/(1 - r)\nStep: |x/(1 + x)| <= r\n"
+    },
+    {
+      "id": "example-4-15-a-lipschitz-constant-of-3",
+      "chapter": "4",
+      "ref": "Example 4.15",
+      "title": "A Lipschitz constant of 3",
+      "kind": "proof",
+      "expected": "VALID",
+      "source": "Let x, y : Real\nAssume 0 <= x and x <= 1 and 0 <= y and y <= 1\nStep: |x^2 - y^2| = |x - y| * |x + y|\nStep: <= 2 * |x - y|\nLet u, v : Real\nStep: |(-3*u) - (-3*v)| = 3 * |u - v|\nLet p, q : Real\nAssume p > 0 and q < 0\nStep: 2*|p| + 3*|q| < 3*(|p| + |q|)\nStep: |p - q| = |p| + |q|\n"
+    },
+    {
+      "id": "exercise-4-16-the-lipschitz-constant-of-ln-x-k",
+      "chapter": "4",
+      "ref": "Exercise 4.16",
+      "title": "The Lipschitz constant of ln(x² + k²)",
+      "kind": "proof",
+      "expected": "VALID",
+      "source": "Let x, k : Real\nAssume k > 0\nStep: diff(ln(x^2 + k^2), x) = 2*x/(x^2 + k^2)\nStep: |2*x/(x^2 + k^2)| <= 1/k\n"
+    },
+    {
+      "id": "exercise-4-16-halving-the-lipschitz-constant",
+      "chapter": "4",
+      "ref": "Exercise 4.16",
+      "title": "Halving the Lipschitz constant",
+      "kind": "trap",
+      "expected": "INVALID",
+      "source": "Let x, k : Real\nAssume k > 0\nStep: |2*x/(x^2 + k^2)| <= 1/(2*k)\n",
+      "explanation": "|2x/(x² + k²)| reaches 1/k at x = k, so 1/(2k) is too small to be a Lipschitz constant."
+    },
+    {
+      "id": "example-5-12-the-integral-of-a-constant",
+      "chapter": "5",
+      "ref": "Example 5.12",
+      "title": "The integral of a constant",
+      "kind": "proof",
+      "expected": "VALID",
+      "source": "Let a, b, c : Real\nStep: integrate(c, x, a, b) = c*(b - a)\nLet n : Nat\nStep: sum(i, 1, n, x(i) - x(i - 1)) = x(n) - x(0)\n"
+    },
+    {
+      "id": "example-5-14-the-integral-of-log",
+      "chapter": "5",
+      "ref": "Example 5.14",
+      "title": "The integral of log",
+      "kind": "proof",
+      "expected": "VALID",
+      "source": "Let n : Nat\nAssume n >= 2\nStep: integrate(log(x), x, 1, n) = n*log(n) - n + 1\n"
+    },
+    {
+      "id": "theorems-5-21-5-22-the-fundamental-theorem-of-calculus",
+      "chapter": "5",
+      "ref": "Theorems 5.21–5.22",
+      "title": "The fundamental theorem of calculus",
+      "kind": "proof",
+      "expected": "VALID",
+      "source": "Let x : Real\nStep: diff(integrate(t^2 + sin(t), t, 0, x), x) = x^2 + sin(x)\nStep: integrate(3*t^2, t, 1, 2) = 2^3 - 1^3\nStep: \\int_{1}^{2} 3*t^2 dt = 7\n"
+    },
+    {
+      "id": "theorem-5-24-the-substitution-formula",
+      "chapter": "5",
+      "ref": "Theorem 5.24",
+      "title": "The substitution formula",
+      "kind": "proof",
+      "expected": "VALID",
+      "source": "Step: integrate(2*x*cos(x^2), x, 0, sqrt(pi)) = integrate(cos(u), u, 0, pi)\n"
+    }
+  ]
+}

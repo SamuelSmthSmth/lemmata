@@ -6,7 +6,8 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import Optional, Any
 
-from pathlib import Path
+from collections.abc import Mapping
+from pathlib import Path, PurePosixPath
 import re
 
 from aether.core.ast import (
@@ -203,20 +204,45 @@ class ProofChecker:
         self.strict_domains = strict_domains
         self.base_dir = Path(base_dir).resolve() if base_dir else None
         self._parser = AetherParser()
+        self._sources: Optional[dict[str, str]] = None
         self._import_cache: dict[Path, tuple[list[FuncDefNode], list[tuple[Optional[str], ExprNode]], bool]] = {}
 
     def clear_cache(self) -> None:
         """Clear the cached results of imported libraries."""
         self._import_cache.clear()
 
+    #: Root of the virtual tree that ``sources`` files live under.  A path
+    #: here never exists on disk, so in-memory files cannot collide with real
+    #: ones in the import cache or the cycle check.
+    VIRTUAL_ROOT = PurePosixPath("/aether-workspace")
+
     def check_source(
         self,
         source: str,
         file_path: Optional[Path | str] = None,
+        sources: Optional[Mapping[str, str]] = None,
     ) -> list[ProofReport]:
-        """Parse *source* and check all theorems and top-level statements."""
+        """Parse *source* and check all theorems and top-level statements.
+
+        ``sources`` maps workspace paths (``"lemmas.aether"``,
+        ``"groups/basics.aether"``) to their text, so ``import`` statements
+        resolve against files held in memory -- a browser workspace -- before
+        the disk is searched.  When it is given, ``file_path`` may be the
+        importing file's own workspace path, and relative imports resolve from
+        its folder.
+        """
         doc = self._parser.parse(source)
-        return self.check_document(doc, file_path=file_path)
+        previous = self._sources
+        self._sources = dict(sources) if sources else None
+        try:
+            if self._sources is not None:
+                # In-memory files may change between calls; never reuse a cached import.
+                self.clear_cache()
+                virtual = self._virtual_path(str(file_path) if file_path else "__main__.aether")
+                return self._check_document_internal(doc, virtual_file=virtual, import_chain=[virtual])[0]
+            return self.check_document(doc, file_path=file_path)
+        finally:
+            self._sources = previous
 
     def check_file(self, file_path: Path | str) -> list[ProofReport]:
         """Read *file_path* from disk and verify its proof document."""
@@ -236,18 +262,48 @@ class ProofChecker:
         )
         return reports
 
+    def _virtual_path(self, workspace_path: str) -> Path:
+        """The pseudo-path a workspace file is known by (never a real file)."""
+        clean = PurePosixPath("/", workspace_path.replace("\\", "/"))
+        parts = [p for p in clean.parts[1:] if p not in ("", ".")]
+        resolved: list[str] = []
+        for part in parts:
+            if part == "..":
+                if resolved:
+                    resolved.pop()
+            else:
+                resolved.append(part)
+        return Path(str(self.VIRTUAL_ROOT.joinpath(*resolved)))
+
+    def _is_virtual(self, path: Path) -> bool:
+        return PurePosixPath(path.as_posix()).is_relative_to(self.VIRTUAL_ROOT)
+
+    def _workspace_key(self, virtual: Path) -> Optional[str]:
+        """The ``sources`` key for a virtual path, or None if it is not in the workspace."""
+        if self._sources is None:
+            return None
+        try:
+            rel = PurePosixPath(virtual.as_posix()).relative_to(self.VIRTUAL_ROOT).as_posix()
+        except ValueError:
+            return None
+        if rel in self._sources:
+            return rel
+        normalized = {k.replace("\\", "/").lstrip("./"): k for k in self._sources}
+        return normalized.get(rel)
+
     def _check_document_internal(
         self,
         doc: DocumentNode,
         file_path: Optional[Path | str] = None,
         import_chain: Optional[list[Path]] = None,
+        virtual_file: Optional[Path] = None,
     ) -> tuple[list[ProofReport], list[FuncDefNode], list[tuple[Optional[str], ExprNode]]]:
         reports: list[ProofReport] = []
         shared_defs: list[FuncDefNode] = [s for s in doc.statements if isinstance(s, FuncDefNode)]
         verified_claims: list[tuple[Optional[str], ExprNode]] = []
         import_results: list[StepResult] = []
 
-        cur_file = Path(file_path).resolve() if file_path else None
+        cur_file = virtual_file if virtual_file is not None else (Path(file_path).resolve() if file_path else None)
         chain = list(import_chain) if import_chain else ([cur_file] if cur_file else [])
 
         # Process imports
@@ -304,21 +360,36 @@ class ProofChecker:
         shared_defs: list[FuncDefNode],
         verified_claims: list[tuple[Optional[str], ExprNode]],
     ) -> StepResult:
-        search_dirs: list[Path] = []
-        if cur_file:
-            search_dirs.append(cur_file.parent)
-        if self.base_dir:
-            search_dirs.append(self.base_dir)
-        search_dirs.append(Path.cwd().resolve())
-
         target_path: Optional[Path] = None
-        for d in search_dirs:
-            candidate = (d / stmt.path).resolve()
-            if candidate.is_file():
-                target_path = candidate
-                break
+        virtual_text: Optional[str] = None
+        search_dirs: list[Path] = []
+        if self._sources is not None:
+            # Relative to the importing file's folder first, then the workspace root.
+            is_virtual = cur_file is not None and self._is_virtual(cur_file)
+            importer_dir = cur_file.parent if is_virtual else Path(str(self.VIRTUAL_ROOT))
+            rel_dir = PurePosixPath(importer_dir.as_posix()).relative_to(self.VIRTUAL_ROOT).as_posix()
+            for candidate_key in (f"{rel_dir}/{stmt.path}" if rel_dir != "." else stmt.path, stmt.path):
+                virtual = self._virtual_path(candidate_key)
+                key = self._workspace_key(virtual)
+                if key is not None:
+                    target_path, virtual_text = virtual, self._sources[key]
+                    break
 
         if target_path is None:
+            if cur_file and not self._is_virtual(cur_file):
+                search_dirs.append(cur_file.parent)
+            if self.base_dir:
+                search_dirs.append(self.base_dir)
+            search_dirs.append(Path.cwd().resolve())
+            for d in search_dirs:
+                candidate = (d / stmt.path).resolve()
+                if candidate.is_file():
+                    target_path = candidate
+                    break
+
+        if target_path is None:
+            if self._sources is not None:
+                search_dirs.insert(0, Path("the workspace"))
             searched = ", ".join(str(d) for d in search_dirs)
             return StepResult(
                 statement=stmt,
@@ -357,8 +428,11 @@ class ProofChecker:
             )
 
         try:
-            with open(target_path, "r", encoding="utf-8") as f:
-                content = f.read()
+            if virtual_text is not None:
+                content = virtual_text
+            else:
+                with open(target_path, "r", encoding="utf-8") as f:
+                    content = f.read()
         except OSError as e:
             return StepResult(
                 statement=stmt,
@@ -381,7 +455,10 @@ class ProofChecker:
             )
 
         sub_reports, sub_defs, sub_claims = self._check_document_internal(
-            sub_doc, file_path=target_path, import_chain=chain + [target_path]
+            sub_doc,
+            file_path=None if virtual_text is not None else target_path,
+            virtual_file=target_path if virtual_text is not None else None,
+            import_chain=chain + [target_path],
         )
         sub_results = [r for rep in sub_reports for r in rep.results]
         cyclic = next((r for r in sub_results if "Cyclic import" in r.message), None)

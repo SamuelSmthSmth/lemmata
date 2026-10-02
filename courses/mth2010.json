@@ -1,0 +1,280 @@
+{
+  "id": "mth2010",
+  "code": "MTH2010",
+  "title": "Algebra",
+  "note": "Transcribed from the MTH2010 lecture notes into Aether; references follow the notes' numbering.",
+  "chapters": [
+    {
+      "id": "1",
+      "title": "Groups"
+    },
+    {
+      "id": "2",
+      "title": "Left Cosets and Quotient Groups"
+    }
+  ],
+  "entries": [
+    {
+      "id": "example-1-1-1-in-the-inverse-of-n-is-n",
+      "chapter": "1",
+      "ref": "Example 1.1.1",
+      "title": "In (ℤ, +) the inverse of n is −n",
+      "kind": "proof",
+      "expected": "VALID",
+      "source": "Let n : Int\nStep: n + (-n) = 0\nStep: n + 0 = n\n"
+    },
+    {
+      "id": "example-1-1-2-addition-in-is-well-defined",
+      "chapter": "1",
+      "ref": "Example 1.1.2",
+      "title": "Addition in ℤₙ is well defined",
+      "kind": "proof",
+      "expected": "VALID",
+      "source": "Let i, j, k, l, n : Int\nAssume hk: i = k (mod n)\nAssume hl: j = l (mod n)\nTherefore i + j = k + l (mod n)\n"
+    },
+    {
+      "id": "example-1-1-3-s-n-and-counting-k-cycles",
+      "chapter": "1",
+      "ref": "Example 1.1.3",
+      "title": "|Sₙ| = n! and counting k-cycles",
+      "kind": "proof",
+      "expected": "VALID",
+      "source": "Step: factorial(3) = 6\nStep: 4! = 24\nLet n : Nat\nAssume n >= 1\nStep: n! = n * (n - 1)!\nStep: (4 * 3 * 2) / 3 = 8\n"
+    },
+    {
+      "id": "example-1-1-4-d-relations-as-exponent-arithmetic",
+      "chapter": "1",
+      "ref": "Example 1.1.4",
+      "title": "D₄ relations as exponent arithmetic",
+      "kind": "proof",
+      "expected": "VALID",
+      "source": "Step: 2 + 2 = 0 (mod 2)\n"
+    },
+    {
+      "id": "remark-basic-properties-3-a-a",
+      "chapter": "1",
+      "ref": "Remark, Basic Properties 3",
+      "title": "(a⁻¹)⁻¹ = a",
+      "kind": "proof",
+      "expected": "VALID",
+      "source": "Theorem: \"Inverse of an inverse\"\nProof:\n    Assume Group(G, op, e, inv)\n    Given a : G\n    Step: op(inv(a), a) = e\n    Therefore inv(inv(a)) = a\nQED\n"
+    },
+    {
+      "id": "remark-basic-properties-4-ab-b-a",
+      "chapter": "1",
+      "ref": "Remark, Basic Properties 4",
+      "title": "(ab)⁻¹ = b⁻¹a⁻¹",
+      "kind": "proof",
+      "expected": "VALID",
+      "source": "Theorem: \"Shoes and socks\"\nProof:\n    Assume Group(G, op, e, inv)\n    Given a, b : G\n    Step: op(op(a, b), op(inv(b), inv(a))) = e\n    Therefore inv(op(a, b)) = op(inv(b), inv(a))\nQED\n"
+    },
+    {
+      "id": "remark-basic-properties-5-cancellation",
+      "chapter": "1",
+      "ref": "Remark, Basic Properties 5",
+      "title": "Cancellation",
+      "kind": "proof",
+      "expected": "VALID",
+      "source": "Theorem: \"Left cancellation\"\nProof:\n    Assume Group(G, op, e, inv)\n    Given a, u, v : G\n    Assume h: op(a, u) = op(a, v)\n    Step: u = op(inv(a), op(a, u))\n    Step: = op(inv(a), op(a, v))\n    Step: = v\nQED\n"
+    },
+    {
+      "id": "remark-basic-properties-1-the-identity-is-unique",
+      "chapter": "1",
+      "ref": "Remark, Basic Properties 1",
+      "title": "The identity is unique",
+      "kind": "proof",
+      "expected": "VALID",
+      "source": "Theorem: \"Uniqueness of the identity\"\nProof:\n    Assume Group(G, op, e, inv)\n    Given f : G\n    Assume hf: forall x : G, op(x, f) = x\n    Step: op(e, f) = e\n    Step: op(e, f) = f\n    Therefore f = e\nQED\n"
+    },
+    {
+      "id": "remark-basic-properties-4-ab-b-a-in-the-notes-notation",
+      "chapter": "1",
+      "ref": "Remark, Basic Properties 4",
+      "title": "(ab)⁻¹ = b⁻¹a⁻¹, in the notes' notation",
+      "kind": "proof",
+      "expected": "VALID",
+      "source": "Theorem: \"Shoes and socks, multiplicatively\"\nProof:\n    Assume Group(G, op, e, inv)\n    Given a, b : G\n    Step: (a * b) * (b^-1 * a^-1) = e\n    Therefore (a * b)^-1 = b^-1 * a^-1\nQED\n"
+    },
+    {
+      "id": "1-exponent-rules-a-a-a-in-a-group",
+      "chapter": "1",
+      "ref": "§1, exponent rules",
+      "title": "a²a³ = a⁵ in a group",
+      "kind": "proof",
+      "expected": "VALID",
+      "source": "Assume Group(G, op, e, inv)\nGiven a : G\nStep: a^2 * a^3 = a^5\nStep: a * a^-1 = e\nStep: (a^-1)^-1 = a\n"
+    },
+    {
+      "id": "definition-1-1-assuming-a-group-is-abelian",
+      "chapter": "1",
+      "ref": "Definition 1.1",
+      "title": "Assuming a group is abelian",
+      "kind": "trap",
+      "expected": "INVALID",
+      "source": "Assume Group(G, op, e, inv)\nGiven a, b : G\nStep: op(a, b) = op(b, a)\n",
+      "explanation": "A group need not be commutative: ab and ba are different words, and Sₙ (n ≥ 3) has elements that do not commute."
+    },
+    {
+      "id": "example-1-3-6-n-k-0",
+      "chapter": "1",
+      "ref": "Example 1.3.6",
+      "title": "n′[k]ₙ = [0]ₙ",
+      "kind": "proof",
+      "expected": "VALID",
+      "source": "Let k, n, d, k1, n1 : Int\nAssume hk: k = d * k1\nAssume hn: n = d * n1\nStep: n1 * k = d * n1 * k1\nStep: = n * k1\nTherefore n1 * k = 0 (mod n)\n"
+    },
+    {
+      "id": "example-1-3-6-ord-2-4",
+      "chapter": "1",
+      "ref": "Example 1.3.6",
+      "title": "ord([2]₈) = 4",
+      "kind": "proof",
+      "expected": "VALID",
+      "source": "Step: 4 * 2 = 0 (mod 8)\nStep: not Congruent(3 * 2, 0, 8)\nStep: not Congruent(2 * 2, 0, 8)\nStep: not Congruent(1 * 2, 0, 8)\nStep: 8 / gcd(8, 2) = 4\n"
+    },
+    {
+      "id": "example-1-4-2-3-5",
+      "chapter": "1",
+      "ref": "Example 1.4.2",
+      "title": "ℤ₈ = ⟨[3]₈⟩ = ⟨[5]₈⟩",
+      "kind": "proof",
+      "expected": "VALID",
+      "source": "Step: gcd(3, 8) = 1\nStep: gcd(5, 8) = 1\nStep: 3 * 3 = 1 (mod 8)\nStep: 5 * 5 = 1 (mod 8)\nStep: 3 + 5 = 0 (mod 8)\n"
+    },
+    {
+      "id": "example-1-4-3-ord-x-n-gcd-n-k",
+      "chapter": "1",
+      "ref": "Example 1.4.3",
+      "title": "ord(xᵏ) = n / gcd(n, k)",
+      "kind": "proof",
+      "expected": "VALID",
+      "source": "Step: 12 / gcd(12, 8) = 3\nStep: lcm(4, 6) = 12\n"
+    },
+    {
+      "id": "example-1-6-1-f-k-k-is-a-homomorphism",
+      "chapter": "1",
+      "ref": "Example 1.6.1",
+      "title": "f(k) = [k]ₙ is a homomorphism",
+      "kind": "proof",
+      "expected": "VALID",
+      "source": "Let r, s, n : Int\nStep: r + s = r + s (mod n)\nStep: r + n = r (mod n)\n"
+    },
+    {
+      "id": "example-1-6-2-k-mk-is-an-injective-homomorphism",
+      "chapter": "1",
+      "ref": "Example 1.6.2",
+      "title": "φ(k) = mk is an injective homomorphism",
+      "kind": "proof",
+      "expected": "VALID",
+      "source": "Theorem: \"phi(k) = mk\"\nProof:\n    Let m, k1, k2 : Int\n    Step: m * (k1 + k2) = m * k1 + m * k2\n    Assume hm: m != 0\n    Assume h: m * k1 = m * k2\n    Step: m * (k1 - k2) = 0\n    Therefore k1 = k2\nQED\n"
+    },
+    {
+      "id": "example-1-6-4-the-parity-map-on-d",
+      "chapter": "1",
+      "ref": "Example 1.6.4",
+      "title": "The parity map on D₂ₙ",
+      "kind": "proof",
+      "expected": "VALID",
+      "source": "Let i, k : Int\nAssume hk: Odd(k)\nStep: i + 1 = i + k (mod 2)\n"
+    },
+    {
+      "id": "remark-image-and-kernel-the-kernel-is-closed-under-products",
+      "chapter": "1",
+      "ref": "Remark, Image and Kernel",
+      "title": "The kernel is closed under products",
+      "kind": "proof",
+      "expected": "VALID",
+      "source": "Theorem: \"Kernel closed under products\"\nProof:\n    Assume Group(G, op, e, inv)\n    Assume Group(H, star, eH, invH)\n    Assume hom: forall x : G, forall y : G, f(op(x, y)) = star(f(x), f(y))\n    Given g1, g2 : G\n    Assume k1: f(g1) = eH\n    Assume k2: f(g2) = eH\n    Step: f(op(g1, g2)) = star(f(g1), f(g2))\n    Step: = star(eH, eH)\n    Step: = eH\nQED\n"
+    },
+    {
+      "id": "remark-image-and-kernel-the-kernel-is-closed-under-inverses",
+      "chapter": "1",
+      "ref": "Remark, Image and Kernel",
+      "title": "The kernel is closed under inverses",
+      "kind": "proof",
+      "expected": "VALID",
+      "source": "Theorem: \"Kernel closed under inverses\"\nProof:\n    Assume Group(G, op, e, inv)\n    Assume Group(H, star, eH, invH)\n    Assume hom: forall x : G, forall y : G, f(op(x, y)) = star(f(x), f(y))\n    Assume he: f(e) = eH\n    Given g : G\n    Assume k: f(g) = eH\n    Step: eH = f(e)\n    Step: = f(op(g, inv(g)))\n    Step: = star(f(g), f(inv(g)))\n    Step: = star(eH, f(inv(g)))\n    Step: = f(inv(g))\nQED\n"
+    },
+    {
+      "id": "lemma-2-1-r-is-reflexive",
+      "chapter": "2",
+      "ref": "Lemma 2.1",
+      "title": "R is reflexive",
+      "kind": "proof",
+      "expected": "VALID",
+      "source": "Assume Group(G, op, e, inv)\nAssume Subgroup(H, G, op, e, inv)\nGiven x : G\nStep: op(inv(x), x) = e\nTherefore op(inv(x), x) in H\n"
+    },
+    {
+      "id": "lemma-2-1-r-is-symmetric",
+      "chapter": "2",
+      "ref": "Lemma 2.1",
+      "title": "R is symmetric",
+      "kind": "proof",
+      "expected": "VALID",
+      "source": "Theorem: \"R is symmetric\"\nProof:\n    Assume Group(G, op, e, inv)\n    Assume Subgroup(H, G, op, e, inv)\n    Given x, y : G\n    Assume h: op(inv(x), y) in H\n    Step: inv(op(inv(x), y)) = op(inv(y), x)\n    Therefore op(inv(y), x) in H\nQED\n"
+    },
+    {
+      "id": "lemma-2-1-r-is-transitive",
+      "chapter": "2",
+      "ref": "Lemma 2.1",
+      "title": "R is transitive",
+      "kind": "proof",
+      "expected": "VALID",
+      "source": "Theorem: \"R is transitive\"\nProof:\n    Assume Group(G, op, e, inv)\n    Assume Subgroup(H, G, op, e, inv)\n    Given x, y, z : G\n    Assume h1: op(inv(x), y) in H\n    Assume h2: op(inv(y), z) in H\n    Step: op(op(inv(x), y), op(inv(y), z)) = op(inv(x), z)\n    Therefore op(inv(x), z) in H\nQED\n"
+    },
+    {
+      "id": "example-2-1-1-euclidean-division-a-r-r-in-n",
+      "chapter": "2",
+      "ref": "Example 2.1.1",
+      "title": "Euclidean division: a R r in ℤ/nℤ",
+      "kind": "proof",
+      "expected": "VALID",
+      "source": "Let a, k, n, r : Int\nAssume a = k * n + r\nStep: a = r (mod n)\nStep: -a + r = (-k) * n\n"
+    },
+    {
+      "id": "theorem-2-2-lagrange-numerically",
+      "chapter": "2",
+      "ref": "Theorem 2.2",
+      "title": "Lagrange, numerically",
+      "kind": "proof",
+      "expected": "VALID",
+      "source": "Step: 6 = 3 * 2\nStep: 24 / 4 = 6\n"
+    },
+    {
+      "id": "definition-2-3-subgroups-of-abelian-groups-are-normal",
+      "chapter": "2",
+      "ref": "Definition 2.3",
+      "title": "Subgroups of abelian groups are normal",
+      "kind": "proof",
+      "expected": "VALID",
+      "source": "Assume AbelianGroup(G, op, e, inv)\nGiven x, h : G\nStep: op(op(x, h), inv(x)) = h\n"
+    },
+    {
+      "id": "example-2-2-3-kernels-are-normal",
+      "chapter": "2",
+      "ref": "Example 2.2.3",
+      "title": "Kernels are normal",
+      "kind": "proof",
+      "expected": "VALID",
+      "source": "Theorem: \"Kernels are normal\"\nProof:\n    Assume Group(G, op, e, inv)\n    Assume Group(K, star, eK, invK)\n    Assume hom: forall x : G, forall y : G, f(op(x, y)) = star(f(x), f(y))\n    Assume hinv: forall x : G, f(inv(x)) = invK(f(x))\n    Given x, h : G\n    Assume kh: f(h) = eK\n    Step: f(op(op(x, h), inv(x))) = star(f(op(x, h)), f(inv(x)))\n    Step: = star(star(f(x), f(h)), invK(f(x)))\n    Step: = star(star(f(x), eK), invK(f(x)))\n    Step: = eK\nQED\n"
+    },
+    {
+      "id": "example-2-5-4-conjugating-r-in-d",
+      "chapter": "2",
+      "ref": "Example 2.5.4",
+      "title": "Conjugating r² in D₈",
+      "kind": "proof",
+      "expected": "VALID",
+      "source": "Let j : Int\nStep: j + 2 - j = 2\nStep: 1 - 2*j = 1 + 2*(-j)\n"
+    },
+    {
+      "id": "corollary-2-9-counting-with-the-first-isomorphism-theorem",
+      "chapter": "2",
+      "ref": "Corollary 2.9",
+      "title": "Counting with the first isomorphism theorem",
+      "kind": "proof",
+      "expected": "VALID",
+      "source": "Step: factorial(3) = 3 * 2\nStep: factorial(4) / 12 = 2\n"
+    }
+  ]
+}

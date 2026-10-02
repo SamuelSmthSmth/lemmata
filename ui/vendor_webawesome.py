@@ -58,16 +58,30 @@ PREFIX = "package/dist-cdn/"
 # so the component is not needed at all.
 COMPONENTS = [
     "button",
+    "checkbox",
+    "details",
     "dialog",
+    "divider",
+    "drawer",
+    "dropdown",
+    "dropdown-item",
     "icon",
+    "input",
     "option",
     "popup",
+    "radio",
+    "radio-group",
     "select",
     "spinner",
     "switch",
+    "tab",
+    "tab-group",
+    "tab-panel",
     "toast",
     "toast-item",
     "tooltip",
+    "tree",
+    "tree-item",
 ]
 
 # `webawesome.js` is the barrel entry: it exports setBasePath() (required when

@@ -1,0 +1,211 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-10-02T16:42:17+00:00",
+  "title": "Design System: Aether",
+  "extensions": {
+    "colorMeta": {
+      "proof-blue": {
+        "role": "primary",
+        "displayName": "Proof Blue",
+        "canonical": "#0a5fbf",
+        "tonalRamp": [
+          "#082a52",
+          "#0a3d75",
+          "#0a5fbf",
+          "#2f7ad4",
+          "#5c97de",
+          "#8ab4e8",
+          "#b8d1f2",
+          "#e3eefb"
+        ]
+      },
+      "ink": {
+        "role": "neutral",
+        "displayName": "Ink",
+        "canonical": "#16181d",
+        "tonalRamp": [
+          "#16181d",
+          "#2b2f37",
+          "#464c57",
+          "#646b78",
+          "#868e9c",
+          "#b2b8c2",
+          "#dde1e6",
+          "#f7f8f9"
+        ]
+      },
+      "verified-green": {
+        "role": "status",
+        "displayName": "Verified Green",
+        "canonical": "#157333",
+        "tonalRamp": [
+          "#0b3d1b",
+          "#105626",
+          "#157333",
+          "#2e8f4a",
+          "#4ab960",
+          "#86d394",
+          "#c0e9c7",
+          "#eaf7ec"
+        ]
+      },
+      "caveat-amber": {
+        "role": "status",
+        "displayName": "Caveat Amber",
+        "canonical": "#7d4e00",
+        "tonalRamp": [
+          "#3d2600",
+          "#5a3900",
+          "#7d4e00",
+          "#9e6a03",
+          "#d9a520",
+          "#e8c463",
+          "#f3dfa6",
+          "#fbf3df"
+        ]
+      },
+      "error-red": {
+        "role": "status",
+        "displayName": "Error Red",
+        "canonical": "#be1824",
+        "tonalRamp": [
+          "#5a0b11",
+          "#8a1119",
+          "#be1824",
+          "#da3633",
+          "#f2645c",
+          "#f69a94",
+          "#fbcdca",
+          "#fdeeed"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "statement": {
+        "displayName": "Statement",
+        "purpose": "Proof statements in the auditor and editor."
+      },
+      "prose": {
+        "displayName": "Prose",
+        "purpose": "Only the intern's explanatory sentences."
+      },
+      "verdict": {
+        "displayName": "Verdict",
+        "purpose": "The header verdict word."
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "Pane headings."
+      }
+    },
+    "shadows": [
+      {
+        "name": "selected-ring",
+        "value": "inset 0 0 0 1px color-mix(in oklab, var(--wa-color-text-normal) 22%, transparent)",
+        "purpose": "Marks the selected step; the only shadow in the system."
+      }
+    ],
+    "motion": [
+      {
+        "name": "state-quick",
+        "value": "0.1s ease",
+        "purpose": "Row hover and border-colour changes."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "narrow",
+        "value": "900px"
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Verdict",
+      "kind": "custom",
+      "refersTo": "verdict-valid",
+      "description": "A rail and a word: the proof's overall status in the header.",
+      "html": "<span class=\"ds-verdict ds-verdict--valid\">VALID</span> <span class=\"ds-verdict ds-verdict--invalid\">INVALID</span>",
+      "css": ".ds-verdict{font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;padding:2px 0 2px 8px;border-left:2px solid currentColor;margin-right:16px}.ds-verdict--valid{color:#157333}.ds-verdict--invalid{color:#be1824}"
+    },
+    {
+      "name": "Step Row",
+      "kind": "custom",
+      "refersTo": "step-row",
+      "description": "One audited statement; a failing row carries a 2px rail in the margin.",
+      "html": "<button class=\"ds-step\"><span class=\"ds-step-line\">6</span><span>Step: n^2 = (2 * k)^2<span class=\"ds-step-meta\">VALID \u00b7 SymPy</span></span></button><button class=\"ds-step ds-step--invalid\"><span class=\"ds-step-line\">7</span><span>Step: = 4 * k^3<span class=\"ds-step-meta ds-bad\">INVALID \u00b7 SymPy</span></span></button>",
+      "css": ".ds-step{position:relative;display:grid;grid-template-columns:22px 1fr;gap:11px;width:100%;text-align:left;font:12.5px/1.45 'JetBrains Mono',monospace;color:#16181d;background:#fff;border:0;border-bottom:1px solid #eceef1;padding:8px 12px 8px 14px;cursor:pointer}.ds-step:hover{background:#eff1f4}.ds-step:focus-visible{outline:2px solid #0a5fbf;outline-offset:-2px}.ds-step--invalid::before{content:'';position:absolute;left:0;top:0;bottom:0;width:2px;background:#be1824}.ds-step-line{font-size:10.5px;color:#9aa0aa;text-align:right}.ds-step-meta{float:right;font-size:9.5px;letter-spacing:.7px;color:#9aa0aa}.ds-bad{color:#be1824;font-weight:700}"
+    },
+    {
+      "name": "Pane Head",
+      "kind": "nav",
+      "refersTo": "pane-head",
+      "description": "A label and a rule; no fill.",
+      "html": "<div class=\"ds-pane-head\"><h2>Auditor</h2><span>Click a step to inspect it</span></div>",
+      "css": ".ds-pane-head{display:flex;align-items:center;gap:10px;padding:5px 12px;min-height:30px;border-bottom:1px solid #dde1e6;font-family:'JetBrains Mono',monospace}.ds-pane-head h2{margin:0;font-size:9.5px;font-weight:700;letter-spacing:1.3px;text-transform:uppercase;color:#646b78}.ds-pane-head span{margin-left:auto;font-size:10px;color:#9aa0aa}"
+    },
+    {
+      "name": "Counterexample Callout",
+      "kind": "card",
+      "refersTo": "note-counterexample",
+      "description": "The only boxed element: a failure's concrete counterexample.",
+      "html": "<div class=\"ds-note\">Counterexample at x=3: LHS = 24, RHS = 23</div>",
+      "css": ".ds-note{font:11px/1.45 'JetBrains Mono',monospace;color:#be1824;background:rgba(190,24,36,.08);border-left:2px solid #be1824;border-radius:2px;padding:5px 8px}"
+    },
+    {
+      "name": "Icon Button",
+      "kind": "button",
+      "refersTo": "icon-button",
+      "description": "24px plain icon button; quiet ink, ink on hover.",
+      "html": "<button class=\"ds-icon-btn\" aria-label=\"Download\"><svg viewBox=\"0 0 24 24\" width=\"12\" height=\"12\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\"><path d=\"M12 3v12m0 0l4-4m-4 4l-4-4\"/><path d=\"M4 20h16\"/></svg></button>",
+      "css": ".ds-icon-btn{width:24px;height:24px;display:inline-grid;place-items:center;border:0;background:none;color:#646b78;border-radius:2px;cursor:pointer}.ds-icon-btn:hover{color:#16181d;background:#eff1f4}.ds-icon-btn:focus-visible{outline:2px solid #0a5fbf}"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Typeset Proof",
+    "overview": "Aether is set the way a printed proof is set, not built the way a dashboard is built. Paper divided by hairlines; the formal layer in one monospace; the intern's prose the only break in the grid. Failure is the event: a failing step gets a 2px rail in the margin, and so does everything that rests on it.",
+    "keyCharacteristics": [
+      "Paper and ink, hairline rules, near-square corners (2px).",
+      "One monospace family for everything formal; system sans only for the intern's sentences.",
+      "Status lives in 2px rails and coloured words, never in filled pills or cards.",
+      "Green appears only in the verdict, so red lands when it does.",
+      "Light and dark are equal citizens, each with its own picked palette."
+    ],
+    "rules": [
+      {
+        "name": "The Green Is Rare Rule",
+        "body": "Green appears in the verdict and nowhere else; a passing step's status is set in dim ink.",
+        "section": "colors"
+      },
+      {
+        "name": "The Two Schemes Rule",
+        "body": "Syntax colour has a mono default and a vivid opt-in over one token vocabulary.",
+        "section": "colors"
+      },
+      {
+        "name": "The Formal-Mono Rule",
+        "body": "Anything the engine checks is set in the monospace; only the intern's sentences use the sans.",
+        "section": "typography"
+      },
+      {
+        "name": "The No Boxes Rule",
+        "body": "Organise with hairlines and alignment; a box is reserved for callouts that carry a failure.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "Do let a failing step's 2px rail and red word carry the page; keep everything that verified quiet.",
+      "Do set every checked artefact in JetBrains Mono and every explanatory sentence in the system sans.",
+      "Do separate regions with 1px Rule/Hairline lines and tonal surfaces, not containers.",
+      "Do define colour once in the --wa-* token layer and alias it; light and dark each get picked values.",
+      "Do keep corners at 2px and status rails at 2px."
+    ],
+    "donts": [
+      "Don't use green anywhere but the verdict.",
+      "Don't wrap rows in cards, give passing steps badges, or use filled status pills.",
+      "Don't introduce a display face, italics, or a second sans.",
+      "Don't add drop shadows; depth is tonal, and the selected-row inset ring is the only shadow.",
+      "Don't fetch anything cross-origin (icons, fonts, scripts): the app makes no runtime network requests."
+    ]
+  }
+}

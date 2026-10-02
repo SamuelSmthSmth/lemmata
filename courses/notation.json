@@ -1,0 +1,374 @@
+{
+  "id": "notation",
+  "code": "NOTATION",
+  "title": "The notes' notation, and the traps around it",
+  "note": "Writing proofs the way typeset notes write them, and the mistakes the checker must refuse.",
+  "chapters": [
+    {
+      "id": "notation",
+      "title": "Writing the notes' notation"
+    },
+    {
+      "id": "traps",
+      "title": "Soundness traps"
+    }
+  ],
+  "entries": [
+    {
+      "id": "theorem-1-1-in-unicode",
+      "chapter": "notation",
+      "ref": "Notation",
+      "title": "Theorem 1.1 in Unicode",
+      "kind": "proof",
+      "expected": "VALID",
+      "source": "Theorem: \"Triangle inequality\"\nClaim: ∀ a ∈ ℝ, ∀ b ∈ ℝ, |a + b| ≤ |a| + |b|\nProof:\n    Let a, b : ℝ\n    Step: |a + b| ≤ |a| + |b|\nQED\n"
+    },
+    {
+      "id": "definition-2-6-shape-forall-eps-0-exists-delta-0",
+      "chapter": "notation",
+      "ref": "Notation",
+      "title": "Definition 2.6 shape: forall eps > 0, exists delta > 0",
+      "kind": "proof",
+      "expected": "VALID",
+      "source": "Theorem: \"lim 3x = 6 at x = 2, epsilon-delta\"\nClaim: ∀ ε > 0, ∃ δ > 0, ∀ x ∈ ℝ, |x − 2| < δ ⇒ |3·x − 6| < ε\nProof:\n    Given ε : ℝ where ε > 0\n    Let δ = ε / 3\n    Subproof:\n        Given x : ℝ\n        Assume |x − 2| < δ\n        Step: |3·x − 6| = 3·|x − 2|\n        Step: < 3·δ\n        Step: = ε\n    Therefore ∃ δ > 0, ∀ x ∈ ℝ, |x − 2| < δ ⇒ |3·x − 6| < ε [witness: ε / 3]\nQED\n"
+    },
+    {
+      "id": "example-2-20-with-and-infty",
+      "chapter": "notation",
+      "ref": "Notation",
+      "title": "Example 2.20 with ∞ and \\infty",
+      "kind": "proof",
+      "expected": "VALID",
+      "source": "Step: lim(1/x, x, 0, \"+\") = ∞\nStep: \\lim_{x \\to 0^-} 1/x = -\\infty\nStep: lim(x², x, -∞) = ∞\n"
+    },
+    {
+      "id": "example-3-22-geometric-series-in-unicode",
+      "chapter": "notation",
+      "ref": "Notation",
+      "title": "Example 3.22 geometric series in Unicode",
+      "kind": "proof",
+      "expected": "VALID",
+      "source": "Let r ∈ ℝ\nAssume |r| < 1\nStep: \\sum_{k=0}^{\\infty} r^k = 1/(1 − r)\n"
+    },
+    {
+      "id": "s-n-n-written-with-the-postfix-bang",
+      "chapter": "notation",
+      "ref": "Notation",
+      "title": "|S_n| = n! written with the postfix bang",
+      "kind": "proof",
+      "expected": "VALID",
+      "source": "Let n : ℕ\nAssume n ≥ 1\nStep: n! = n·(n − 1)!\nStep: 5! = 120\n"
+    },
+    {
+      "id": "remark-4-with-superscript-inverses",
+      "chapter": "notation",
+      "ref": "Notation",
+      "title": "Remark 4 with superscript inverses",
+      "kind": "proof",
+      "expected": "VALID",
+      "source": "Assume Group(G, op, e, inv)\nGiven a, b : G\nStep: (a·b)⁻¹ = b⁻¹·a⁻¹\nStep: a·a⁻¹ = e\nStep: a²·a³ = a⁵\nStep: a⁰ = e\n"
+    },
+    {
+      "id": "elements-declared-with",
+      "chapter": "notation",
+      "ref": "Notation",
+      "title": "Elements declared with ∈",
+      "kind": "proof",
+      "expected": "VALID",
+      "source": "Assume Group(G, op, e, inv)\nLet g ∈ G\nStep: g·e = g\nStep: e·g = g\n"
+    },
+    {
+      "id": "bounded-quantifier-over-a-group-carrier",
+      "chapter": "notation",
+      "ref": "Notation",
+      "title": "Bounded quantifier over a group carrier",
+      "kind": "proof",
+      "expected": "VALID",
+      "source": "Theorem: \"Every element has an inverse\"\nClaim: Group(G, op, e, inv) => ∀ a ∈ G, ∃ b ∈ G, op(a, b) = e\nProof:\n    Assume Group(G, op, e, inv)\n    Given a : G\n    Therefore exists b : G, op(a, b) = e [witness: inv(a)]\nQED\n"
+    },
+    {
+      "id": "logical-connectives-in-unicode",
+      "chapter": "notation",
+      "ref": "Notation",
+      "title": "Logical connectives in Unicode",
+      "kind": "proof",
+      "expected": "VALID",
+      "source": "Let x : ℝ\nAssume h: x > 2 ∧ x < 5\nTherefore x > 1 ∨ x < -1\nTherefore ¬(x = 0)\nTherefore x ≠ 0\n"
+    },
+    {
+      "id": "greek-letters-typed-directly",
+      "chapter": "notation",
+      "ref": "Notation",
+      "title": "Greek letters typed directly",
+      "kind": "proof",
+      "expected": "VALID",
+      "source": "Let α, β : ℝ\nAssume α < β\nStep: (α + β)/2 < β\nStep: α < (α + β)/2\n"
+    },
+    {
+      "id": "sinh-arctan-floor-and-binomial",
+      "chapter": "notation",
+      "ref": "Notation",
+      "title": "Sinh, arctan, floor and binomial",
+      "kind": "proof",
+      "expected": "VALID",
+      "source": "Let x : ℝ\nStep: cosh(x)^2 - sinh(x)^2 = 1\nStep: tan(atan(x)) = x\nStep: floor(7/2) = 3\nStep: binomial(5, 2) = 10\n"
+    },
+    {
+      "id": "oo-is-not-a-real-number",
+      "chapter": "traps",
+      "ref": "Trap",
+      "title": "Oo is not a real number",
+      "kind": "trap",
+      "expected": "INVALID",
+      "source": "Let a : Real\nStep: oo - 1 < oo - 2\n",
+      "explanation": "∞ is not a number you can subtract from: ∞ − 1 and ∞ − 2 are both ∞, so neither is less than the other."
+    },
+    {
+      "id": "oo-is-below-every-real-not-above",
+      "chapter": "traps",
+      "ref": "Trap",
+      "title": "-oo is below every real, not above",
+      "kind": "trap",
+      "expected": "INVALID",
+      "source": "Let a : Real\nStep: -oo > a\n",
+      "explanation": "In the extended reals −∞ < a for every real a, so −∞ > a is false."
+    },
+    {
+      "id": "oo-0-is-indeterminate",
+      "chapter": "traps",
+      "ref": "Trap",
+      "title": "Oo * 0 is indeterminate",
+      "kind": "trap",
+      "expected": "INVALID",
+      "source": "Step: oo * 0 = 0\n",
+      "explanation": "0 · ∞ is an indeterminate form; the notes leave it undefined."
+    },
+    {
+      "id": "a-declared-oo-is-an-ordinary-variable",
+      "chapter": "traps",
+      "ref": "Trap",
+      "title": "A declared oo is an ordinary variable",
+      "kind": "trap",
+      "expected": "INVALID",
+      "source": "Let oo : Real\nStep: oo > 5\n",
+      "explanation": "Once `oo` is declared as a variable it is just a real number, so nothing makes it greater than 5."
+    },
+    {
+      "id": "limits-at-infinity-have-one-side-only",
+      "chapter": "traps",
+      "ref": "Trap",
+      "title": "Limits at infinity have one side only",
+      "kind": "trap",
+      "expected": "INVALID",
+      "source": "Step: lim(1/x, x, oo, \"+\") = 0\n",
+      "explanation": "x can only approach ∞ from below, so a direction such as \"+\" makes no sense there."
+    },
+    {
+      "id": "sin-1-x-has-no-limit-at-0",
+      "chapter": "traps",
+      "ref": "Trap",
+      "title": "Sin(1/x) has no limit at 0",
+      "kind": "trap",
+      "expected": "INVALID",
+      "source": "Step: lim(sin(1/x), x, 0) = 0\n",
+      "explanation": "sin(1/x) oscillates between −1 and 1 in every neighbourhood of 0 (Example 2.34), so it has no limit."
+    },
+    {
+      "id": "geometric-series-needs-r-1",
+      "chapter": "traps",
+      "ref": "Trap",
+      "title": "Geometric series needs |r| < 1",
+      "kind": "trap",
+      "expected": "INVALID",
+      "source": "Let r : Real\nStep: sum(k, 0, oo, r^k) = 1/(1 - r)\n",
+      "explanation": "Σ rᵏ converges to 1/(1 − r) only when |r| < 1; with nothing known about r the sum may diverge."
+    },
+    {
+      "id": "partial-geometric-sum-needs-r-1",
+      "chapter": "traps",
+      "ref": "Trap",
+      "title": "Partial geometric sum needs r != 1",
+      "kind": "trap",
+      "expected": "INVALID",
+      "source": "Let r : Real\nLet n : Nat\nStep: sum(k, 0, n, r^k) = (1 - r^(n + 1))/(1 - r)\n",
+      "explanation": "At r = 1 the partial sum is n + 1 and (1 − rⁿ⁺¹)/(1 − r) divides by zero; the closed form needs r ≠ 1."
+    },
+    {
+      "id": "rho-n-0-needs-rho-1",
+      "chapter": "traps",
+      "ref": "Trap",
+      "title": "Rho^n -> 0 needs rho < 1",
+      "kind": "trap",
+      "expected": "INVALID",
+      "source": "Let \\rho : Real\nAssume \\rho > 1\nStep: lim(\\rho^n, n, oo) = 0\n",
+      "explanation": "For ρ > 1, ρⁿ → ∞ (Example 3.8), not 0."
+    },
+    {
+      "id": "sin-1-does-not-give-sin-1-2",
+      "chapter": "traps",
+      "ref": "Trap",
+      "title": "|sin| <= 1 does not give |sin| <= 1/2",
+      "kind": "trap",
+      "expected": "INVALID",
+      "source": "Let x : Real\nStep: |sin(x)| <= 1/2\n",
+      "explanation": "sin reaches 1 (at π/2), so |sin x| ≤ 1/2 is false in general."
+    },
+    {
+      "id": "exp-0-does-not-give-exp-1",
+      "chapter": "traps",
+      "ref": "Trap",
+      "title": "Exp > 0 does not give exp > 1",
+      "kind": "trap",
+      "expected": "INVALID",
+      "source": "Let x : Real\nStep: exp(x) > 1\n",
+      "explanation": "eˣ < 1 for every x < 0."
+    },
+    {
+      "id": "log-is-not-bounded-below-by-its-argument",
+      "chapter": "traps",
+      "ref": "Trap",
+      "title": "Log is not bounded below by its argument",
+      "kind": "trap",
+      "expected": "INVALID",
+      "source": "Let x : Real\nAssume x > 0\nStep: log(x) >= x - 1\n",
+      "explanation": "log x ≤ x − 1 for x > 0, with equality only at 1; the reverse inequality fails, e.g. at x = 2."
+    },
+    {
+      "id": "symbolic-gcd-is-not-1",
+      "chapter": "traps",
+      "ref": "Trap",
+      "title": "Symbolic gcd is not 1",
+      "kind": "trap",
+      "expected": "INVALID",
+      "source": "Let n, k : Int\nStep: gcd(n, k) = 1\n",
+      "explanation": "gcd(n, k) depends on n and k: gcd(4, 6) = 2."
+    },
+    {
+      "id": "symbolic-lcm-is-not-the-product",
+      "chapter": "traps",
+      "ref": "Trap",
+      "title": "Symbolic lcm is not the product",
+      "kind": "trap",
+      "expected": "INVALID",
+      "source": "Let n, k : Int\nStep: lcm(n, k) = n * k\n",
+      "explanation": "lcm(n, k) = nk only when gcd(n, k) = 1: lcm(4, 6) = 12, not 24."
+    },
+    {
+      "id": "wrong-factorial",
+      "chapter": "traps",
+      "ref": "Trap",
+      "title": "Wrong factorial",
+      "kind": "trap",
+      "expected": "INVALID",
+      "source": "Step: 4! = 12\n",
+      "explanation": "4! = 4 · 3 · 2 · 1 = 24."
+    },
+    {
+      "id": "congruent-mod-0-is-equality",
+      "chapter": "traps",
+      "ref": "Trap",
+      "title": "Congruent mod 0 is equality",
+      "kind": "trap",
+      "expected": "INVALID",
+      "source": "Let a : Int\nStep: a + 1 = a (mod 0)\n",
+      "explanation": "Modulo 0, a ≡ b means b − a is a multiple of 0, i.e. a = b; a + 1 ≠ a."
+    },
+    {
+      "id": "congruence-does-not-survive-division",
+      "chapter": "traps",
+      "ref": "Trap",
+      "title": "Congruence does not survive division",
+      "kind": "trap",
+      "expected": "INVALID",
+      "source": "Let i, k, n : Int\nAssume h: 2 * i = 2 * k (mod n)\nTherefore i = k (mod n)\n",
+      "explanation": "2i ≡ 2k (mod n) does not give i ≡ k (mod n) when n is even: i = 0, k = 2, n = 4."
+    },
+    {
+      "id": "ab-1-is-not-a-1-b-1-in-a-group",
+      "chapter": "traps",
+      "ref": "Trap",
+      "title": "(ab)^-1 is not a^-1 b^-1 in a group",
+      "kind": "trap",
+      "expected": "INVALID",
+      "source": "Assume Group(G, op, e, inv)\nGiven a, b : G\nStep: (a * b)^-1 = a^-1 * b^-1\n",
+      "explanation": "(ab)⁻¹ = b⁻¹a⁻¹ (Remark 4); a⁻¹b⁻¹ is a different word unless the group is abelian."
+    },
+    {
+      "id": "but-ab-1-a-1-b-1-in-an-abelian-group",
+      "chapter": "traps",
+      "ref": "Check",
+      "title": "But (ab)^-1 = a^-1 b^-1 in an abelian group",
+      "kind": "proof",
+      "expected": "VALID",
+      "source": "Assume AbelianGroup(G, op, e, inv)\nGiven a, b : G\nStep: (a * b)^-1 = a^-1 * b^-1\n"
+    },
+    {
+      "id": "a-2-b-2-is-not-ab-2-in-a-group",
+      "chapter": "traps",
+      "ref": "Trap",
+      "title": "A^2 b^2 is not (ab)^2 in a group",
+      "kind": "trap",
+      "expected": "INVALID",
+      "source": "Assume Group(G, op, e, inv)\nGiven a, b : G\nStep: a^2 * b^2 = (a * b)^2\n",
+      "explanation": "(ab)² = abab, which equals a²b² = aabb only if ba = ab."
+    },
+    {
+      "id": "real-variables-still-commute-under",
+      "chapter": "traps",
+      "ref": "Check",
+      "title": "Real variables still commute under *",
+      "kind": "proof",
+      "expected": "VALID",
+      "source": "Assume Group(G, op, e, inv)\nLet x, y : Real\nStep: x * y = y * x\n"
+    },
+    {
+      "id": "a-hypothesis-can-make-two-words-equal",
+      "chapter": "traps",
+      "ref": "Check",
+      "title": "A hypothesis can make two words equal",
+      "kind": "proof",
+      "expected": "VALID",
+      "source": "Assume Group(G, op, e, inv)\nGiven a, b : G\nAssume h: op(a, b) = op(b, a)\nStep: op(op(a, b), inv(a)) = b\n"
+    },
+    {
+      "id": "an-undeclared-type-is-still-refused",
+      "chapter": "traps",
+      "ref": "Trap",
+      "title": "An undeclared type is still refused",
+      "kind": "trap",
+      "expected": "INVALID",
+      "source": "Given a : Widget\n",
+      "explanation": "Widget is neither a number type nor a structure's carrier, so it cannot be a type."
+    },
+    {
+      "id": "bounded-exists-keeps-its-guard",
+      "chapter": "traps",
+      "ref": "Trap",
+      "title": "Bounded exists keeps its guard",
+      "kind": "trap",
+      "expected": "INVALID",
+      "source": "Let x : Real\nTherefore exists d > 0, d < 0\n",
+      "explanation": "∃ d > 0 with d < 0 asks for a number that is both positive and negative."
+    },
+    {
+      "id": "bounded-forall-keeps-its-guard",
+      "chapter": "traps",
+      "ref": "Trap",
+      "title": "Bounded forall keeps its guard",
+      "kind": "trap",
+      "expected": "INVALID",
+      "source": "Therefore forall x > 0, x > 1\n",
+      "explanation": "∀ x > 0, x > 1 fails at x = 1/2."
+    },
+    {
+      "id": "a-sum-that-divides-by-zero-is-undefined",
+      "chapter": "traps",
+      "ref": "Trap",
+      "title": "A sum that divides by zero is undefined",
+      "kind": "trap",
+      "expected": "INVALID",
+      "source": "Step: sum(k, -1, 1, 1/k) = 0\n",
+      "explanation": "The index runs through k = 0, where 1/k is undefined, so the sum has no value."
+    }
+  ]
+}

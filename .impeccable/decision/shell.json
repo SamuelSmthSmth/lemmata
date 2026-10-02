@@ -1,0 +1,64 @@
+{
+  "title": "Choose the app's structure",
+  "question": "Aether keeps its look (The Typeset Proof); this choice is how the workspace, library, guide and settings fit together. Lock one, steer it, or re-roll.",
+  "options": [
+    {
+      "id": "margin-auditor",
+      "label": "The Margin Auditor",
+      "kicker": "THE ROLL",
+      "lineage": "an examiner's marked-up manuscript",
+      "thesis": "The proof fills the page; each line's verdict sits in a margin column aligned to that very line.",
+      "palette": ["#ffffff", "#16181d", "#0a5fbf", "#be1824"],
+      "materials": ["line-aligned margin", "hairline rules", "2px failure rails"],
+      "viewport": "A slim left rail (Workspace, Library, Guide, Settings) and file tree; one wide sheet with source on the left and a ruled margin on the right where each statement's status and reason sit level with its line; the context state opens as a drawer under the selected line; a status bar along the foot.",
+      "risk": "Long explanations must wrap in a narrow margin; very wide screens are needed for comfort.",
+      "wireframe": {"cols": 12, "rows": 10, "regions": [
+        {"label": "rail", "x": 0, "y": 0, "w": 1, "h": 10},
+        {"label": "files", "x": 1, "y": 0, "w": 2, "h": 10},
+        {"label": "tabs", "x": 3, "y": 0, "w": 9, "h": 1},
+        {"label": "proof source", "x": 3, "y": 1, "w": 5, "h": 7, "accent": true},
+        {"label": "margin verdicts (line-aligned)", "x": 8, "y": 1, "w": 4, "h": 7},
+        {"label": "context drawer", "x": 3, "y": 8, "w": 9, "h": 1},
+        {"label": "status bar", "x": 1, "y": 9, "w": 11, "h": 1}
+      ]}
+    },
+    {
+      "id": "proof-sheet",
+      "label": "The Proof Sheet",
+      "lineage": "a typeset proof with the referee's notes set under each line",
+      "thesis": "One reading column per file: every statement followed directly by its verdict and reason, like a referee's annotated proof.",
+      "palette": ["#ffffff", "#16181d", "#0a5fbf", "#be1824"],
+      "materials": ["single measure", "interleaved annotations", "hairline rules"],
+      "viewport": "A top bar with file tabs and the view switcher; a centred column where you edit the proof and verdicts appear interleaved under the lines that earn them; the context state and library open as side sheets; the explorer is a collapsible left sheet.",
+      "risk": "Interleaving moves lines as verdicts arrive, which can jolt the caret while typing.",
+      "wireframe": {"cols": 12, "rows": 10, "regions": [
+        {"label": "top bar · tabs · views", "x": 0, "y": 0, "w": 12, "h": 1},
+        {"label": "explorer (collapsible)", "x": 0, "y": 1, "w": 2, "h": 9},
+        {"label": "proof with interleaved verdicts", "x": 3, "y": 1, "w": 6, "h": 9, "accent": true},
+        {"label": "context sheet", "x": 9, "y": 1, "w": 3, "h": 9}
+      ]}
+    },
+    {
+      "id": "notes-beside-proof",
+      "label": "Notes Beside the Proof",
+      "lineage": "lecture notes open next to a working sheet",
+      "thesis": "A study desk: the course-pack entry or guide page stays open on the left while you write and check the proof on the right.",
+      "palette": ["#ffffff", "#16181d", "#0a5fbf", "#be1824"],
+      "materials": ["reading pane", "working pane", "hairline rules"],
+      "viewport": "A left rail of views; a reading pane showing the library entry (\"Example 2.18\", its statement, hints) or a guide section; a working pane with editor tabs, the auditor beneath and the context state as a collapsible strip; a status bar along the foot.",
+      "risk": "Two reading surfaces compete on small laptops; the reading pane must collapse cleanly.",
+      "wireframe": {"cols": 12, "rows": 10, "regions": [
+        {"label": "rail", "x": 0, "y": 0, "w": 1, "h": 10},
+        {"label": "notes / library / guide", "x": 1, "y": 0, "w": 4, "h": 9},
+        {"label": "tabs", "x": 5, "y": 0, "w": 7, "h": 1},
+        {"label": "proof source", "x": 5, "y": 1, "w": 7, "h": 4, "accent": true},
+        {"label": "auditor", "x": 5, "y": 5, "w": 5, "h": 4},
+        {"label": "context", "x": 10, "y": 5, "w": 2, "h": 4},
+        {"label": "status bar", "x": 1, "y": 9, "w": 11, "h": 1}
+      ]}
+    }
+  ],
+  "reroll": true,
+  "steer": true,
+  "buildPath": {"value": "code"}
+}

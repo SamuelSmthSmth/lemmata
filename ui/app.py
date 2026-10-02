@@ -8,6 +8,7 @@ Endpoints
 ---------
 GET  /               -> the single-page frontend
 GET  /api/examples   -> bundled sample proofs
+GET  /api/library    -> course packs (courses/*.json) plus the examples, for the Library
 POST /api/check      -> verify a proof source string
 GET  /api/health     -> liveness probe
 
@@ -18,6 +19,7 @@ stalled solver query can cost a request its answer but never a server thread.
 
 from __future__ import annotations
 
+import json
 import time
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -32,6 +34,9 @@ from .checking import CheckTimeout, WorkerCrashed, pool
 from .examples import EXAMPLES
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
+PROJECT_DIR = Path(__file__).resolve().parent.parent
+COURSES_DIR = PROJECT_DIR / "courses"
+EXAMPLE_FILES_DIR = PROJECT_DIR / "examples"
 
 StepStatusName = Literal["VALID", "WARNING", "INVALID"]
 Verdict = Literal["VALID", "VALID (with domain warnings)", "INVALID", "PARSE ERROR", "TIMEOUT"]
@@ -103,6 +108,10 @@ class CheckResponse(BaseModel):
 class CheckRequest(BaseModel):
     source: str = ""
     strict_domains: bool = False
+    # The browser workspace: other files `import` can resolve against, keyed by
+    # workspace path, and the checked file's own path for relative imports.
+    files: Optional[dict[str, str]] = None
+    path: Optional[str] = None
 
 
 class ExampleModel(BaseModel):
@@ -169,6 +178,85 @@ def list_examples() -> list[ExampleModel]:
     return [ExampleModel(**example) for example in EXAMPLES]
 
 
+class LibraryEntryModel(BaseModel):
+    id: str
+    chapter: str
+    ref: str
+    title: str
+    kind: Literal["proof", "trap"]
+    expected: str
+    explanation: Optional[str] = None
+    blurb: Optional[str] = None
+    source: str
+
+
+class LibraryChapterModel(BaseModel):
+    id: str
+    title: str
+
+
+class LibraryPackModel(BaseModel):
+    id: str
+    code: str
+    title: str
+    note: str
+    chapters: list[LibraryChapterModel]
+    entries: list[LibraryEntryModel]
+
+
+def _examples_pack() -> dict[str, Any]:
+    """The bundled examples, and the standalone proofs in examples/, as one pack."""
+    entries: list[dict[str, Any]] = []
+    for example in EXAMPLES:
+        # The blurbs lead with the verdict word ("WARNING (INVALID when strict ...)").
+        first = example["expected"].split(" ")[0].upper()
+        expected = {"WARNING": "WARN", "PARSE": "PARSE ERROR"}.get(first, first)
+        entries.append(
+            {
+                "id": example["id"],
+                "chapter": "bundled",
+                "ref": "Example",
+                "title": example["name"],
+                "kind": "proof",
+                "expected": expected,
+                "blurb": example["blurb"],
+                "source": example["source"],
+            }
+        )
+    for path in sorted(EXAMPLE_FILES_DIR.glob("*.aether")):
+        entries.append(
+            {
+                "id": f"file-{path.stem}",
+                "chapter": "files",
+                "ref": path.name,
+                "title": path.stem.replace("_", " ").capitalize(),
+                "kind": "proof",
+                "expected": "VALID",
+                "source": path.read_text(encoding="utf-8"),
+            }
+        )
+    return {
+        "id": "examples",
+        "code": "EXAMPLES",
+        "title": "Worked examples",
+        "note": "Short proofs that show each part of the language, including deliberate failures.",
+        "chapters": [
+            {"id": "bundled", "title": "The language, by example"},
+            {"id": "files", "title": "Standalone proofs"},
+        ],
+        "entries": entries,
+    }
+
+
+@app.get("/api/library", response_model=list[LibraryPackModel])
+def library() -> list[dict[str, Any]]:
+    """Every course pack, read fresh so a new pack file shows up without a restart."""
+    packs = [_examples_pack()]
+    for pack_file in sorted(COURSES_DIR.glob("*.json")):
+        packs.append(json.loads(pack_file.read_text(encoding="utf-8")))
+    return packs
+
+
 @app.post("/api/check", response_model=CheckResponse)
 def check_proof(request: CheckRequest) -> CheckResponse:
     """Verify a proof document.
@@ -180,7 +268,13 @@ def check_proof(request: CheckRequest) -> CheckResponse:
     started = time.perf_counter()
     try:
         payload = pool().run(
-            "check", {"source": request.source, "strict_domains": request.strict_domains}
+            "check",
+            {
+                "source": request.source,
+                "strict_domains": request.strict_domains,
+                "files": request.files,
+                "path": request.path,
+            },
         )
     except (CheckTimeout, WorkerCrashed) as exc:
         if isinstance(exc, CheckTimeout):

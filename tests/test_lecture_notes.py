@@ -1,32 +1,49 @@
-"""The lecture-note corpora: MTH2008 Real Analysis and MTH2010 Algebra.
+"""The course packs in ``courses/``: MTH2008 Real Analysis, MTH2010 Algebra, notation.
 
 Every entry is a piece of the notes transcribed into Aether (or a blunder a
-student could make next to it) together with the verdict it must produce.
-``tests/lecture_notes/run_corpus.py`` runs the same entries with per-entry
-wall-clock budgets and full reports, which is the better tool while working
-on a failure.
+student could make next to it, a "trap") together with the verdict it must
+produce.  The same files feed the UI's Library, so a pack can never advertise
+a proof the engine does not check.  ``tests/lecture_notes/run_corpus.py`` runs
+the same entries with per-entry wall-clock budgets and full reports, which is
+the better tool while working on a failure.
 """
 
 from __future__ import annotations
 
-import sys
+import json
 from pathlib import Path
 
 import pytest
 
 from aether import ParseError, ProofChecker
 
-sys.path.insert(0, str(Path(__file__).parent / "lecture_notes"))
+COURSES = Path(__file__).resolve().parent.parent / "courses"
 
-from corpus_algebra import CORPUS as ALGEBRA  # noqa: E402
-from corpus_notation_and_soundness import CORPUS as NOTATION  # noqa: E402
-from corpus_real_analysis import CORPUS as REAL_ANALYSIS  # noqa: E402
 
-ENTRIES = (
-    [pytest.param(src, expect, id=f"MTH2008 {name}") for name, expect, src in REAL_ANALYSIS]
-    + [pytest.param(src, expect, id=f"MTH2010 {name}") for name, expect, src in ALGEBRA]
-    + [pytest.param(src, expect, id=f"notation {name}") for name, expect, src in NOTATION]
-)
+def _entries():
+    """Every course-pack entry, as a pytest param named after its pack and reference."""
+    for pack_file in sorted(COURSES.glob("*.json")):
+        pack = json.loads(pack_file.read_text(encoding="utf-8"))
+        for entry in pack["entries"]:
+            yield pytest.param(
+                entry["source"],
+                entry["expected"],
+                id=f"{pack['code']} {entry['ref']} {entry['title']}",
+            )
+
+
+ENTRIES = list(_entries())
+
+
+def test_every_trap_explains_itself() -> None:
+    """Spot-the-error shows the explanation after the student finds the line."""
+    for pack_file in sorted(COURSES.glob("*.json")):
+        pack = json.loads(pack_file.read_text(encoding="utf-8"))
+        chapters = {c["id"] for c in pack["chapters"]}
+        for entry in pack["entries"]:
+            assert entry["chapter"] in chapters, entry["id"]
+            if entry["kind"] == "trap":
+                assert entry["expected"] == "INVALID" and entry.get("explanation"), entry["id"]
 
 
 @pytest.fixture(scope="module")
