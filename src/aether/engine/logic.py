@@ -35,6 +35,31 @@ from aether.engine.algebra import (
 )
 
 
+# Z3 is bounded by *work*, not by time.  A wall-clock timeout makes a verdict
+# depend on the machine: the same query that a fast laptop settles in 2 s is
+# "unknown" on a slow runner or inside WebAssembly, and a proof would check on
+# one and fail on the other.  Z3's resource limit (``rlimit``) counts solver
+# steps instead, so a query either finishes within it everywhere or nowhere.
+# Every query the repo pins that Z3 decides needs under 35k units; the ones
+# that run out of time burn millions, so 500k leaves wide headroom.  The wall
+# clock stays only as a backstop for work Z3 does not meter, set far above
+# what 500k units take even on a slow machine.
+SOLVER_RLIMIT = 500_000
+SOLVER_BACKSTOP_MS = 6000
+
+
+def new_solver(timeout_ms: int) -> z3.Solver:
+    """A solver bounded by SOLVER_RLIMIT, with a wall-clock backstop.
+
+    *timeout_ms* is kept for the callers' signatures; it only ever raises the
+    backstop, so no caller can bring back a machine-dependent cut-off.
+    """
+    solver = z3.Solver()
+    solver.set("rlimit", SOLVER_RLIMIT)
+    solver.set("timeout", max(timeout_ms, SOLVER_BACKSTOP_MS))
+    return solver
+
+
 class LogicConversionError(Exception):
     """Raised when an AST node cannot be translated into a Z3 expression."""
 
@@ -1202,8 +1227,7 @@ def verify_entailment(
         return sym_res
 
     # 3. Query Z3 SMT solver
-    solver = z3.Solver()
-    solver.set("timeout", timeout_ms)
+    solver = new_solver(timeout_ms)
     _populate_solver_context(solver, ctx)
 
     extra: list[z3.ExprRef] = []
@@ -1387,8 +1411,7 @@ def _decide(condition: sp.Basic, ctx: ProofContext, timeout_ms: int = 1500) -> O
     except (LogicConversionError, TypeError, ValueError, z3.Z3Exception):
         return None
     for goal, answer in ((z3_cond, True), (z3.Not(z3_cond), False)):
-        solver = z3.Solver()
-        solver.set("timeout", timeout_ms)
+        solver = new_solver(timeout_ms)
         _populate_solver_context(solver, ctx)
         solver.add(z3.Not(goal))
         if solver.check() == z3.unsat:
