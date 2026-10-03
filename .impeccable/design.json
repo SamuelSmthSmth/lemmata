@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-10-03T18:00:00+00:00",
+  "generatedAt": "2026-10-03T21:00:00+00:00",
   "title": "Design System: Lemmata",
   "extensions": {
     "colorMeta": {
@@ -199,6 +199,22 @@
       "site-lede": {
         "displayName": "Site Lede",
         "purpose": "Section and hero ledes, Ink Quiet, about 62ch."
+      },
+      "registry-page-title": {
+        "displayName": "Registry Page Title",
+        "purpose": "Pack registry site: Packs, a pack's title (course code inline in Proof Blue), the guide title; briefs set it at 1.25rem."
+      },
+      "registry-chapter": {
+        "displayName": "Registry Chapter",
+        "purpose": "Pack registry site: chapter titles with dim number and 12px dim count; the guide's numbered step heads at 1.2rem."
+      },
+      "registry-entry-title": {
+        "displayName": "Registry Entry Title",
+        "purpose": "Pack registry site: one entry's title in its <details> summary."
+      },
+      "registry-body": {
+        "displayName": "Registry Body",
+        "purpose": "Pack registry site: sans reading text; ledes and summaries in Ink Quiet to 64ch."
       }
     },
     "shadows": [
@@ -228,6 +244,11 @@
         "name": "site-scrub-play",
         "value": "520ms per step, 900ms onto the failing step",
         "purpose": "Plays once when the audit is 35% visible and stops at the failure; reduced motion starts there with no transitions."
+      },
+      {
+        "name": "registry-chevron",
+        "value": "transform 0.15s ease",
+        "purpose": "Pack registry site: an opened entry's chevron turns 90 degrees; removed under prefers-reduced-motion. Nothing else moves."
       }
     ],
     "breakpoints": [
@@ -250,6 +271,21 @@
         "name": "site-phone",
         "value": "720px",
         "purpose": "Public site: nav links fold into the menu disclosure over the scrim; points and ways stack; audit status drops to its own line; pack table hides chapters; footer two columns."
+      },
+      {
+        "name": "registry-narrow",
+        "value": "860px",
+        "purpose": "Pack registry site: the rail folds to search plus a Browse packs disclosure (packs as an auto-fill grid, min 200px); top links hidden, Open Lemmata kept."
+      },
+      {
+        "name": "registry-phone",
+        "value": "560px",
+        "purpose": "Pack registry site: key stacks above the title and the verdict moves onto the key's line; brand sub-label hidden; rules list one column."
+      },
+      {
+        "name": "registry-smallest",
+        "value": "360px",
+        "purpose": "Pack registry site: the verdict returns under the title."
       }
     ],
     "scrims": [
@@ -309,6 +345,13 @@
         "dark": "#1f6feb / #ffffff",
         "mirrors": "--wa-color-brand-fill-loud",
         "purpose": "Filled primary button on the site."
+      },
+      {
+        "name": "--accent-quiet (lemmata-packs web/assets/site.css)",
+        "light": "rgba(10, 95, 191, 0.08)",
+        "dark": "rgba(108, 176, 255, 0.1)",
+        "mirrors": "the app's quiet blue fill",
+        "purpose": "The row fill of a targeted entry on the pack registry site."
       }
     ],
     "toasts": {
@@ -327,6 +370,18 @@
       "themeKey": "aether-theme (shared with the app, resolved before first paint)",
       "fonts": "the app's own fonts.css, including the JetBrains Mono math subset (U+2100-214F, U+2190-21FF, U+2200-22FF; ui/vendor_fonts.py, sha256-pinned)",
       "finishReview": "ship, after one fix batch; screenshots in .impeccable/review/"
+    },
+    "registry": {
+      "source": "lemmata-packs: tools/pages.py, web/shell.html, web/publish.html, web/assets/site.css, web/assets/site.js, web/assets/fonts/",
+      "direction": ".impeccable/surfaces/registry-index-html.md (The Library, Online); amendment: entry keys quiet at rest, Proof Blue only when lit",
+      "topBarHeight": "56px",
+      "railWidth": "288px (full page height via the layout background gradient)",
+      "mainMaxWidth": "980px",
+      "keyColumn": "10rem",
+      "themeKey": "aether-theme (shared with the app and the public site, resolved before first paint)",
+      "fonts": "the app's JetBrains Mono latin, greek and math subsets, self-hosted",
+      "finishReview": "ship, after two fix rounds; screenshots in .impeccable/review/packs/",
+      "deferred": "Formulas inside trap explanations are set in the sans: the explanation is pack data shared with the app, and inline code needs a pack-format change."
     }
   },
   "components": [
@@ -465,6 +520,30 @@
       "description": "Non-blocking strip near the foot; on the landing page it appears only once the hero has scrolled away.",
       "html": "<div class=\"ds-notice\" role=\"region\" aria-label=\"Storage notice\"><p>No cookies, no tracking: your work stays on your device. <a href=\"#\">How storage works</a></p><button class=\"ds-notice-btn\">Dismiss</button></div>",
       "css": ".ds-notice{display:flex;align-items:center;gap:16px;width:min(640px,100%);padding:10px 10px 10px 16px;background:#f7f8f9;border:1px solid #dde1e6;border-radius:2px;font:14px/1.6 -apple-system,'Segoe UI',Roboto,sans-serif}.ds-notice p{flex:1;margin:0;color:#555b6a}.ds-notice a{color:#0a5fbf;text-decoration-thickness:1px;text-underline-offset:.2em}.ds-notice-btn{min-height:28px;padding:0 14px;border:0;border-radius:2px;background:#eff1f4;color:#16181d;font:500 13px 'JetBrains Mono',monospace;cursor:pointer}.ds-notice-btn:hover{background:color-mix(in oklab,#eff1f4 80%,#16181d)}.ds-notice-btn:focus-visible{outline:2px solid #0a5fbf;outline-offset:2px}"
+    },
+    {
+      "name": "Registry Pack Rail",
+      "kind": "nav",
+      "refersTo": "registry-rail",
+      "description": "Pack registry site: search, then packs grouped by course code and Topics; the current pack is a lowered fill and a bold Proof Blue title, never a left rule.",
+      "html": "<aside class=\"ds-rrail\"><input class=\"ds-rsearch\" type=\"search\" placeholder=\"MTH2008, Cauchy, group…\" aria-label=\"Search packs and theorems\"><p class=\"ds-rlabel\">MTH2008</p><a class=\"ds-rpack\" href=\"#\" aria-current=\"page\"><span class=\"ds-rtitle\">Real Analysis</span><span class=\"ds-rmeta\">67 entries · 10 traps</span></a><p class=\"ds-rlabel\">Topics</p><a class=\"ds-rpack\" href=\"#\"><span class=\"ds-rtitle\">Notation and traps</span><span class=\"ds-rmeta\">37 entries · 23 traps</span></a></aside>",
+      "css": ".ds-rrail{width:288px;padding:16px 0;background:#f7f8f9;border-right:1px solid #dde1e6}.ds-rsearch{display:block;width:calc(100% - 32px);margin:0 16px 12px;height:34px;padding:0 10px;border:1px solid #8a909c;border-radius:2px;background:#fff;color:#16181d;font:13px 'JetBrains Mono',ui-monospace,monospace;box-sizing:border-box}.ds-rsearch::placeholder{color:#666c7a}.ds-rsearch:focus-visible{outline:2px solid #0a5fbf;outline-offset:0;border-color:transparent}.ds-rlabel{margin:12px 0 0;padding:6px 16px;font:700 11px 'JetBrains Mono',ui-monospace,monospace;letter-spacing:.09em;text-transform:uppercase;color:#555b6a}.ds-rpack{display:grid;gap:1px;padding:8px 16px;color:#16181d;text-decoration:none}.ds-rpack:hover,.ds-rpack[aria-current=page]{background:#eff1f4}.ds-rpack[aria-current=page] .ds-rtitle{color:#0a5fbf;font-weight:700}.ds-rpack:focus-visible{outline:2px solid #0a5fbf;outline-offset:-2px}.ds-rtitle{font:600 13px 'JetBrains Mono',ui-monospace,monospace}.ds-rmeta{font:12px 'JetBrains Mono',ui-monospace,monospace;color:#666c7a}"
+    },
+    {
+      "name": "Key Rail Entry",
+      "kind": "custom",
+      "refersTo": "registry-entry-key",
+      "description": "Pack registry site: one line per entry, the notes' key in a hairline column, a disclosure title and a quiet verdict; opens to the source set as the app's editor.",
+      "html": "<ol class=\"ds-entries\"><li class=\"ds-entry\"><a class=\"ds-key\" href=\"#\">Theorem 2.9</a><details class=\"ds-src\" open><summary><svg class=\"ds-chev\" viewBox=\"0 0 16 16\" aria-hidden=\"true\"><path d=\"M6 4l4 4-4 4\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.6\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/></svg><span class=\"ds-etitle\">Limits are unique</span><span class=\"ds-verdict\">checks</span></summary><pre tabindex=\"0\"><code><span class=\"ds-line\"><span class=\"ds-kw\">Let</span> x, L1, L2 : Real</span><span class=\"ds-line\"><span class=\"ds-kw\">Assume</span> h1: |f(x) - L1| &lt; e</span><span class=\"ds-line\"><span class=\"ds-kw\">Step</span>: |L1 - L2| &lt; 2 * e</span></code></pre></details></li><li class=\"ds-entry ds-trap\"><a class=\"ds-key\" href=\"#\">Example 2.11</a><details class=\"ds-src\"><summary><svg class=\"ds-chev\" viewBox=\"0 0 16 16\" aria-hidden=\"true\"><path d=\"M6 4l4 4-4 4\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.6\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/></svg><span class=\"ds-etitle\">Dividing the limits wrongly</span><span class=\"ds-verdict\">trap · fails, as it should</span></summary></details></li></ol>",
+      "css": ".ds-entries{margin:0;padding:0;list-style:none;counter-reset:none}.ds-entry{display:grid;grid-template-columns:10rem minmax(0,1fr);border-bottom:1px solid color-mix(in oklab,#16181d 8%,#fff)}.ds-key{padding:10px 16px 10px 0;border-right:1px solid color-mix(in oklab,#16181d 8%,#fff);font:600 13px 'JetBrains Mono',ui-monospace,monospace;font-variant-numeric:tabular-nums;color:#555b6a;text-decoration:none}.ds-key:hover,.ds-entry:target .ds-key{color:#0a5fbf}.ds-entry:target{background:rgba(10,95,191,.08)}.ds-key:focus-visible,.ds-src summary:focus-visible{outline:2px solid #0a5fbf;outline-offset:2px}.ds-src{padding-left:12px;min-width:0}.ds-src summary{display:flex;align-items:baseline;gap:8px;padding:10px 0;cursor:pointer;list-style:none}.ds-src summary::-webkit-details-marker{display:none}.ds-src summary:hover .ds-etitle{color:#0a5fbf}.ds-chev{flex:none;width:12px;height:12px;align-self:center;color:#666c7a;transition:transform .15s ease}.ds-src[open] .ds-chev{transform:rotate(90deg)}.ds-etitle{flex:1;font:600 15px 'JetBrains Mono',ui-monospace,monospace;letter-spacing:-.01em;color:#16181d}.ds-verdict{font:12px 'JetBrains Mono',ui-monospace,monospace;color:#666c7a;white-space:nowrap}.ds-trap .ds-verdict{color:#555b6a;font-weight:700}.ds-src pre{margin:0 0 12px 20px;padding:10px 14px 10px 0;overflow-x:auto;background:#f7f8f9;border:1px solid #dde1e6;border-radius:2px;font:13px/1.6 'JetBrains Mono',ui-monospace,monospace;font-variant-ligatures:none;counter-reset:line}.ds-src code{display:grid}.ds-line{white-space:pre}.ds-line::before{counter-increment:line;content:counter(line);display:inline-block;width:2.75em;margin-right:12px;padding-right:8px;text-align:right;color:#666c7a;border-right:1px solid color-mix(in oklab,#16181d 8%,#fff);user-select:none}.ds-kw{color:#0a5fbf}"
+    },
+    {
+      "name": "Registry Pack Head",
+      "kind": "custom",
+      "refersTo": "registry-button-primary",
+      "description": "Pack registry site: course code inline in Proof Blue, mono meta, summary, the Verified line (the only green), and the two actions.",
+      "html": "<header class=\"ds-phead\"><h1><span class=\"ds-code\">MTH2008</span>Real Analysis</h1><p class=\"ds-pmeta\"><span>v1.0.0</span> <span>Samuel Okwuonu</span> <span>CC BY-SA 4.0</span> <span>core/mth2008</span></p><p class=\"ds-psum\">Results from the MTH2008 lecture notes, restated and proved in the checker's notation.</p><p class=\"ds-pver\"><b>Verified</b> every entry gives its recorded verdict under engine 0.1.0, checked 3 October 2026.</p><div class=\"ds-pact\"><a class=\"ds-rbtn ds-rbtn--primary\" href=\"#\">Open in Lemmata</a><a class=\"ds-rbtn ds-rbtn--outline\" href=\"#\">Download .pack.json</a></div></header>",
+      "css": ".ds-phead h1{margin:0;font:600 clamp(1.75rem,3vw,2.25rem)/1.15 'JetBrains Mono',ui-monospace,monospace;letter-spacing:-.02em;color:#16181d}.ds-code{margin-right:.5em;color:#0a5fbf}.ds-pmeta{margin:8px 0 0;font:12px 'JetBrains Mono',ui-monospace,monospace;color:#666c7a}.ds-pmeta span{white-space:nowrap}.ds-pmeta span:not(:last-child)::after{content:' ·'}.ds-psum{margin:10px 0 0;max-width:64ch;font:15px/1.6 -apple-system,'Segoe UI',Roboto,sans-serif;color:#555b6a}.ds-pver{margin:14px 0 0;font:12px 'JetBrains Mono',ui-monospace,monospace;color:#555b6a}.ds-pver b{color:#157333}.ds-pact{display:flex;flex-wrap:wrap;gap:10px;margin-top:20px}.ds-rbtn{display:inline-flex;align-items:center;min-height:34px;padding:0 14px;border:1px solid transparent;border-radius:2px;font:600 13px 'JetBrains Mono',ui-monospace,monospace;text-decoration:none;white-space:nowrap}.ds-rbtn--primary{background:#0a5fbf;color:#fff}.ds-rbtn--primary:hover{background:color-mix(in oklab,#0a5fbf 86%,#16181d)}.ds-rbtn--outline{border-color:#8a909c;color:#16181d}.ds-rbtn--outline:hover{background:#eff1f4}.ds-rbtn:focus-visible{outline:2px solid #0a5fbf;outline-offset:2px}"
     }
   ],
   "narrative": {
@@ -528,6 +607,11 @@
         "name": "The Red Once Rule",
         "body": "On a page that demonstrates the checker, Error Red appears at one failing step only: its rail, its status word, its counterexample, its tick on the scrub and its readout. A second example teaches with Caveat Amber (an unresolved domain obligation), never a second failure.",
         "section": "colors"
+      },
+      {
+        "name": "The Lit Key Rule",
+        "body": "An entry's key (Theorem 2.9, Example 2.18) is quiet ink at rest and takes Proof Blue only while something lights it: a search that matches it, the URL targeting it, or the pointer over it. A whole column of blue keys would make the accent a standing state.",
+        "section": "colors"
       }
     ],
     "dos": [
@@ -539,7 +623,8 @@
       "Do keep corners at 2px and status rails at 2px.",
       "Do use the segmented control for a choice among a few options, and the native text and icon buttons for actions.",
       "Do give every form control the one Control Border, and give a flag the accent only when it is news.",
-      "Do set the public site's display specimen in JetBrains Mono, wrapping only between clauses, and let red appear once per demonstration, at its failing step."
+      "Do set the public site's display specimen in JetBrains Mono, wrapping only between clauses, and let red appear once per demonstration, at its failing step.",
+      "Do keep the registry's entry keys in quiet ink until a search, the URL or the pointer lights them, and set every proof it shows as the app's editor sets it in the mono scheme."
     ],
     "donts": [
       "Don't use green anywhere but a verdict.",

@@ -107,6 +107,27 @@ typography:
     fontSize: "17px"
     fontWeight: 400
     lineHeight: 1.6
+  registry-page-title:
+    fontFamily: "JetBrains Mono, ui-monospace, SFMono-Regular, Menlo, Consolas, monospace"
+    fontSize: "clamp(1.75rem, 3vw, 2.25rem)"
+    fontWeight: 600
+    lineHeight: 1.15
+    letterSpacing: "-0.02em"
+  registry-chapter:
+    fontFamily: "JetBrains Mono, ui-monospace, SFMono-Regular, Menlo, Consolas, monospace"
+    fontSize: "1.25rem"
+    fontWeight: 600
+    letterSpacing: "-0.02em"
+  registry-entry-title:
+    fontFamily: "JetBrains Mono, ui-monospace, SFMono-Regular, Menlo, Consolas, monospace"
+    fontSize: "15px"
+    fontWeight: 600
+    letterSpacing: "-0.01em"
+  registry-body:
+    fontFamily: "-apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Helvetica, Arial, sans-serif"
+    fontSize: "15px"
+    fontWeight: 400
+    lineHeight: 1.6
 rounded:
   sm: "2px"
   md: "2px"
@@ -118,6 +139,10 @@ spacing:
   page-y: "28px"
   site-page: "1200px"
   site-gutter: "clamp(16px, 4vw, 32px)"
+  registry-rail: "288px"
+  registry-main: "980px"
+  registry-main-x: "clamp(20px, 4vw, 56px)"
+  registry-key: "10rem"
 components:
   verdict-valid:
     textColor: "{colors.verified-green}"
@@ -280,11 +305,62 @@ components:
   doc-column:
     backgroundColor: "{colors.paper}"
     width: "760px"
+  registry-top-bar:
+    backgroundColor: "{colors.paper-raised}"
+    textColor: "{colors.ink-quiet}"
+    height: "56px"
+    padding: "0 20px"
+  registry-rail:
+    backgroundColor: "{colors.paper-raised}"
+    textColor: "{colors.ink}"
+    width: "288px"
+  registry-rail-pack:
+    textColor: "{colors.ink}"
+    padding: "8px 16px"
+  registry-rail-pack-current:
+    backgroundColor: "{colors.paper-lowered}"
+    textColor: "{colors.proof-blue}"
+    padding: "8px 16px"
+  registry-search:
+    backgroundColor: "{colors.paper}"
+    textColor: "{colors.ink}"
+    rounded: "{rounded.sm}"
+    padding: "0 10px"
+    height: "34px"
+  registry-button-primary:
+    backgroundColor: "{colors.proof-blue}"
+    textColor: "{colors.paper}"
+    rounded: "{rounded.sm}"
+    padding: "0 14px"
+    height: "34px"
+  registry-button-outline:
+    textColor: "{colors.ink}"
+    rounded: "{rounded.sm}"
+    padding: "0 14px"
+    height: "34px"
+  registry-entry-key:
+    textColor: "{colors.ink-quiet}"
+    padding: "10px 16px 10px 0"
+    width: "10rem"
+  registry-entry-key-lit:
+    textColor: "{colors.proof-blue}"
+    padding: "10px 16px 10px 0"
+    width: "10rem"
+  registry-entry-title:
+    textColor: "{colors.ink}"
+    typography: "{typography.registry-entry-title}"
+  registry-source:
+    backgroundColor: "{colors.paper-raised}"
+    textColor: "{colors.ink}"
+    typography: "{typography.statement}"
+    rounded: "{rounded.sm}"
+    padding: "10px 14px 10px 0"
 ---
 
 <!-- Recorded from the shipped build at commit cdd8ca2 (ui/static/styles.css, index.html, js/). Verification at that commit: axe-core reports zero violations on every view, in both themes and at phone width; the impeccable finish review returned "pass with fixes", and all fixes are applied in cdd8ca2. -->
 <!-- Pack-manager refinement recorded from the shipped build (606f4ed, fa70b9c) (styles.css, js/library.js, js/pack-author.js, js/explorer.js, index.html #pack-dialog): Library pack rail and pack head, the pack dialog, the control boundary and secondary-button tokens, toast rules, the explorer's pack folder. -->
 <!-- Public site recorded from the shipped build in web/ (assets/site.css, assets/site.js, index.html, partials/, download/, privacy/, terms/, cookies/; screenshots in .impeccable/review/), after the impeccable finish review returned "ship" following one fix batch. An extension of this world, not a new one: every site colour is one of the app's tokens with the same light/dark pairs. Site entries are marked "Public site" below; the app's sections are unchanged. Also recorded: the JetBrains Mono math subset (ui/vendor_fonts.py, ui/static/fonts.css). -->
+<!-- Pack registry site recorded from the shipped build in the sibling repo lemmata-packs (tools/pages.py, web/shell.html, web/publish.html, web/assets/site.css, web/assets/site.js, web/assets/fonts/; screenshots in .impeccable/review/packs/), after the impeccable finish review returned "ship" following two fix rounds. Direction: .impeccable/surfaces/registry-index-html.md ("The Library, Online"), with one accepted amendment: entry keys are quiet ink at rest and take Proof Blue only when lit. An extension of this world: every colour is one of the app's tokens with the same light/dark pairs, and the fonts are the app's own subsets. Registry entries are marked "Pack registry site" below; nothing above them changed. -->
 
 # Design System: Lemmata
 
@@ -332,6 +408,9 @@ A restrained ink-and-paper system with one blue accent and three status hues use
 ### Public site
 The site uses the app's palette, light and dark pairs alike, under its own short names (`--accent`, `--invalid`, `--caveat`, …). Three values it names are the app's own, mirrored rather than invented: Caveat Amber's quiet fill (amber at 10%, 13% at night) behind a domain-obligation callout; the modal scrim (ink at 42%, black at 62% at night) behind the open phone menu; and **Proof Blue Fill** (proof-blue by day; night-proof-blue-fill, the app's Web Awesome loud brand fill, at night), the ground of a filled primary button with paper text, because the light night accent cannot carry white text. Green is defined but appears nowhere on the site: no proof there is a whole verdict.
 
+### Pack registry site
+The registry (the packs catalogue, a page per pack, the publishing guide) uses the same tokens under the public site's short names, with Proof Blue Fill for its filled buttons. Proof Blue carries the course code in a pack's title, links, the current pack's title in the rail, a lit entry key, and the skeleton keywords of an opened proof; a targeted entry row also takes the quiet blue fill (blue at 8%, 10% at night). Verified Green appears once per page as one word: "Verified" on a pack's verification line, "verified" in the catalogue's figures line, a verdict on the whole pack or the whole registry. There is no red anywhere: a trap is a description, set in bold quiet ink, and nothing on the registry has failed.
+
 ### Named Rules
 **The Green Is Rare Rule.** Green marks a verdict on a whole proof (the status bar, a history bar, an exercise answer, a Library copy that checks, a pack export whose every entry was just checked, a Guide example's expected result) and nowhere else; a passing step's status is set in dim ink. Scarcity is what makes red legible.
 
@@ -340,6 +419,8 @@ The site uses the app's palette, light and dark pairs alike, under its own short
 **The Two Schemes Rule.** Syntax colour has two schemes over one token vocabulary: "mono" (default; keywords take Proof Blue, everything else is ink or recedes into Ink Quiet and Ink Dim) and "vivid" (one hue per category, picked separately for light and dark; comments and glue words stay dim in both). Nothing branches on the scheme except the palette values.
 
 **The Red Once Rule (public site).** On a page that demonstrates the checker, Error Red appears at one failing step only: its rail, its status word, its counterexample, its tick on the scrub and its readout. A second example teaches with Caveat Amber (an unresolved domain obligation), never a second failure.
+
+**The Lit Key Rule (pack registry site).** An entry's key (Theorem 2.9, Example 2.18) is quiet ink at rest and takes Proof Blue only while something lights it: a search that matches it, the URL targeting it, or the pointer over it. A whole column of blue keys would make the accent a standing state.
 
 ## Typography
 
@@ -372,6 +453,14 @@ The site sets the same two families at the scale of a page. Headings are mono 60
 - **Site Body** (sans 16px, 1.6) and **Site Lede** (sans 17px, 1.6, Ink Quiet, about 62ch); reading pages set paragraphs at 16px/1.7 to 68ch.
 - Chrome keeps the app's sizes: 11px uppercase tracked labels (scrub label, table heads, footer column heads), 12–13px mono for nav links, buttons, readouts and captions. Literal code turns ligatures off, as the editor does.
 
+### Pack registry site
+The registry is a reading surface a step quieter than the landing site: sans body at 15px/1.6, ledes and summaries in Ink Quiet held to 64ch (the lede at 16px, a brief's summary at 14px), trap explanations at 14px to 68ch.
+- **Registry Page Title** (600, clamp(1.75rem, 3vw, 2.25rem), 1.15, −0.02em): "Packs", a pack's title (its course code inline before it in Proof Blue), the guide's title; a pack brief on the catalogue sets the same head at 1.25rem.
+- **Registry Chapter** (600, 1.25rem): a chapter's number in Ink Dim, its title in ink, its entry count at 12px 400 dim on the right; the guide's numbered steps ("1. Make it in the app") use the same mono 600 at 1.2rem.
+- **Registry Entry Title** (600, 15px, −0.01em, mono): one entry's title; the key beside it is 13px mono 600 with tabular figures, the verdict 12px mono.
+- **Rail**: 11px uppercase tracked group labels (course codes, Topics), pack titles in 13px mono 600, counts in 12px dim mono; the meta line under a pack title is 12px dim mono.
+- Opened source is 13px mono at 1.6 with tab size 4 and ligatures off.
+
 ### Named Rules
 **The Formal-Mono Rule.** Anything the engine checks, and every piece of chrome, is set in the monospace; only sentences use the sans. No italics: the subsets ship none, and a synthesised slant on a mono face reads as a rendering fault.
 
@@ -391,6 +480,10 @@ Library, Guide and Settings are pages: a centred column (1080px max; 720px for n
 
 **Public site.** A centred page of 1200px between fluid gutters (clamp(16px, 4vw, 32px)) under a 60px sticky nav whose hairline underline is inset to the gutters. Sections open with clamp(72px, 10vw, 128px) of space and a head held to 62ch. The hero puts the specimen across the full measure, closed by a Rule line and a dim mono caption, then an 8:4 grid: the scrub and audit on the left, the pitch (headline, lede, actions) on the right, sticky beside the audit. Further down: a two-column 7:5 grid (a second audit beside a hairline list of facts), the app screenshot (a phone capture at narrow widths), and the reading pages as a 760px column. Below 1080px the hero and reasons grids collapse to one column with the pitch first, the glyph grid goes from 6 to 3 columns, the ways list from 4 to 2, and the footer from 2:1:1:1 to three columns under the brand. Below 720px the nav links fold into a menu, the points and ways lists stack, audit rows drop the status to its own line, the pack table hides its chapter column, the close stacks, and the footer is two columns.
 
+**Pack registry site.** A 56px sticky top bar over a two-column layout: a 288px rail and a main column (980px max, clamp(20px, 4vw, 56px) side padding, 40px above). The rail is sticky at full viewport height and scrolls on its own; its Paper Raised surface and 1px Rule edge are painted by the layout's own background gradient, so they run the page's whole height however long the main column is. In the rail: search, then the packs grouped by their first course code (MTH2008, MTH2010), then Topics, with "Publish a pack" pinned to the foot above a Rule line. Main: a page head closed by a Rule line, then content. Entries hang off a 10rem key column divided by a hairline; each entry is one line. Below 860px the rail folds to the search and a "Browse packs" disclosure (the packs open beneath as an auto-fill grid, minimum 200px) and the top bar keeps only the brand, theme and Open Lemmata. Below 560px the key column stacks above the title and the verdict moves up onto the key's line, so an entry is two lines; below 360px the verdict returns under the title. The publishing guide's rules list goes from two columns to one.
+
+**Pack registry site motion.** The opened entry's chevron turns 90° (0.15s ease); nothing else moves, and reduced motion removes that too.
+
 **Public site motion.** The site's one choreography is the scrub: it plays once to the failing step (520ms per step, 900ms onto the failure) the first time the audit is a third on screen, and stops there; under reduced motion it starts on the failure and nothing transitions. Otherwise only state changes ease (colour and background, 0.15–0.4s, cubic-bezier(0.16, 1, 0.3, 1)).
 
 ## Elevation & Depth
@@ -403,6 +496,8 @@ Flat by default. Depth is tonal: paper, raised and lowered surfaces, separated b
 **The Border, Not Shadow Rule.** Anything that floats is told apart by its surface and a 1px border, plus a scrim when it is modal. Never a drop shadow.
 
 On the public site the same holds: the storage notice floats on Paper Raised with a 1px Rule border, and the open phone menu is a paper panel with a Rule underline over the modal scrim. The scrim is drawn as a 100vmax spread clipped to below the panel; it is the scrim, not a shadow.
+
+The pack registry site is flat too: the top bar and rail are Paper Raised with a 1px Rule edge, and an opened proof sits on Paper Raised inside a 1px Rule border, as the app's editor does. That frame is the editor, a read-only field, not a card.
 
 ## Shapes
 
@@ -484,6 +579,19 @@ The public site (`web/`) is the same world at the scale of a page. It shares the
 - **Reading Pages (Download, Privacy, Terms, Cookies).** A 760px column: Site Page Title, a lede, a dim mono date line, then mono 600 section heads with 56px above, sans paragraphs at 16px/1.7, and hairline tables with 12px uppercase mono heads.
 - **Footer.** A brand column (icon, name, one quiet sentence) and three link columns under 11px uppercase heads, then a dim 12px mono meta line (engine version, licences, the Lean notice) above a Rule line.
 
+### Pack Registry Site
+The registry (repo lemmata-packs, rendered by tools/pages.py) is the app's Library opened to the public. It shares the theme storage key and the app's font files, resolved before first paint.
+
+- **Top Bar.** 56px on Paper Raised with a Rule underline: the icon and "Lemmata" in mono 700 at 15px with "packs" in 400 Ink Quiet; 13px mono links in Ink Quiet (Browse, Publish a pack, GitHub, About Lemmata), ink on hover and for the current page (Browse on the catalogue); the 32px theme toggle; Open Lemmata as the primary button.
+- **Pack Rail (signature).** Groups under 11px uppercase labels; each pack is its title in 13px mono 600 over its counts in 12px dim mono, 8px × 16px, Paper Lowered on hover. The current pack takes the Paper Lowered fill and a bold Proof Blue title, never a left rule. The search field above draws the Control Border on paper (34px, 13px mono, dim placeholder) and focus replaces the border with the Proof Blue outline. "No pack matches." replaces the list when the search empties it.
+- **Pack Head.** The course code in Proof Blue inline before the title in Registry Page Title type; a 12px dim mono meta line (version · authors · licence · the pack's name as code) whose separators attach to the item before them, so a wrapped line never starts with one; the summary in Ink Quiet; the verification line in 12px quiet mono where the bold green "Verified" is the only green; then Open in Lemmata (primary) and Download .pack.json (outline). On the catalogue each pack is a brief: the same head at 1.25rem with its title linked, counts and chapters beneath, briefs divided by Rule lines.
+- **Registry Buttons.** Mono 600 at 13px, 34px tall, 14px padding, 2px corners. **Primary** is Proof Blue Fill with paper text, darkened 14% toward ink on hover; **Outline** draws the Control Border around ink, Paper Lowered on hover. Text links ("How to publish", "Publish a pack") are 13px mono 600 in Proof Blue, underlined.
+- **Key Rail Entry (signature).** A chapter is a mono 600 title over a Rule line with its count on the right; its entries are a list divided by hairlines. Each entry is one line: the key in a 10rem column with a hairline on its right (13px mono 600, Ink Quiet, tabular; Proof Blue when lit, per the Lit Key Rule), then a `<details>` summary holding a 12px chevron (inline SVG, Ink Dim, turns 90° open), the title, and the verdict right-aligned in 12px dim mono ("checks"). A trap's verdict reads "trap · fails, as it should" in bold Ink Quiet, and its explanation follows as one sans line beneath the title. A targeted entry takes the quiet blue fill across the row.
+- **Registry Source.** An opened proof is set as the app's editor in the mono scheme: Paper Raised inside a 1px Rule border at 2px, numbered lines (CSS counters) right-aligned in Ink Dim in a 2.75em gutter closed by a hairline and unselectable, skeleton keywords and ∀ ∃ in Proof Blue, glue words (such that, from, where, by) in Ink Dim, everything else ink. The block is focusable and scrolls sideways rather than wrapping.
+- **Search.** One field narrows the rail, the catalogue's briefs and a pack's entries together; on a pack page a 12px quiet mono note reports the filter, and on the catalogue a "Matching entries" list appears above the packs: each match a 13px mono 600 link to its entry with its pack in 12px dim mono, title in sans, on a 11rem column divided by hairlines.
+- **Publishing Guide.** A 72ch column: numbered mono 600 step heads, ordered steps in quiet sans with ink bold for the UI's own words and literal names in mono, and a 2×2 rules list (mono 600 term, quiet sans sentence) divided only by Rule lines, one column on phones.
+- **Footer.** One 13px dim sans sentence (licence, how the registry is checked, the engine version) with its links, above a Rule line.
+
 ## Do's and Don'ts
 
 ### Do:
@@ -496,6 +604,7 @@ The public site (`web/`) is the same world at the scale of a page. It shares the
 - **Do** use the segmented control for a choice among a few options, and the native text and icon buttons for actions.
 - **Do** give every form control the one Control Border, and give a flag the accent only when it is news.
 - **Do** set the public site's display specimen in JetBrains Mono, wrapping only between clauses, and let red appear once per demonstration, at its failing step.
+- **Do** keep the registry's entry keys in quiet ink until a search, the URL or the pointer lights them, and set every proof it shows as the app's editor sets it in the mono scheme.
 
 ### Don't:
 - **Don't** use green anywhere but a verdict.
