@@ -106,7 +106,7 @@ def main() -> int:
         }
     generated = BUILD / "tauri.generated.json"
     BUILD.mkdir(exist_ok=True)
-    generated.write_text(json.dumps(config, indent=2) + "\n")
+    generated.write_text(json.dumps(config, indent=2) + "\n", encoding="utf-8")
     print(f"desktop app: {NAME} {VERSION} ({args.identifier}), site from {SITE_FILE}")
 
     if not (DESKTOP / "node_modules" / ".bin").is_dir():

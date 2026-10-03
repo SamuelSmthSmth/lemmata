@@ -109,21 +109,21 @@ def main(argv: list[str]) -> int:
 
     data = out / "static" / "data"
     data.mkdir()
-    (data / "library.json").write_text(json.dumps(library(), ensure_ascii=False))
-    (data / "capabilities.json").write_text(json.dumps(capabilities(), ensure_ascii=False))
-    (data / "site.json").write_text(json.dumps({**SITE, "version": VERSION}, ensure_ascii=False))
+    (data / "library.json").write_text(json.dumps(library(), ensure_ascii=False), encoding="utf-8")
+    (data / "capabilities.json").write_text(json.dumps(capabilities(), ensure_ascii=False), encoding="utf-8")
+    (data / "site.json").write_text(json.dumps({**SITE, "version": VERSION}, ensure_ascii=False), encoding="utf-8")
 
     (out / "static" / "engine").mkdir()
     files = engine_zip(out / "static" / "engine" / "engine.zip")
     # The wheel list changes when the vendored set does, so it lives beside the
     # engine (revalidated) rather than under vendor/ (cached as immutable).
     wheels = sorted(p.name for p in (vendor / "wheels").glob("*.whl"))
-    (out / "static" / "engine" / "wheels.json").write_text(json.dumps(wheels) + "\n")
+    (out / "static" / "engine" / "wheels.json").write_text(json.dumps(wheels) + "\n", encoding="utf-8")
     from importlib.metadata import version as installed
 
     pins = [f"{name}=={installed(name)}" for name in ENGINE_REQUIREMENTS]
-    (out / "static" / "engine" / "requirements.txt").write_text("\n".join(pins) + "\n")
-    (out / "static" / "engine" / "version.json").write_text(json.dumps({"engine": VERSION, "requirements": pins}) + "\n")
+    (out / "static" / "engine" / "requirements.txt").write_text("\n".join(pins) + "\n", encoding="utf-8")
+    (out / "static" / "engine" / "version.json").write_text(json.dumps({"engine": VERSION, "requirements": pins}) + "\n", encoding="utf-8")
 
     html = (UI / "static" / "index.html").read_text(encoding="utf-8")
     html = re.sub(r"<title>.*?</title>", f"<title>{escape(NAME)} · {escape(TAGLINE)}</title>", html, count=1)
@@ -133,7 +133,7 @@ def main(argv: list[str]) -> int:
         print("index.html has no viewport meta to place the engine marker beside")
         return 1
     (out / "index.html").write_text(html, encoding="utf-8")
-    (out / "vercel.json").write_text(json.dumps(VERCEL, indent=2) + "\n")
+    (out / "vercel.json").write_text(json.dumps(VERCEL, indent=2) + "\n", encoding="utf-8")
     if link is not None:
         shutil.move(link, out / ".vercel")
 

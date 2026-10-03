@@ -16,6 +16,11 @@ on:
     paths: ["desktop/**", "ui/**", "src/**", "courses/**", ".github/workflows/desktop.yml"]
   workflow_dispatch:
 
+# Python reads and writes UTF-8 everywhere, Windows included (the packs and
+# pages are full of ∀, −, ε).
+env:
+  PYTHONUTF8: "1"
+
 jobs:
   check:
     name: Desktop app, driven over WebDriver (Linux)

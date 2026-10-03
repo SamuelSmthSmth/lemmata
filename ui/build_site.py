@@ -195,7 +195,7 @@ def main(argv: list[str]) -> int:
         return status
     (out / "app" / "vercel.json").unlink(missing_ok=True)
     written = render(out, computed_content())
-    (out / "vercel.json").write_text(json.dumps(VERCEL, indent=2) + "\n")
+    (out / "vercel.json").write_text(json.dumps(VERCEL, indent=2) + "\n", encoding="utf-8")
     if link is not None:
         shutil.move(link, out / ".vercel")
     print(f"built the site: {len(written)} pages ({', '.join(written)}) with the app at app/")
