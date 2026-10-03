@@ -19,8 +19,9 @@ import multiprocessing
 import os
 import queue
 import threading
-import time
-from typing import Any, Mapping, Optional
+from typing import Any, Optional
+
+from .engine_jobs import check_payload  # noqa: F401 - re-exported for callers and tests
 
 DEFAULT_BUDGET_S = float(os.environ.get("AETHER_CHECK_BUDGET", "20"))
 DEFAULT_WORKERS = max(1, int(os.environ.get("AETHER_CHECK_WORKERS", "2")))
@@ -39,142 +40,14 @@ class WorkerCrashed(Exception):
 
 
 # ---------------------------------------------------------------------------
-# What a worker does (importable on its own, so tests can run it in-process)
+# What a worker does: the jobs themselves live in engine_jobs.py
 # ---------------------------------------------------------------------------
-
-
-def _source_line(lines: list[str], line: Optional[int]) -> Optional[str]:
-    if line is None or not (1 <= line <= len(lines)):
-        return None
-    return lines[line - 1]
-
-
-def _report_verdict(report) -> str:
-    if not report.is_valid:
-        return "INVALID"
-    if report.has_warnings:
-        return "VALID (with domain warnings)"
-    return "VALID"
-
-
-def _step(result, lines: list[str]) -> dict[str, Any]:
-    return {
-        "line": result.line,
-        "col": getattr(result, "col", None),
-        "statement": str(result.statement),
-        "source_line": _source_line(lines, result.line),
-        "status": result.status.value,
-        "message": result.message,
-        "backend": result.backend,
-        "scope_depth": result.scope_depth,
-        "active_variables": dict(result.active_variables),
-        "active_hypotheses": list(result.active_hypotheses),
-        "domain_warnings": list(result.domain_warnings),
-        "counterexample": result.counterexample,
-        "counterexample_dict": getattr(result, "counterexample_dict", None),
-        "diagnostic_range": getattr(result, "diagnostic_range", None),
-        "subproof_metadata": getattr(result, "subproof_metadata", None),
-    }
-
-
-def _empty_summary(invalid: int = 0) -> dict[str, int]:
-    return {"total": 0, "valid": 0, "warnings": 0, "invalid": invalid}
-
-
-def check_payload(
-    source: str,
-    strict_domains: bool,
-    files: Optional[Mapping[str, str]] = None,
-    checker=None,
-    path: Optional[str] = None,
-) -> dict[str, Any]:
-    """Check *source* and shape the result as the ``/api/check`` response body."""
-    from aether import ParseError, ProofChecker
-
-    started = time.perf_counter()
-    lines = source.splitlines()
-    if checker is None:
-        checker = ProofChecker(strict_domains=strict_domains)
-
-    def elapsed() -> float:
-        return (time.perf_counter() - started) * 1000.0
-
-    try:
-        if files:
-            # The workspace: imports resolve against these files, relative to `path`.
-            reports = checker.check_source(source, file_path=path, sources=dict(files))
-        else:
-            reports = checker.check_source(source)
-    except ParseError as err:
-        headline = str(err.message).splitlines()[0] if err.message else str(err)
-        return {
-            "verdict": "PARSE ERROR",
-            "reports": [],
-            "parse_error": {"message": str(err.message), "headline": headline, "line": err.line, "col": err.col},
-            "summary": _empty_summary(),
-            "strict_domains": strict_domains,
-            "duration_ms": elapsed(),
-        }
-    except Exception as exc:  # noqa: BLE001 - an engine bug must not take the API down
-        return {
-            "verdict": "INVALID",
-            "reports": [],
-            "parse_error": {
-                "message": str(exc),
-                "headline": f"Engine error: {type(exc).__name__}",
-                "line": None,
-                "col": None,
-            },
-            "summary": _empty_summary(invalid=1),
-            "strict_domains": strict_domains,
-            "duration_ms": elapsed(),
-        }
-
-    report_models = []
-    counts = {"VALID": 0, "WARNING": 0, "INVALID": 0}
-    for report in reports:
-        steps = [_step(result, lines) for result in report.results]
-        for step in steps:
-            counts[step["status"]] += 1
-        report_models.append(
-            {
-                "theorem_name": report.theorem_name,
-                "is_valid": report.is_valid,
-                "has_warnings": report.has_warnings,
-                "verdict": _report_verdict(report),
-                "results": steps,
-            }
-        )
-
-    if any(not r.is_valid for r in reports):
-        verdict = "INVALID"
-    elif any(r.has_warnings for r in reports):
-        verdict = "VALID (with domain warnings)"
-    else:
-        verdict = "VALID"
-    return {
-        "verdict": verdict,
-        "reports": report_models,
-        "parse_error": None,
-        "summary": {
-            "total": sum(counts.values()),
-            "valid": counts["VALID"],
-            "warnings": counts["WARNING"],
-            "invalid": counts["INVALID"],
-        },
-        "strict_domains": strict_domains,
-        "duration_ms": elapsed(),
-    }
-
 
 def _worker_main(conn) -> None:
     """Serve jobs over *conn* until it closes."""
-    from aether import ProofChecker
+    from .engine_jobs import Engine, error_text
 
-    from .latex_report import export_report_latex
-
-    # One warm checker per mode; building the parser is the expensive part.
-    checkers = {False: ProofChecker(strict_domains=False), True: ProofChecker(strict_domains=True)}
+    engine = Engine()
     conn.send(("ready", None))
     while True:
         try:
@@ -182,26 +55,9 @@ def _worker_main(conn) -> None:
         except (EOFError, OSError):
             return
         try:
-            if kind == "check":
-                strict = bool(payload["strict_domains"])
-                result = check_payload(
-                    payload["source"],
-                    strict,
-                    payload.get("files"),
-                    checker=checkers[strict],
-                    path=payload.get("path"),
-                )
-                checkers[strict].clear_cache()
-            elif kind == "latex":
-                result = export_report_latex(payload.pop("source"), **payload)
-            else:
-                raise ValueError(f"unknown job kind {kind!r}")
-            conn.send(("ok", result))
+            conn.send(("ok", engine.run(kind, payload)))
         except Exception as exc:  # noqa: BLE001 - reported to the caller as the job's failure
-            # A parse error's own message is what the UI shows; anything else
-            # keeps its type so an engine bug is recognisable as one.
-            message = getattr(exc, "message", None) if type(exc).__name__ == "ParseError" else None
-            conn.send(("error", str(message) if message else f"{type(exc).__name__}: {exc}"))
+            conn.send(("error", error_text(exc)))
 
 
 # ---------------------------------------------------------------------------

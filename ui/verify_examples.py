@@ -98,7 +98,9 @@ def main() -> int:
 
     # The standalone proofs in examples/ are listed in the Library with the
     # verdict ui/app.py records for them; hold them to it.
-    from ui.app import EXAMPLE_FILES_DIR, EXAMPLE_FILE_VERDICTS
+    from ui.examples import EXAMPLE_FILE_VERDICTS
+
+    EXAMPLE_FILES_DIR = Path(__file__).resolve().parent.parent / "examples"
 
     word = {"VALID": "VALID", "WARN": "VALID (with domain warnings)", "INVALID": "INVALID"}
     files = sorted(EXAMPLE_FILES_DIR.glob("*.aether"))

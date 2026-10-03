@@ -340,3 +340,14 @@ EXAMPLES: list[Example] = [
 
 
 EXAMPLES_BY_ID: dict[str, Example] = {ex["id"]: ex for ex in EXAMPLES}
+
+
+# The verdict each standalone proof in examples/ gives, where it is not VALID.
+# ui/app.py lists them in the Library with these verdicts, and
+# ui/verify_examples.py checks every file against this.
+EXAMPLE_FILE_VERDICTS: dict[str, str] = {
+    # The witnesses' `1 + (-1)^m / m` needs m != 0, which `m >= 1` beside it in
+    # the same existential guarantees -- but a guard inside a quantifier is not
+    # yet seen as discharging the obligation, so the theorem holds with a warning.
+    "sequence_bounds.aether": "WARN",
+}

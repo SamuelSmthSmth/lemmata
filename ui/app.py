@@ -37,7 +37,7 @@ from pydantic import BaseModel, Field
 from aether.packs import PACK_FORMAT, load_packs, validate_pack
 
 from .checking import CheckTimeout, WorkerCrashed, pool
-from .examples import EXAMPLES
+from .examples import EXAMPLE_FILE_VERDICTS, EXAMPLES
 from .site import NAME, SITE, TAGLINE, VERSION
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
@@ -226,16 +226,6 @@ class LibraryPackModel(BaseModel):
     depends: dict[str, str]
     chapters: list[LibraryChapterModel]
     entries: list[LibraryEntryModel]
-
-
-# The verdict each standalone proof in examples/ gives, where it is not VALID.
-# ui/verify_examples.py checks every file against this.
-EXAMPLE_FILE_VERDICTS: dict[str, str] = {
-    # The witnesses' `1 + (-1)^m / m` needs m != 0, which `m >= 1` beside it in
-    # the same existential guarantees -- but a guard inside a quantifier is not
-    # yet seen as discharging the obligation, so the theorem holds with a warning.
-    "sequence_bounds.aether": "WARN",
-}
 
 
 def _examples_pack() -> dict[str, Any]:

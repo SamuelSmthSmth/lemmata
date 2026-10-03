@@ -17,3 +17,8 @@ wheels/
 # Original lecture notes: kept locally for transcription, never committed
 # (they belong to their authors).
 Lecture notes/
+
+# Pyodide and the engine wheels for the static build (ui/vendor_pyodide.py)
+ui/static/vendor/pyodide/
+# The static build (ui/build_static.py)
+dist/
