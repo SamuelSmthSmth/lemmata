@@ -176,6 +176,8 @@ QED
 ```
 Aether automatically resolves the file, verifies that it is valid, imports all definitions and theorem claims, and guards against cyclic dependencies.
 
+Where the file is looked for: in the web app, first among the proofs in your workspace — relative to the importing proof's folder, then from the top of the workspace — and then on disk. On the command line, beside the importing file, then a `base_dir` if one was given, then the working directory. An import that cannot be found is reported by name.
+
 ---
 
 ## 5. Top Proof Templates (Copy & Adapt)
@@ -306,22 +308,28 @@ QED
 
 ## 7. Web UI & Exporting to LaTeX / PDF
 
-When you open the Aether web interface (`http://localhost:8000`):
+Run `uv run python -m ui` and open `http://localhost:8000`. The rail on the left switches between four views — **Proofs**, **Library**, **Guide** and **Settings** — and the status bar at the foot always shows the verdict for the open proof. `Ctrl/Cmd+K` opens a command palette that finds commands, your files, and any Library entry by its reference (`2.18`).
 
 1. **Proof Editor & Auditor:**
-   - Write or paste your proof on the left.
-   - As you type, the auditor on the right checks every step in real time.
-   - Click on any statement line to inspect the **Context & State Inspector** (active variables, hypotheses, and scope depth).
-2. **Strict Domain Toggle:**
-   - Switch the toggle in the header to enforce strict domain checking (where unguarded divisions turn into errors instead of warnings).
-3. **Panel Arrangement:**
-   - The toolbar's **Panel arrangement** button offers four presets, each drawn as a miniature of itself: **Columns** (the default), **Stack**, **Split** and **Focus**. Split and Focus give the auditor and the context pane one column between them — the nearest thing here to docking one panel inside another.
-   - Beyond the presets, **drag a panel's grip** (the dots at the left of a panel head) onto another panel to swap the two, or **focus a grip and press an arrow key** to slide that panel one place along the order.
-   - Your arrangement is remembered for the next visit.
-4. **Appearance:**
-   - The theme button flips light / dark. The **Syntax colours** button flips the editor between near-monochrome (the default) and a colourised scheme, the way a Python file is coloured. Both are remembered.
+   - Write or paste your proof in the editor. As you type, the auditor beneath it checks every step.
+   - A failing step is marked in the editor too: a red rule in the gutter, an underline, and the reason when you hover. `F8` jumps to the next problem, and so does the problem count in the status bar.
+   - Click on any statement line to inspect the **Context & State** pane (active variables, hypotheses, and scope depth).
+   - **Insert template** offers whole proof shapes (theorem with a claim, ε–δ limit, induction, cases, contradiction, a group-theory proof, unpacking an existential); the symbol strip inserts `∀ ∃ ∈ ≤ ≠ ⇒ ε δ ∞ ℝ` and friends; `Ctrl+Space` completes keywords, structures, functions and the names your proof has declared.
+2. **Your workspace:**
+   - The **Files** tab of the reading pane holds every proof you have, in folders. New proof, new folder, rename (`F2`), delete (with *Undo*), and drag a proof onto a folder to move it. Open proofs sit in tabs above the editor.
+   - Everything is kept **in this browser**. Export the whole workspace as a `.zip` from the Files tab or Settings to keep a copy; drop the `.zip` (or any `.aether` file) on the window to bring it back.
+   - A proof can `import` another proof in the workspace by its path — relative to the importing proof, then from the top of the workspace (see §4).
+   - The **History** tab shows the checks of the open proof and its snapshots: snapshot it, restore an earlier version, reset it to where it started, or copy a link that reproduces it exactly.
+3. **Library:**
+   - Course packs for **MTH2008** (Real Analysis) and **MTH2010** (Algebra), keyed to the notes' own numbering, plus **Notation** (the notes' symbols and the traps around them) and the **Worked examples** of the language. Search by reference, title or topic.
+   - **Open beside the proof** gives you your own copy of the entry's proof, with the entry kept in the **Notes** tab while you work.
+   - **Traps** are deliberate mistakes. **Spot the error** opens one as an exercise: no verdicts are shown until you pick the line you think fails (or ask for the answer), and then the Notes explain why it fails.
+4. **Strict Domains, Arrangement and Appearance:**
+   - The **Strict domains** switch in the tool strip makes unguarded divisions and square roots errors instead of warnings. Each proof keeps its own setting; Settings chooses the default for new ones.
+   - The **Panel arrangement** button offers four presets, each drawn as a miniature of itself: **Columns**, **Stack**, **Split** (the default) and **Focus**. Drag a panel's grip onto another panel to swap the two, or focus a grip and press an arrow key.
+   - The sun/moon on the rail flips light / dark; the three-dot button flips the editor between near-monochrome and colourised syntax. **Settings** also holds the editor text size, line wrapping, how long to wait after typing before checking, and storage use. All of it is remembered.
 5. **Exporting to LaTeX & PDF:**
-   - Click the **Export to LaTeX / PDF** button in the top menu.
+   - Click the **Export to LaTeX / PDF** button at the end of the tool strip.
    - **Standalone Switch**: Toggle whether you want a full standalone document (with `\documentclass{article}`, `amsmath`, `amssymb`) or an embeddable snippet.
    - **Verification breakdown Switch**: Appends the audit (line, status, backend, canonical statement), the proof state at each line, the session log, and the source listing. Turn it off to get exactly the proof and nothing else.
    - **Copy LaTeX** / **Download .tex**: Copies or downloads clean, human-readable LaTeX markup, named after the theorem. This is always the sober `article` presentation, so it is the thing to paste into a paper.

@@ -151,6 +151,17 @@ def main() -> int:
             "every entry's expected verdict is one the UI knows",
         )
 
+        print("== GET /api/capabilities ==")
+        from ui.verify_capabilities import PROBES
+
+        status, _, body = server.request("/api/capabilities")
+        rows = json.loads(body)
+        check(status == 200 and len(rows) == len(PROBES), f"the Guide's matrix serves every pin ({len(rows)} of {len(PROBES)})")
+        check(
+            [(r["area"], r["name"], r["expect"]) for r in rows] == [(p.area, p.name, p.expect) for p in PROBES],
+            "in the pinned order, with the pinned verdicts",
+        )
+
         print("== POST /api/check (workspace imports) ==")
         lemma = 'Theorem: "Reflexive"\nClaim: forall x : Real, x = x\nProof:\n    Given x : Real\n    Step: x = x\nQED\n'
         main_src = 'import "shared/lemma.aether"\nLet y : Real\nStep: y = y\n'

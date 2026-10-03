@@ -13,17 +13,17 @@ Behind the scenes, Aether orchestrates:
 
 ## 📚 Documentation
 
-We provide two dedicated guides tailored for different audiences:
+Guides for different audiences:
 
-1. **[User Guide & Cheat Sheet (`USER_GUIDE.md`)](file:///home/samuel/Documents/GitHub/aether/USER_GUIDE.md)**
+1. **[User Guide & Cheat Sheet (`USER_GUIDE.md`)](USER_GUIDE.md)**
    - **For Humans**: Designed for students and mathematicians writing proofs.
    - Contains the 30-second mental model, keyword cheat sheet, notation reference, top 6 copy-paste proof templates (direct proof, mathematical induction, $\varepsilon$-$\delta$ continuity, proof by contradiction, cases, custom predicates), and common gotchas.
 
-2. **[AI & System Architecture Reference (`AI_REFERENCE.md`)](file:///home/samuel/Documents/GitHub/aether/AI_REFERENCE.md)**
+2. **[AI & System Architecture Reference (`AI_REFERENCE.md`)](AI_REFERENCE.md)**
    - **For AI & Engine Developers**: Exhaustive technical documentation.
    - Complete formal grammar (Lark EBNF), AST dataclass taxonomy, scope manager mechanics, SymPy & Z3 solver algorithms, error taxonomy, Python public API, and REST API JSON schemas.
 
-3. **[Browser Tooling (`TOOLING.md`)](file:///home/samuel/Documents/GitHub/aether/TOOLING.md)**
+3. **[Browser Tooling (`TOOLING.md`)](TOOLING.md)**
    - **For Contributors**: What the `agent-browser` CLI can and cannot do, established by sweeping it, plus the recipes used to verify this UI (screenshots, axe-core audits, HARs, layout diffs).
 
 ---
@@ -46,7 +46,7 @@ uv sync
 Verify a `.aether` proof file directly:
 
 ```bash
-uv run aether test.aether
+uv run aether examples/sequence_bounds.aether
 ```
 
 Or pass a proof via standard input:
@@ -61,12 +61,19 @@ EOF
 ```
 
 ### Running the Web UI
-Aether includes a full web application featuring a CodeMirror 6 editor, real-time step auditor, state inspector, LaTeX/PDF exporter, and pre-built proof library:
+Aether includes a study app that runs locally in your browser:
 
 ```bash
 uv run python -m ui
 ```
 Open your browser at `http://127.0.0.1:8000`.
+
+- **Proofs** — a workspace of many proofs in folders and tabs, kept in your browser (IndexedDB), with `import` between them. A CodeMirror 6 editor with completion, proof templates, a symbol strip, and failing steps marked in the gutter; the step auditor and the context inspector beside it.
+- **Library** — course packs transcribed from the MTH2008 (Real Analysis) and MTH2010 (Algebra) lecture notes, keyed to the notes' own numbering, plus the notes' notation and its traps and the worked examples. Open an entry beside your own copy of its proof, or open a trap as an exercise and find the failing line.
+- **Guide** — the handbook in the app, with a *Try it* button on every example and the live capability matrix.
+- **Settings**, a command palette (`Ctrl/Cmd+K`), LaTeX/PDF export, and a `.zip` backup of the whole workspace.
+
+Every check runs in a worker process under a hard time budget, so a step the solver cannot settle reports `TIMEOUT` instead of hanging. Nothing leaves your machine. See [`ui/README.md`](ui/README.md) for how it is built.
 
 ---
 
@@ -75,13 +82,13 @@ Open your browser at `http://127.0.0.1:8000`.
 Run all automated test suites:
 
 ```bash
-# Run engine unit and integration tests (121 tests)
+# Run engine unit and integration tests, including the lecture-note corpora
 uv run pytest -v
 
 # Verify bundled UI examples match engine verdicts (19 examples)
 uv run python ui/verify_examples.py
 
-# Verify the documented CNL capability matrix (87 claims)
+# Verify the documented CNL capability matrix (88 claims)
 uv run python ui/verify_capabilities.py
 
 # Verify FastAPI server and export endpoints (including PDF compilation)
@@ -90,6 +97,6 @@ uv run python ui/verify_server.py
 # Verify CodeMirror tokenizer and frontend assets
 node ui/verify_frontend.mjs
 
-# Verify real-browser behaviour (keybindings, panels, theme)
+# Verify real-browser behaviour (editor, workspace, Library, palette, settings)
 uv run python ui/verify_browser.py
 ```

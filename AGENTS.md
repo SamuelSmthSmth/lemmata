@@ -79,6 +79,13 @@ except ParseError as err:
     ...
 ```
 
+`check_source` also takes two optional keyword arguments, both backward
+compatible: `file_path` (the checked file's path, for relative imports) and
+`sources` (a `Mapping[str, str]` of other files by path). `import` resolves
+against `sources` first — relative to `file_path`, then the root — and then
+falls back to the disk search. The web app passes its browser workspace this
+way.
+
 ### Data Structures Returned by `checker.check_source(source_text)`
 
 #### `ProofReport`
@@ -112,10 +119,10 @@ The UI should expose the full capabilities of the Aether engine to the user. It 
 
 1. **Proof Input / Editor Area**
    - Multi-line text input where the user writes or edits Aether CNL proof scripts.
-   - Support for loading pre-built example proofs (e.g., valid Even Square theorem, Odd Square theorem, an algebraic blunder with a counterexample, an unguarded division-by-zero example, and a guarded domain example) so users can test features immediately.
+   - Support for loading pre-built example proofs (e.g., valid Even Square theorem, Odd Square theorem, an algebraic blunder with a counterexample, an unguarded division-by-zero example, and a guarded domain example) so users can test features immediately. In the current app these live in the **Library** (`GET /api/library`), alongside the course packs.
 
 2. **Overall Proof Verdict & Controls**
-   - Overall proof status readout (`VALID`, `VALID (with domain warnings)`, `INVALID`, or `PARSE ERROR`).
+   - Overall proof status readout (`VALID`, `VALID (with domain warnings)`, `INVALID`, or `PARSE ERROR`; the server adds `TIMEOUT` when a check overruns its budget).
    - A toggle for **Strict Domain Checking** (`strict_domains=True` vs `strict_domains=False`), controlling whether unguarded divisions/square roots are treated as warnings or hard errors.
    - Parse error display showing line number, column number, and error message whenever `ParseError` is raised.
 
@@ -134,6 +141,20 @@ The UI should expose the full capabilities of the Aether engine to the user. It 
    - **Active Hypotheses & Derived Facts** (`result.active_hypotheses`, e.g., `h1: Even(n)`, `n = (2 * k)`).
    - **Scope Depth** (`result.scope_depth`).
 
+The app around these four — the workspace of many proofs, the Library, the
+Guide, Settings and the command palette — is described in `ui/README.md`, and
+its design context in `PRODUCT.md` and `DESIGN.md`.
+
+### Course packs
+
+`courses/*.json` holds the MTH2008, MTH2010 and Notation packs: transcriptions
+of lecture-note results keyed to the notes' numbering, each with the verdict it
+must produce (`kind: proof | trap`; a trap carries an `explanation`). They are
+data shared by both sides: `tests/test_lecture_notes.py` checks every entry
+and the UI serves them as the Library. Neither side imports the other's code,
+so the engine/UI separation above still holds; changing an entry's `expected`
+is an engine-side change, and it shows up in the Library unchanged.
+
 ---
 
 ## 5. Verification & Tooling
@@ -146,9 +167,9 @@ Every claim this repo makes is checked by a script you can run yourself:
 | `uv run python tests/lecture_notes/run_corpus.py [filter] [-v]` | the MTH2008 / MTH2010 lecture-note corpora (also part of `pytest`), one process per entry under a wall-clock budget, with full reports for anything off |
 | `uv run python ui/verify_examples.py` | each bundled example still produces the verdict its blurb advertises |
 | `uv run python ui/verify_capabilities.py` | the CNL capability matrix listed in `USER_GUIDE.md` — and that the table published there still matches the pins; `--markdown` prints it as the doc table, and every snippet runs under a wall-clock budget (`--budget`, 10s) because Z3's soft `timeout` is not enforceable in-process |
-| `uv run python ui/verify_server.py` | the HTTP API, both export styles, the vendored asset graph |
-| `node ui/verify_frontend.mjs` | the CodeMirror tokenizer and the frontend module graph |
-| `uv run python ui/verify_browser.py` | real-browser behaviour (keybindings, round-trip, panels, theme) |
+| `uv run python ui/verify_server.py` | the HTTP API (check budget and `TIMEOUT`, workspace imports, library, capabilities), both export styles, the vendored asset graph, and every *Try it* example in the Guide |
+| `node ui/verify_frontend.mjs` | the CodeMirror tokenizer, the frontend module graph, layout rules and the `.zip` reader/writer |
+| `uv run python ui/verify_browser.py` | real-browser behaviour: editor keys and round-trip, panels, theme, the workspace (files, tabs, IndexedDB, migration, imports, `.zip`), diagnostics, templates, palette, Library exercises, settings |
 
 For ad-hoc browser work — screenshots, accessibility audits, HARs, layout diffs —
 see `TOOLING.md`: what the `agent-browser` CLI can do, its argument-order and
