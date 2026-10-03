@@ -1201,7 +1201,7 @@ async function init() {
   } catch (error) {
     showToast(`The pack catalogue could not be loaded: ${error.message}. Installed packs still work.`, { tone: "warning" });
   }
-  await packs.load(catalog);
+  await packs.load(catalog, site.preinstall ?? null);
   initLibrary(libraryActions, () => {
     const out = new Map();
     for (const file of ws.model.files.values()) {

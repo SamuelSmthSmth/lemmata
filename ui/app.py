@@ -180,7 +180,7 @@ def index() -> HTMLResponse:
 
 
 @app.get("/api/site")
-def site() -> dict[str, str]:
+def site() -> dict[str, Any]:
     return {**SITE, "version": VERSION}
 
 

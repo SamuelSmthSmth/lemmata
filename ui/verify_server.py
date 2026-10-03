@@ -14,6 +14,7 @@ import re
 import socket
 import subprocess
 import sys
+import tempfile
 import time
 import urllib.error
 import urllib.request
@@ -139,11 +140,12 @@ def main() -> int:
         by_id = {e["id"]: e for e in examples}
 
         print("== GET /api/site ==")
-        from ui.site import NAME, TAGLINE, VERSION
+        from ui.site import NAME, SITE, TAGLINE, VERSION
 
         status, _, body = server.request("/api/site")
         site = json.loads(body)
-        check(status == 200 and site == {"name": NAME, "tagline": TAGLINE, "version": VERSION}, f"site identity from ui/site.json: {site}")
+        check(status == 200 and site == {**SITE, "version": VERSION}, f"site identity from ui/site.json: {site['name']}, registry {site['registry']!r}")
+        check(set(site) == {"name", "tagline", "accent", "registry", "preinstall", "version"}, f"with every site.json field ({sorted(site)})")
         status, _, body = server.request("/")
         check(f"<title>{NAME} · {TAGLINE}</title>".encode() in body, "the page <title> carries the site name")
 
@@ -518,6 +520,19 @@ def main() -> int:
         status, _, body = server.request("/api/check", "POST", {"source": "Let x : Real\nStep: x + 0 = x\n"})
         data = json.loads(body)
         check(status == 200 and data["verdict"] == "VALID", f"the next check is still answered ({data.get('verdict')})")
+
+    # An institution's own site.json, named by LEMMATA_SITE, replaces ours.
+    with tempfile.TemporaryDirectory() as tmp:
+        custom = Path(tmp) / "site.json"
+        custom.write_text(json.dumps({"name": "Uni Proofs", "accent": {"light": "#7a1f5c"}, "registry": "", "preinstall": ["core/examples"]}))
+        with Server(env={"LEMMATA_SITE": str(custom)}) as server:
+            print("== LEMMATA_SITE ==")
+            _, _, body = server.request("/api/site")
+            site = json.loads(body)
+            check(site["name"] == "Uni Proofs" and site["registry"] == "" and site["preinstall"] == ["core/examples"], f"a custom site.json is served ({site})")
+            check(site["accent"] == {"light": "#7a1f5c", "dark": "#6cb0ff"}, "an accent given for one theme keeps the default for the other")
+            _, _, body = server.request("/")
+            check(b"<title>Uni Proofs" in body, "and names the page")
 
     guide_checks()
 

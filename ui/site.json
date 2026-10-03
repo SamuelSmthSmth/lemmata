@@ -1,4 +1,7 @@
 {
   "name": "Lemmata",
-  "tagline": "Proof intern"
+  "tagline": "Proof intern",
+  "accent": { "light": "#0a5fbf", "dark": "#6cb0ff" },
+  "registry": "https://samuelsmthsmth.github.io/lemmata-packs/",
+  "preinstall": ["core/examples", "core/mth2008", "core/mth2010", "core/notation"]
 }

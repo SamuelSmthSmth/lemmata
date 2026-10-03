@@ -255,17 +255,19 @@ export function findEntry(key) {
 }
 
 /**
- * Load what is installed, then install any bundled pack this browser has never
- * seen.  A bundled pack the student uninstalled stays uninstalled: "seen" is
- * remembered separately from "installed".
+ * Load what is installed, then install each bundled pack the site preinstalls
+ * (site.json `preinstall`; every bundled pack when it does not say) that this
+ * browser has never seen.  A pack the student uninstalled stays uninstalled:
+ * "seen" is remembered separately from "installed".
  */
-export async function load(catalog) {
+export async function load(catalog, preinstall = null) {
   model.catalog = catalog;
   model.records = new Map((await db.packs.all()).map((r) => [r.name, r]));
   const seen = new Set(await db.meta.get("packsSeen", []));
+  const wanted = preinstall ? new Set(preinstall) : null;
   for (const pack of catalog) {
     if (seen.has(pack.name)) continue;
-    if (!model.records.has(pack.name)) await install(pack, "bundled");
+    if (!model.records.has(pack.name) && (!wanted || wanted.has(pack.name))) await install(pack, "bundled");
     seen.add(pack.name);
   }
   // The examples always come along, and always as the bundled version.

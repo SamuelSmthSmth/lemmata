@@ -12,6 +12,10 @@ development server computes on request is computed once, here:
       static/                    ui/static/, including vendor/pyodide/
       static/engine/engine.zip   the `aether` package and the UI's job modules
       static/engine/wheels.json  the wheels the worker installs
+      static/engine/requirements.txt, version.json
+                                 the engine's pinned dependencies and version,
+                                 for running the same engine elsewhere (the
+                                 pack registry's CI)
       static/data/library.json   the bundled pack catalogue      (GET /api/library)
       static/data/capabilities.json  the capability matrix       (GET /api/capabilities)
       static/data/site.json      name, tagline, version          (GET /api/site)
@@ -39,7 +43,12 @@ ROOT = UI.parent
 sys.path.insert(0, str(ROOT))
 
 # What the browser's Python needs besides the engine: the jobs and what they import.
-UI_MODULES = ["__init__.py", "engine_jobs.py", "latex_report.py", "site.py", "site.json"]
+# (site.json goes in separately: it is whichever file LEMMATA_SITE names.)
+UI_MODULES = ["__init__.py", "engine_jobs.py", "latex_report.py", "site.py"]
+
+# The engine's dependencies, pinned to what this build was verified with, so
+# anything outside this repo (the pack registry's CI) can run the same engine.
+ENGINE_REQUIREMENTS = ["lark", "sympy", "mpmath", "z3-solver"]
 
 VERCEL = {
     "cleanUrls": False,
@@ -69,6 +78,10 @@ def engine_zip(target: Path) -> int:
         for name in UI_MODULES:
             archive.write(UI / name, f"ui/{name}")
             count += 1
+        from ui.site import SITE_FILE
+
+        archive.write(SITE_FILE, "ui/site.json")
+        count += 1
     return count
 
 
@@ -106,6 +119,11 @@ def main(argv: list[str]) -> int:
     # engine (revalidated) rather than under vendor/ (cached as immutable).
     wheels = sorted(p.name for p in (vendor / "wheels").glob("*.whl"))
     (out / "static" / "engine" / "wheels.json").write_text(json.dumps(wheels) + "\n")
+    from importlib.metadata import version as installed
+
+    pins = [f"{name}=={installed(name)}" for name in ENGINE_REQUIREMENTS]
+    (out / "static" / "engine" / "requirements.txt").write_text("\n".join(pins) + "\n")
+    (out / "static" / "engine" / "version.json").write_text(json.dumps({"engine": VERSION, "requirements": pins}) + "\n")
 
     html = (UI / "static" / "index.html").read_text(encoding="utf-8")
     html = re.sub(r"<title>.*?</title>", f"<title>{escape(NAME)} · {escape(TAGLINE)}</title>", html, count=1)
