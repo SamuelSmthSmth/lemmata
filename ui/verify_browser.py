@@ -965,6 +965,15 @@ def toasts() -> str:
     return js("[...document.querySelectorAll('#toast wa-toast-item')].map(t => t.textContent).join(' / ')")
 
 
+def available_packs() -> list[str]:
+    """The packs listed under "Available" in the rail."""
+    return js(
+        "(() => { const out = []; let after = false; for (const node of document.getElementById('library-packs').children) {"
+        " if (node.classList.contains('packs-group')) after = node.textContent === 'Available';"
+        " else if (after && node.dataset.pack) out.push(node.dataset.pack); } return JSON.stringify(out); })()"
+    )
+
+
 def pack_action(label: str) -> None:
     js(
         "[...document.querySelectorAll('.pack-actions .text-button')].find(b => b.textContent.startsWith("
@@ -989,16 +998,16 @@ def pack_checks() -> None:
     open_pack("core/mth2010")
     pack_action("Uninstall")
     time.sleep(0.5)
-    check("AVAILABLE" in rail().upper() and "not installed" in rail(), "an uninstalled pack moves to Available")
+    check(available_packs() == ["core/mth2010"], f"an uninstalled pack moves to Available ({available_packs()})")
     check("still in your workspace" in toasts(), "the toast says the copies are kept")
     ab("reload")
     time.sleep(1.5)
-    check("not installed" in rail(), "and a reload does not put it back")
+    check(available_packs() == ["core/mth2010"], "and a reload does not put it back")
 
     open_pack("core/mth2010")
     pack_action("Install")
     time.sleep(0.6)
-    check("not installed" not in rail(), "Install puts it back")
+    check(available_packs() == [], "Install puts it back")
 
     with urllib.request.urlopen(f"{BASE}/api/library", timeout=5) as resp:
         mth2010 = next(p for p in json.loads(resp.read()) if p["name"] == "core/mth2010")

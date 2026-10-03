@@ -49,10 +49,13 @@ the open file and whether work is being kept.
   the open proof). On the right, the open proofs as tabs, a tool strip
   (templates, symbols, strict domains, arrangement, syntax colours, download,
   LaTeX/PDF export), and the editor, auditor and context panes.
-- **Library** — course packs: proofs transcribed from MTH2008 (Real Analysis)
-  and MTH2010 (Algebra) lecture notes keyed to the notes' own numbering, the
-  notes' notation and its traps, and the worked examples of the language.
-  Search by reference (`2.18`), title or topic; filter to proofs or traps.
+- **Library** — your installed **packs**, managed like packages: proofs
+  transcribed from MTH2008 (Real Analysis) and MTH2010 (Algebra) lecture notes
+  keyed to the notes' own numbering, the notes' notation and its traps, the
+  worked examples, and any pack you install from a `.pack.json` or make
+  yourself. Install, uninstall (with undo), update, export, and *Check all
+  entries*. Search by reference (`2.18`), title, course code or topic; filter
+  to proofs or traps.
 - **Guide** — the handbook, with a *Try it* button on every example and the
   live capability matrix.
 - **Settings** — theme, syntax colours, editor text size, line wrap, strict
@@ -72,6 +75,11 @@ and every Library entry by reference.
 | `import` another proof in the workspace (relative to the importer, then the root) | any proof |
 | Open a Library entry as your own copy, with the entry kept beside it | Library → *Open beside the proof* |
 | Find the failing step of a trap before the checker tells you | Library → Traps → *Spot the error* |
+| Install, uninstall (with undo), update or export a pack | Library → a pack's head |
+| Install a pack someone shared | Library → *Install from file…*, or drop the `.pack.json` on the window |
+| Re-check every entry of a pack against the verdict it records | Library → *Check all entries* |
+| Import a pack's proved theorem into your proof | Library → an entry → *Use in a proof* (`import "@core/mth2010/…"`) |
+| Make a folder of your proofs into a pack, and export or install it | Library → *New pack…*, or a folder's pack button in Files |
 | Insert a proof shape (ε–δ, induction, cases, contradiction, group, …) | *Insert template*, completion, palette |
 | Insert `∀ ∃ ∈ ∉ ⊆ ≤ ≥ ≠ ⇒ ⇔ ε δ ∞ √ ⁻¹ ℝ ℤ ℕ` | symbol strip; or type `\forall`, `<=`, … |
 | Completion of keywords, structures, functions and the proof's own names | editor (`Ctrl+Space`) |
@@ -126,10 +134,12 @@ A few details worth knowing:
 
 ### How your work is kept
 
-Proofs live in **IndexedDB** in your browser (`js/db.js`), in three stores:
-`files` (`{id, path, source, strict, created, updated, origin?, exercise?}`),
-`snapshots` (per file) and `meta` (folders, open tabs, the active proof, the
-verdict timeline, a pinned Guide page). Small preferences — theme, syntax,
+Proofs live in **IndexedDB** in your browser (`js/db.js`, version 2), in four
+stores: `files` (`{id, path, source, strict, created, updated, origin?,
+exercise?}`), `snapshots` (per file), `meta` (folders, open tabs, the active
+proof, the verdict timeline, a pinned Guide page, the packs this browser has
+seen, and the manifests of folders made into packs) and `packs` (installed
+packs, `{name, version, origin: bundled|file|local, installed, pack}`). Small preferences — theme, syntax,
 editor size, wrap, debounce, arrangement — stay in `localStorage`, because they
 have to be read synchronously before first paint. If IndexedDB is unavailable
 (some private modes) the same interface runs in memory and mirrors to
@@ -276,11 +286,44 @@ Returns the bundled examples as `{id, name, blurb, expected, source}`.
 
 ### `GET /api/library`
 
-The Library: the bundled examples as a pack, then every pack in `courses/`,
-each `{id, code, title, note, chapters: [{id, title}], entries: [{id, chapter,
-ref, title, kind: proof|trap, expected, source, blurb?, explanation?}]}`. The
-course packs are data shared with the engine's own tests
-(`tests/test_lecture_notes.py`), so an entry shown here is one pytest checks.
+The **bundled catalogue**: the examples as `core/examples`, then every pack in
+`courses/`, each in pack format 1 (`aether.packs`): `{format, name, version,
+title, courses, summary, authors, license, engine, depends, chapters: [{id,
+title}], entries: [{id, chapter, ref, title, kind: proof|trap, expected,
+source, blurb?, explanation?}]}`. The course packs are data shared with the
+engine's own tests (`tests/test_lecture_notes.py`), so an entry listed here is
+one pytest checks.
+
+The browser installs from this list into its own `packs` store (`js/packs.js`)
+and reads the Library from what is installed. A bundled pack is installed the
+first time a browser sees it; one the student uninstalls stays uninstalled
+(*Available*); a catalogue pack that differs from the installed copy, or is a
+newer version, is offered as an update. The worked examples cannot be
+uninstalled.
+
+### `POST /api/packs/validate`
+
+`{pack}` — the parsed contents of a `.pack.json` — returns `{pack}` (with
+optional fields filled in) or `{errors}`, every problem named by where it is
+(`version: must be semver`, `entries[3].kind: …`). The browser installs a
+pack from a file only after this says it is one.
+
+### Packs in the browser
+
+- **Importing from a pack.** When a proof (or a workspace file it sends along)
+  has an `import "@…"`, the check also carries every installed pack's *proof*
+  entries as `@<name>/<entry-id>.aether`; traps never travel. Workspace paths
+  may not start with `@`.
+- **Making a pack.** A workspace folder is a pack: its files are the entries.
+  The pack dialog (`js/pack-author.js`) edits the folder's manifest — name,
+  version, optional course codes, summary, authors, licence — and each
+  entry's reference, title, chapter and kind (a trap needs an explanation).
+  Entry details are keyed by file id, so renames keep them. *Export* and
+  *Install in this browser* check every file on its own (as an installer will
+  see it) and record that verdict as `expected`; a file that does not parse, a
+  trap that checks, or a `core/` name keeps the pack from being made.
+- **Backups.** The workspace `.zip` carries `packs/manifests.json` (entry
+  details keyed by path), and importing the `.zip` restores them.
 
 ### `GET /api/capabilities`
 
@@ -343,7 +386,9 @@ ui/
       tabs.js              the open-proof tab strip
       notes.js             the Notes tab, including trap exercises
       history.js           the History tab
-      library.js           the Library view
+      library.js           the Library view: the pack manager
+      packs.js             installed packs: install, update, diff, import sources
+      pack-author.js       a workspace folder as a pack: the manifest dialog
       guide.js             the Guide view and its Try-it buttons
       settings.js          the Settings view
       palette.js           the command palette

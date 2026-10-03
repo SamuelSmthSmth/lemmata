@@ -86,6 +86,12 @@
   --wa-color-neutral-fill-quiet: rgba(22, 24, 29, 0.05);
   --wa-color-neutral-on-quiet: #555b6a;
   --wa-color-neutral-border-normal: #dde1e6;
+  /* A secondary button sits on lowered paper, not a chip. */
+  --wa-color-neutral-fill-normal: #eff1f4;
+  --wa-color-neutral-on-normal: #16181d;
+  /* One boundary for every form control, native or Web Awesome, at 3:1 on paper. */
+  --app-control-border: #8a909c;
+  --wa-form-control-border-color: var(--app-control-border);
 }
 
 [data-theme="dark"] {
@@ -124,6 +130,10 @@
   --wa-color-neutral-fill-quiet: rgba(230, 232, 236, 0.06);
   --wa-color-neutral-on-quiet: #9ba3b0;
   --wa-color-neutral-border-normal: #262b32;
+  --wa-color-neutral-fill-normal: #1a1e23;
+  --wa-color-neutral-on-normal: #e6e8ec;
+  --app-control-border: #646b77;
+  --wa-form-control-border-color: var(--app-control-border);
 }
 
 /* --- Syntax: the vivid scheme ----------------------------------------------
@@ -1230,7 +1240,7 @@ kbd {
   width: 100%;
   min-width: 0;
   padding: 4px 8px;
-  border: 1px solid var(--border);
+  border: 1px solid var(--app-control-border);
   border-radius: var(--radius);
   background: var(--bg);
   color: var(--text);
@@ -1245,6 +1255,7 @@ kbd {
 }
 
 .pack-input {
+  box-sizing: border-box;
   height: 28px;
 }
 
@@ -1301,6 +1312,10 @@ kbd {
 
 .pack-dialog-actions {
   flex-wrap: wrap;
+}
+
+.pack-dialog::part(footer) {
+  border-top: 1px solid var(--border);
 }
 
 .pack-status {
@@ -2582,8 +2597,9 @@ body[data-exercise="hidden"] .step::before {
 
 .pack-head h2 {
   margin: 0 0 4px;
-  font-size: 13px;
-  font-weight: 700;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.35;
 }
 
 .pack-meta {
@@ -2597,7 +2613,8 @@ body[data-exercise="hidden"] .step::before {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
-  margin: -6px 0 18px;
+  /* The first button's word, not its padding, lines up with the title. */
+  margin: -6px 0 18px -8px;
 }
 
 .pack-check {
@@ -2663,12 +2680,14 @@ body[data-exercise="hidden"] .step::before {
   background: var(--panel);
 }
 
+/* A long reference ("Remark, Basic Properties 3") wraps in its column
+   rather than running into the title. */
 .entry-ref {
   font-size: 12px;
   font-weight: 600;
   color: var(--muted);
   font-variant-numeric: tabular-nums;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
 }
 
 .entry-title {
@@ -3297,6 +3316,17 @@ wa-toast-item::part(toast-item) {
   font-size: 12px;
 }
 
+/* The margin belongs to failure: only caveat and failure toasts keep a rule,
+   at the world's 2px. */
+wa-toast-item {
+  --accent-width: 0;
+}
+
+wa-toast-item[variant="warning"],
+wa-toast-item[variant="danger"] {
+  --accent-width: 2px;
+}
+
 wa-toast-item::part(progress-ring) {
   display: none;
 }
@@ -3418,10 +3448,18 @@ body[data-exercise="hidden"] .tree-row.is-active .tree-mark {
     gap: 16px;
   }
 
+  /* The packs fall into even columns; actions and group labels span them. */
   .library-packs {
     position: static;
-    flex-direction: row;
-    flex-wrap: wrap;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 1px 8px;
+  }
+
+  .packs-actions,
+  .packs-group,
+  .packs-group-head {
+    grid-column: 1 / -1;
   }
 
   .guide-toc {
@@ -3437,6 +3475,10 @@ body[data-exercise="hidden"] .tree-row.is-active .tree-mark {
 
 /* Narrow: the panes stack and scroll as one page; the rail becomes a bar. */
 @media (max-width: 760px) {
+  .pack-dialog-actions wa-button {
+    flex: 1 1 0;
+  }
+
   .pack-fields {
     grid-template-columns: minmax(0, 1fr);
   }

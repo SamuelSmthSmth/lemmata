@@ -152,10 +152,25 @@ its design context in `PRODUCT.md` and `DESIGN.md`.
 `courses/*.json` holds the MTH2008, MTH2010 and Notation packs: transcriptions
 of lecture-note results keyed to the notes' numbering, each with the verdict it
 must produce (`kind: proof | trap`; a trap carries an `explanation`). They are
-data shared by both sides: `tests/test_lecture_notes.py` checks every entry
-and the UI serves them as the Library. Neither side imports the other's code,
-so the engine/UI separation above still holds; changing an entry's `expected`
-is an engine-side change, and it shows up in the Library unchanged.
+in **pack format 1**, defined and validated by `src/aether/packs.py`
+(`validate_pack`, `load_packs`), which is the one authority on what a pack is;
+`courses/pack.schema.json` is a JSON Schema copy for authors, and
+`tests/test_packs.py` keeps the two in step. A pack has a scoped `name`
+(`core/mth2008`), a semver `version`, a `license`, and an **optional**
+`courses` list, so a pack can be a topic rather than a module.
+
+They are data shared by both sides: `tests/test_lecture_notes.py` checks every
+entry, and the UI serves them as the bundled catalogue the browser installs
+from. Neither side imports the other's code, so the engine/UI separation above
+still holds; changing an entry's `expected` is an engine-side change. **Raise a
+pack's `version` when you change it**, so browsers that installed it are
+offered the update (a same-version edit is still offered, but a version says
+what changed).
+
+A proved theorem in an installed pack can be imported into a student's proof:
+`import "@core/mth2010/<entry-id>"`. The browser sends installed packs' proof
+entries as `sources` keyed `@<name>/<entry-id>.aether`, and the engine finds
+them because the `.aether` extension may be left off an import.
 
 ---
 

@@ -71,7 +71,7 @@ uv run python -m ui
 Open your browser at `http://127.0.0.1:8000`.
 
 - **Proofs** — a workspace of many proofs in folders and tabs, kept in your browser (IndexedDB), with `import` between them. A CodeMirror 6 editor with completion, proof templates, a symbol strip, and failing steps marked in the gutter; the step auditor and the context inspector beside it.
-- **Library** — course packs transcribed from the MTH2008 (Real Analysis) and MTH2010 (Algebra) lecture notes, keyed to the notes' own numbering, plus the notes' notation and its traps and the worked examples. Open an entry beside your own copy of its proof, or open a trap as an exercise and find the failing line.
+- **Library** — a pack manager for course packs: MTH2008 (Real Analysis) and MTH2010 (Algebra) transcribed from the lecture notes and keyed to their own numbering, the notes' notation and its traps, and the worked examples. Install, uninstall, update and export packs, install one from a `.pack.json`, or make a folder of your own proofs into a pack. Open an entry beside your own copy of its proof, open a trap as an exercise, or import a proved theorem into your own proof.
 - **Guide** — the handbook in the app, with a *Try it* button on every example and the live capability matrix.
 - **Settings**, a command palette (`Ctrl/Cmd+K`), LaTeX/PDF export, and a `.zip` backup of the whole workspace.
 

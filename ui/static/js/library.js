@@ -82,7 +82,7 @@ function matches(pack, entry) {
 // The rail
 // ---------------------------------------------------------------------------
 
-function packButton(pack, { available = false, update = null } = {}) {
+function packButton(pack, { update = null } = {}) {
   const count = pack.entries.filter((e) => matches(pack, e)).length;
   const button = el("button", "pack-button");
   button.type = "button";
@@ -90,8 +90,8 @@ function packButton(pack, { available = false, update = null } = {}) {
   button.setAttribute("aria-current", String(pack.name === activePack && !query));
   const meta = el("span", "pack-title", pack.courses?.length ? pack.title : `v${pack.version}`);
   button.append(el("span", "pack-code", packs.packLabel(pack)), meta, el("span", "pack-count", String(count)));
+  // "Available" already says these are not installed; only an update is news.
   if (update) button.append(el("span", "pack-flag", "update"));
-  else if (available) button.append(el("span", "pack-flag", "not installed"));
   button.addEventListener("click", () => {
     showPack(pack.name);
     document.getElementById("library-list").focus({ preventScroll: true });
@@ -113,7 +113,7 @@ function renderRail() {
   const updates = packs.updates();
   const updateFor = new Map(updates.map((u) => [u.pack.name, u]));
   const installedHead = el("div", "packs-group-head");
-  installedHead.append(el("h2", "packs-group", "Installed"));
+  installedHead.append(el("p", "packs-group", "Installed"));
   if (updates.length) {
     installedHead.append(textButton(updates.length === 1 ? "Update 1" : `Update all ${updates.length}`, "primary", () => handlers.onUpdateAll?.()));
   }
@@ -122,8 +122,8 @@ function renderRail() {
 
   const available = packs.available();
   if (available.length) {
-    nav.append(el("h2", "packs-group", "Available"));
-    for (const pack of available) nav.append(packButton(pack, { available: true }));
+    nav.append(el("p", "packs-group", "Available"));
+    for (const pack of available) nav.append(packButton(pack));
   }
 }
 
