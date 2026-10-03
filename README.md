@@ -102,3 +102,7 @@ node ui/verify_frontend.mjs
 # Verify real-browser behaviour (editor, workspace, Library, palette, settings)
 uv run python ui/verify_browser.py
 ```
+
+## Licence
+
+The code is licensed under [Apache-2.0](LICENSE). The course packs in `courses/` are under CC BY-SA 4.0 (see [`courses/LICENSE.md`](courses/LICENSE.md)). They are our own transcriptions; the original lecture notes are not distributed.
