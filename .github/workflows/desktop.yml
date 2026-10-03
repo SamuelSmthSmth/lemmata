@@ -99,6 +99,21 @@ jobs:
       - run: uv sync --frozen
       - run: uv run python desktop/build.py ${{ matrix.args }}
         shell: bash
+      # The app must carry the site inside it (a Windows path once parsed as a
+      # URL and an empty app shipped): fail unless the binary embeds the engine.
+      - name: The app embeds the site
+        shell: bash
+        run: |
+          uv run python - <<'PY'
+          import glob, sys
+          bins = [p for p in glob.glob("desktop/src-tauri/target/**/release/lemmata-desktop*", recursive=True) if not p.endswith((".d", ".pdb"))]
+          assert bins, "no app binary was built"
+          for path in bins:
+              data = open(path, "rb").read()
+              ok = b"engine.zip" in data and b"pyodide" in data
+              print(f"{path}: {len(data) / 1e6:.1f} MB, site embedded: {ok}")
+              assert ok, f"{path} does not embed the site"
+          PY
       - uses: actions/upload-artifact@v4
         with:
           name: lemmata-${{ matrix.name }}
@@ -121,8 +136,10 @@ jobs:
     steps:
       - uses: actions/download-artifact@v4
         with:
-          path: installers
+          path: downloaded
           merge-multiple: true
+      # The artifacts keep the bundler's folders (deb/, msi/, dmg/ ...): flatten them.
+      - run: mkdir installers && find downloaded -type f -exec cp {} installers/ \;
       # Versionless copies, so the site's .../releases/latest/download/<file>
       # links (web/content.py DESKTOP_FILES) always reach the newest build.
       - name: Add versionless copies

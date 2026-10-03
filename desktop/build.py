@@ -91,7 +91,10 @@ def main() -> int:
         "productName": NAME,
         "version": VERSION,
         "identifier": args.identifier,
-        "build": {"frontendDist": str(args.www.resolve())},
+        # Relative to src-tauri/, with forward slashes: an absolute Windows path
+        # ("D:\\a\\...") parses as a URL with the scheme "d:", and Tauri would
+        # then embed nothing and point the window at it.
+        "build": {"frontendDist": Path(os.path.relpath(args.www.resolve(), DESKTOP / "src-tauri")).as_posix()},
     }
     # The page may fetch only its own files and https:, so a registry served
     # over plain http (an intranet, or the tests' local one) is allowed by name.
