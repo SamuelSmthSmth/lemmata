@@ -41,6 +41,7 @@ from aether.engine.context import (
     ChainError,
     GeneralizationError,
     canonical_rel,
+    collect_free_symbols,
 )
 from aether.engine.algebra import (
     extract_domain_obligations,
@@ -262,6 +263,67 @@ class ProofChecker:
         )
         return reports
 
+    @staticmethod
+    def _close_claim(thm: TheoremNode, claim: ExprNode) -> Optional[ExprNode]:
+        """The fact a proven theorem may lend to later theorems and importers.
+
+        A conclusion only holds under the proof's own hypotheses, about the
+        proof's own variables.  Exporting it bare would let ``Assume x > 2 ...
+        Therefore x > 1`` vouch for ``x > 1`` about anybody's ``x``, so the
+        claim is closed over its top-level declarations and assumptions:
+
+            forall v1 : T1, ..., (conditions and assumptions) => claim
+
+        A claim that mentions an ``Obtain`` witness has no closed form here
+        (the witness exists only inside the proof), so it is not exported.
+        """
+        statements = thm.proof.statements if thm.proof is not None else []
+        decls: list[tuple[str, str]] = []
+        antecedents: list[ExprNode] = []
+        witnesses: set[str] = set()
+        for stmt in statements:
+            if isinstance(stmt, VarDeclNode):
+                decls.extend((v, stmt.type_name) for v in stmt.variables)
+                if stmt.condition is not None:
+                    antecedents.append(stmt.condition)
+            elif isinstance(stmt, AssumeNode):
+                antecedents.append(stmt.proposition)
+            elif isinstance(stmt, ObtainNode):
+                witnesses.add(stmt.variable)
+
+        if collect_free_symbols(claim) & witnesses:
+            return None
+        if not antecedents and not decls:
+            return claim
+
+        body = claim
+        if antecedents:
+            premise = antecedents[0]
+            for extra in antecedents[1:]:
+                premise = BinaryOpNode(op="and", left=premise, right=extra)
+            if collect_free_symbols(premise) & witnesses:
+                return None
+            body = BinaryOpNode(op="=>", left=premise, right=claim)
+
+        mentioned = collect_free_symbols(body)
+        for name, type_name in reversed(decls):
+            if name in mentioned:
+                body = QuantifierNode(quantifier="forall", var=name, var_type=type_name, formula=body)
+        return body
+
+    @staticmethod
+    def _with_default_extension(*paths: str) -> list[str]:
+        """Each path as written, then (if it has no extension) with ``.aether``.
+
+        ``import "lemmas"`` finds ``lemmas.aether``; an exact match is tried first.
+        """
+        out: list[str] = []
+        for path in paths:
+            out.append(path)
+            if not path.endswith(".aether"):
+                out.append(f"{path}.aether")
+        return out
+
     def _virtual_path(self, workspace_path: str) -> Path:
         """The pseudo-path a workspace file is known by (never a real file)."""
         clean = PurePosixPath("/", workspace_path.replace("\\", "/"))
@@ -322,8 +384,9 @@ class ProofChecker:
                         if isinstance(r.statement, DeduceNode):
                             claim = r.statement.claim
                             break
-                if claim is not None:
-                    verified_claims.append((thm.name, claim))
+                closed = self._close_claim(thm, claim) if claim is not None else None
+                if closed is not None:
+                    verified_claims.append((thm.name, closed))
 
         has_non_def_stmts = any(not isinstance(s, (FuncDefNode, ImportNode)) for s in doc.statements)
         if doc.statements and (not doc.theorems or has_non_def_stmts or import_results):
@@ -368,7 +431,9 @@ class ProofChecker:
             is_virtual = cur_file is not None and self._is_virtual(cur_file)
             importer_dir = cur_file.parent if is_virtual else Path(str(self.VIRTUAL_ROOT))
             rel_dir = PurePosixPath(importer_dir.as_posix()).relative_to(self.VIRTUAL_ROOT).as_posix()
-            for candidate_key in (f"{rel_dir}/{stmt.path}" if rel_dir != "." else stmt.path, stmt.path):
+            for candidate_key in self._with_default_extension(
+                f"{rel_dir}/{stmt.path}" if rel_dir != "." else stmt.path, stmt.path
+            ):
                 virtual = self._virtual_path(candidate_key)
                 key = self._workspace_key(virtual)
                 if key is not None:
@@ -382,9 +447,12 @@ class ProofChecker:
                 search_dirs.append(self.base_dir)
             search_dirs.append(Path.cwd().resolve())
             for d in search_dirs:
-                candidate = (d / stmt.path).resolve()
-                if candidate.is_file():
-                    target_path = candidate
+                for name in self._with_default_extension(stmt.path):
+                    candidate = (d / name).resolve()
+                    if candidate.is_file():
+                        target_path = candidate
+                        break
+                if target_path is not None:
                     break
 
         if target_path is None:

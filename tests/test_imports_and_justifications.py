@@ -298,3 +298,71 @@ class TestWorkspaceSources:
         broken = LEMMA.replace("Step: a * 2 = 2 * (2 * k)", "Step: a * 2 = 3 * k")
         assert not checker.check_source(USES_LEMMA, sources={"lemmas.aether": broken})[-1].results[0].status == StepStatus.VALID
         assert checker.check_source(USES_LEMMA, sources={"lemmas.aether": LEMMA})[-1].results[0].status == StepStatus.VALID
+
+
+CONDITIONAL = """\
+Theorem: "Bigger"
+Proof:
+    Let x : Real
+    Assume h: x > 2
+    Therefore x > 1
+QED
+"""
+
+
+class TestExportedClaimsKeepTheirHypotheses:
+    """A proven conclusion is lent out with the assumptions it was proved under."""
+
+    def test_an_imported_conclusion_does_not_hold_for_any_variable_of_that_name(self, checker: ProofChecker):
+        main = 'import "lib.aether"\nLet x : Real\nStep: x > 1\n'
+        step = checker.check_source(main, sources={"lib.aether": CONDITIONAL})[-1].results[-1]
+        assert step.status == StepStatus.INVALID, step.message
+
+    def test_it_still_applies_where_its_hypotheses_hold(self, checker: ProofChecker):
+        main = 'import "lib.aether"\nLet y : Real\nAssume y > 2\nStep: y > 1 [by Bigger]\n'
+        reports = checker.check_source(main, sources={"lib.aether": CONDITIONAL})
+        assert all(r.is_valid for r in reports), "\n".join(r.format_report() for r in reports)
+
+    def test_the_same_holds_between_theorems_in_one_file(self, checker: ProofChecker):
+        src = CONDITIONAL + 'Theorem: "Abuse"\nProof:\n    Let x : Real\n    Therefore x > 1\nQED\n'
+        abuse = checker.check_source(src)[-1]
+        assert abuse.theorem_name == "Abuse" and not abuse.is_valid, abuse.format_report()
+
+    def test_a_lemma_proved_under_a_hypothesis_is_reusable(self, checker: ProofChecker):
+        lemma = LEMMA.replace('Claim: forall a : Int, Even(a) => Even(a * 2)\n', "")
+        reports = checker.check_source(USES_LEMMA.replace("Therefore Even(n * 2)", "Therefore Even(n * 2) [by Even times even is even]"), sources={"lemmas.aether": lemma})
+        assert all(r.is_valid for r in reports), "\n".join(r.format_report() for r in reports)
+
+    def test_a_conclusion_about_a_witness_is_not_lent_out(self):
+        thm = ProofChecker()._parser.parse(
+            'Theorem: "W"\nProof:\n    Given n : Int\n    Assume h: Even(n)\n'
+            "    Obtain k : Int such that n = 2 * k from h\n    Therefore n = 2 * k\nQED\n"
+        ).theorems[0]
+        claim = thm.proof.statements[-1].claim
+        assert ProofChecker._close_claim(thm, claim) is None
+
+
+class TestImportExtension:
+    def test_the_extension_may_be_left_off(self, checker: ProofChecker):
+        reports = checker.check_source(USES_LEMMA.replace('"lemmas.aether"', '"lemmas"'), sources={"lemmas.aether": LEMMA})
+        assert all(r.is_valid for r in reports), "\n".join(r.format_report() for r in reports)
+
+    def test_an_exact_name_is_tried_first(self, checker: ProofChecker):
+        broken = 'Theorem: "Broken"\nProof:\n    Step: 1 = 2\nQED\n'
+        reports = checker.check_source(
+            USES_LEMMA.replace('"lemmas.aether"', '"lemmas"'),
+            sources={"lemmas": LEMMA, "lemmas.aether": broken},
+        )
+        assert reports[-1].results[0].status == StepStatus.VALID
+
+    def test_on_disk_too(self, tmp_path: Path):
+        (tmp_path / "lemmas.aether").write_text(LEMMA, encoding="utf-8")
+        main = tmp_path / "main.aether"
+        main.write_text(USES_LEMMA.replace('"lemmas.aether"', '"lemmas"'), encoding="utf-8")
+        reports = ProofChecker(base_dir=tmp_path).check_file(main)
+        assert all(r.is_valid for r in reports), "\n".join(r.format_report() for r in reports)
+
+    def test_pack_style_paths_resolve(self, checker: ProofChecker):
+        main = 'import "@core/demo/even-times-even"\n' + USES_LEMMA.split("\n", 1)[1]
+        reports = checker.check_source(main, sources={"@core/demo/even-times-even.aether": LEMMA})
+        assert all(r.is_valid for r in reports), "\n".join(r.format_report() for r in reports)

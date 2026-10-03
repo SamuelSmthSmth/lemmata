@@ -176,6 +176,10 @@ QED
 ```
 Lemmata automatically resolves the file, verifies that it is valid, imports all definitions and theorem claims, and guards against cyclic dependencies.
 
+A theorem is lent out with the hypotheses it was proved under. If its proof declares `Let x : Real` and assumes `x > 2` before concluding `x > 1`, what other proofs receive is `forall x : Real, x > 2 => x > 1`, not a bare `x > 1` about anybody's `x`. So an imported result applies exactly where its assumptions hold. A conclusion about an `Obtain` witness exists only inside its proof, so it is not lent out. If you want a result to travel, state it with `Claim:`.
+
+The `.aether` extension may be left off: `import "algebra_lemmas"` finds `algebra_lemmas.aether`.
+
 Where the file is looked for: in the web app, first among the proofs in your workspace — relative to the importing proof's folder, then from the top of the workspace — and then on disk. On the command line, beside the importing file, then a `base_dir` if one was given, then the working directory. An import that cannot be found is reported by name.
 
 ---
