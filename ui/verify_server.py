@@ -504,10 +504,10 @@ def main() -> int:
     # that replaced the killed one or by the other in the pool.
     with Server(env={"AETHER_CHECK_BUDGET": "1"}) as server:
         print("== check budget ==")
-        slow = (
-            "Let x, y, z : Int\nAssume h1: x^3 + y^3 = z^3\nAssume h2: x * y * z != 0\n"
-            "Step: x = 0\nStep: y = 0\nStep: z = 0\n"
-        )
+        # The longest check the repo pins: a trap whose failing step keeps the
+        # solver busy (seconds, on any machine) in work it does not meter.
+        notation = json.loads((PROJECT / "courses" / "notation.json").read_text(encoding="utf-8"))
+        slow = next(e["source"] for e in notation["entries"] if e["id"] == "partial-geometric-sum-needs-r-1")
         started = time.monotonic()
         status, _, body = server.request("/api/check", "POST", {"source": slow})
         data = json.loads(body)

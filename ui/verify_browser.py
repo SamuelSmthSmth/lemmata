@@ -1249,7 +1249,7 @@ def static_checks() -> None:
     check(js("document.querySelector('#download-pdf').hidden") is True and js("document.querySelector('#pdf-note').hidden") is False, "PDF export says why it is not here")
     js("document.querySelector('#latex-dialog').open = false; 'ok'")
 
-    slow = next(e for p in json.loads((DIST / "static" / "data" / "library.json").read_text()) for e in p["entries"] if e["id"] == "example-3-22-the-geometric-series")
+    slow = next(e for p in json.loads((DIST / "static" / "data" / "library.json").read_text()) for e in p["entries"] if e["id"] == "partial-geometric-sum-needs-r-1")
     js("localStorage.setItem('aether:check-budget-ms', '1500'); 'ok'")
     ab("open", permalink(slow["source"]))
     state = settle(90)
