@@ -53,7 +53,11 @@ jobs:
       - run: uv sync --frozen
       - run: npm ci
         working-directory: desktop
-      - run: cargo test --release
+      # tauri::generate_context! embeds the site at compile time; the shell's
+      # own unit tests need only a page to be there.
+      - run: |
+          mkdir -p ../build/www && test -f ../build/www/index.html || echo '<!doctype html>' > ../build/www/index.html
+          cargo test --release
         working-directory: desktop/src-tauri
       - run: xvfb-run -a uv run python desktop/verify_desktop.py
 
