@@ -995,7 +995,7 @@ kbd {
   margin-bottom: 12px;
 }
 
-.history-block h3 {
+.history-block h2 {
   margin: 0 0 5px;
   font-size: 11px;
   font-weight: 700;
@@ -1204,7 +1204,7 @@ kbd {
   box-shadow: 0 10px 28px rgba(0, 0, 0, 0.2);
 }
 
-.layout-panel h3 {
+.layout-panel h2 {
   margin: 0 0 8px;
   font-size: 11px;
   font-weight: 700;
