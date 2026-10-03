@@ -50,7 +50,7 @@ fi
 say "Installing Lemmata from ${REPO} (${REF})..."
 "${UV}" tool install --force --python 3.12 "git+${REPO}@${REF}"
 
-BIN="$("${UV}" tool dir --bin 2>/dev/null || printf '%s' "${HOME}/.local/bin")"
+BIN="$("${UV}" --color never tool dir --bin 2>/dev/null || printf '%s' "${HOME}/.local/bin")"
 if command -v lemmata >/dev/null 2>&1; then
     lemmata --version
 else

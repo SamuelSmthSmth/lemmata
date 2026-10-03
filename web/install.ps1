@@ -40,7 +40,7 @@ Write-Host "Installing Lemmata from $Repo ($Ref)..."
 & $Uv tool install --force --python 3.12 "git+$Repo@$Ref"
 if ($LASTEXITCODE -ne 0) { throw "uv tool install failed" }
 
-$Bin = (& $Uv tool dir --bin)
+$Bin = (& $Uv --color never tool dir --bin)
 $Lemmata = Get-Command lemmata -ErrorAction SilentlyContinue
 if ($Lemmata) {
     & lemmata --version
