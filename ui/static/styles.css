@@ -1176,6 +1176,15 @@ kbd {
   outline-offset: -2px;
 }
 
+.dialog-note {
+  margin: 0;
+  max-width: 68ch;
+  font-family: var(--font-prose);
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--muted);
+}
+
 .dialog-actions {
   display: flex;
   align-items: center;

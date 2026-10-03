@@ -7,7 +7,8 @@
 // Side-effect import: defines every <wa-*> custom element. Imported first so
 // nothing below can touch an element that has not been upgraded yet.
 import "./components.js";
-import { checkProof, exportLatex, exportPdf, fetchLibrary, validatePack } from "./api.js";
+import { canExportPdf, checkProof, exportLatex, exportPdf, fetchLibrary, validatePack } from "./api.js";
+import { onEngineStatus, warmUp } from "./backend.js";
 import { initAuditNav, selectStepForLine } from "./audit.js";
 import { insertSymbol, insertTemplate, setScopeSource, SYMBOLS, TEMPLATES } from "./complete.js";
 import { renderContext } from "./context.js";
@@ -36,7 +37,7 @@ import { loadSite, site } from "./site.js";
 import { state } from "./state.js";
 import { initTabs, renderTabs } from "./tabs.js";
 import { showToast } from "./toast.js";
-import { markStale, setPending } from "./verdict.js";
+import { markStale, setEngineLoading, setPending } from "./verdict.js";
 import * as ws from "./workspace.js";
 import { readZip, writeZip } from "./zip.js";
 
@@ -1177,6 +1178,18 @@ document.addEventListener("visibilitychange", () => {
 // ---------------------------------------------------------------------------
 
 async function init() {
+  // The static build runs the checker in this browser: start loading it now,
+  // while the workspace opens, and say so while it loads.
+  warmUp();
+  onEngineStatus(({ state, detail }) => {
+    if (state === "loading" || state === "restarting") setEngineLoading(`${state === "restarting" ? "Restarting the checker" : "Loading the checker"}${detail ? ` · ${detail}` : ""}`);
+    else setEngineLoading(null);
+    if (state === "failed") showToast(`The checker could not start in this browser: ${detail}`, { tone: "danger", ms: 12000 });
+  });
+  if (!canExportPdf) {
+    dom.downloadPdf.hidden = true;
+    document.getElementById("pdf-note").hidden = false;
+  }
   applySyntax(currentSyntax());
   await loadSite();
   setDeskOpen(getPref("desk") === "open" && !narrowScreen.matches, { persist: false });

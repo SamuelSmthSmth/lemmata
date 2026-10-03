@@ -522,6 +522,42 @@ on the way out. And `settle()` waits on the verdict's `stale` flag as well as
 on "Checking…" — without that it can read an edit against the previous
 buffer's verdict, which looks exactly like a re-check that never happened.
 
+## The static build: the checker in the browser
+
+The same app runs with **no server**: `ui/build_static.py` writes `dist/`, a
+folder of plain files that Vercel, a university's own web server or a desktop
+shell can host. The engine runs inside the page, in **Pyodide** (CPython
+compiled to WebAssembly), in a Web Worker:
+
+```bash
+uv run python ui/vendor_pyodide.py     # once: Pyodide 314 and the wheels, sha256-pinned (24 MB, gitignored)
+uv run python ui/build_static.py       # writes dist/ (about 26 MB)
+python -m http.server --directory dist # or any web server
+```
+
+- **The same code.** The jobs — check, LaTeX report, pack validation — live
+  in `ui/engine_jobs.py`, and both the server's worker processes and the
+  browser worker (`js/engine-worker.js`) run them. `js/backend.js` is the only
+  place that knows which one answers; `js/api.js` routes through it. The build
+  marks the page `<meta name="lemmata-engine" content="browser">`, and the
+  catalogue, capabilities and site details are precomputed into
+  `static/data/*.json`.
+- **The same verdicts.** `node ui/verify_wasm.mjs` runs every verdict the repo
+  pins (244 cases: the course packs, the examples, the capability probes, the
+  strict-domain verdicts) inside Pyodide and natively. All agree; checks run at
+  about 2× native (median) and 2.6× (p95). Pyodide boots in about 2 s and the
+  engine is ready in about 7 s, after a first download of about 25 MB that the
+  browser then caches.
+- **The same budget.** A check that overruns 20 s answers `TIMEOUT`, as on the
+  server: the page terminates the worker (Python cannot be interrupted from
+  inside) and starts a fresh one. `localStorage["aether:check-budget-ms"]`
+  overrides the budget.
+- **One difference.** PDF export needs a TeX installation, so the static build
+  offers the `.tex` (and says why); everything else works as on the server.
+- **Hosting.** `dist/vercel.json` sets long cache headers on `static/vendor/`.
+  Paths are relative, so the folder also works under a sub-path. The app needs
+  no network once loaded, apart from fetching more of itself.
+
 ## About `static/vendor/`
 
 CodeMirror 6 is a graph of packages that share singleton state — facets like

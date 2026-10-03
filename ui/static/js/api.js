@@ -1,7 +1,16 @@
-// Thin wrappers over the backend endpoints.
+// Thin wrappers over the engine: the server's endpoints, or -- in the static
+// build -- the engine running in this browser (js/backend.js).  Every caller
+// goes through here, and both answer with the same shapes.
 //
 // Nothing here touches the DOM or the editor, so it is safe to import from
 // anywhere (and easy to stub).
+
+import { browser, mode } from "./backend.js";
+
+const inBrowser = mode === "browser";
+
+/** Whether this build can compile a PDF (it needs the server's TeX install). */
+export const canExportPdf = !inBrowser;
 
 async function getJson(path) {
   const response = await fetch(path);
@@ -9,13 +18,16 @@ async function getJson(path) {
   return response.json();
 }
 
-export const fetchExamples = () => getJson("/api/examples");
-export const fetchLibrary = () => getJson("/api/library");
-export const fetchCapabilities = () => getJson("/api/capabilities");
-export const fetchSite = () => getJson("/api/site");
+export const fetchLibrary = () => (inBrowser ? browser.json("library") : getJson("/api/library"));
+export const fetchCapabilities = () => (inBrowser ? browser.json("capabilities") : getJson("/api/capabilities"));
+export const fetchSite = () => (inBrowser ? browser.json("site") : getJson("/api/site"));
 
 /** Ask the server whether parsed .pack.json contents are a pack: {pack} or {errors}. */
 export async function validatePack(data) {
+  if (inBrowser) {
+    const result = await browser.validatePack(data);
+    return { pack: result.pack ?? null, errors: result.errors ?? [] };
+  }
   const response = await fetch("/api/packs/validate", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -32,6 +44,7 @@ export async function validatePack(data) {
  * workspace; they are only sent when the proof imports something.
  */
 export async function checkProof({ source, strictDomains, files = null, path = null, signal }) {
+  if (inBrowser) return browser.check({ source, strictDomains, files, path, signal });
   const response = await fetch("/api/check", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -46,6 +59,7 @@ export async function checkProof({ source, strictDomains, files = null, path = n
 // source listing) to the typeset proof; `session` carries the timeline and
 // snapshots, which only the browser knows about.
 export async function exportLatex({ source, standalone = true, strictDomains = false, breakdown = true, session = null, signal }) {
+  if (inBrowser) return browser.latex({ source, standalone, strictDomains, breakdown, session });
   const response = await fetch("/api/export/latex", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -57,6 +71,7 @@ export async function exportLatex({ source, standalone = true, strictDomains = f
 }
 
 export async function exportPdf({ source, strictDomains = false, breakdown = true, session = null, signal }) {
+  if (inBrowser) throw new Error("PDF export needs a TeX installation, which this web version does not have");
   const response = await fetch("/api/export/pdf", {
     method: "POST",
     headers: { "Content-Type": "application/json" },

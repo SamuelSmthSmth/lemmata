@@ -44,4 +44,4 @@ import "../vendor/webawesome/components/tooltip/tooltip.js";
 
 // Components resolve their assets relative to a base path.  Self-hosting means
 // telling them where that is instead of letting them guess.
-setBasePath("/static/vendor/webawesome");
+setBasePath(new URL("../vendor/webawesome", import.meta.url).href);

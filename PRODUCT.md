@@ -27,9 +27,9 @@ A "proof intern": it reads proofs written the way the notes write them, `∀ ε 
 
 ## Capabilities and Constraints
 
-- Runs locally with `uv run python -m ui`; no hosting yet. It is meant to become a public product, so public-readiness decisions are deferred, not abandoned.
+- Runs locally with `uv run python -m ui`, or as a static site with the checker running in the browser (Pyodide; `ui/build_static.py`), which is how it will be hosted (Vercel), wrapped as a desktop app, and self-hosted by institutions. Every pinned verdict is identical in both.
 - A student's work lives in their browser: no accounts or server-side storage in this version, with file import and export as the backup. The storage layer must allow accounts to be added later.
-- No build step and no runtime network access: vanilla ES modules with vendored CodeMirror 6 and Web Awesome, served by FastAPI.
+- No build step for development and no runtime network access: vanilla ES modules with vendored CodeMirror 6 and Web Awesome, served by FastAPI. The static build is a distribution step only.
 - Every engine call runs under a hard wall-clock budget; a stalled solver query answers TIMEOUT rather than hanging.
 - The engine's capability matrix (`USER_GUIDE.md` §8) is the honest statement of what is and is not supported; the product never claims more.
 

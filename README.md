@@ -77,6 +77,13 @@ Open your browser at `http://127.0.0.1:8000`.
 
 Every check runs in a worker process under a hard time budget, so a step the solver cannot settle reports `TIMEOUT` instead of hanging. Nothing leaves your machine. See [`ui/README.md`](ui/README.md) for how it is built.
 
+The same app also builds as a **static site** with the checker running in the browser (Pyodide), with no server, for hosting anywhere:
+
+```bash
+uv run python ui/vendor_pyodide.py && uv run python ui/build_static.py
+python -m http.server --directory dist
+```
+
 ---
 
 ## 🧪 Verification & Testing

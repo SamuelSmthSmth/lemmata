@@ -46,6 +46,16 @@ export function setPending() {
   clearStale();
   dom.verdict.className = "verdict verdict--pending";
   // renderVerdict() writes textContent, which clears the spinner again.
-  dom.verdict.replaceChildren(el("wa-spinner"), document.createTextNode("Checking…"));
-  dom.verdictMeta.textContent = "";
+  dom.verdict.replaceChildren(el("wa-spinner"), document.createTextNode(engineLoading ? "Loading…" : "Checking…"));
+  dom.verdictMeta.textContent = engineLoading ?? "";
+}
+
+// In the static build the checker itself loads in this browser first (about
+// 25 MB the first time, then from the cache); while it does, a pending check
+// says what it is waiting for rather than just "Checking…".
+let engineLoading = null;
+
+export function setEngineLoading(detail) {
+  engineLoading = detail;
+  if (dom.verdict.classList.contains("verdict--pending")) setPending();
 }

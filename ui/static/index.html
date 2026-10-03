@@ -40,13 +40,13 @@
          components actually rely on are loaded.  Everything here lives in
          cascade layers and styles.css is unlayered, so the app wins any
          overlap anyway. -->
-    <link rel="stylesheet" href="/static/vendor/webawesome/styles/layers.css" />
-    <link rel="stylesheet" href="/static/vendor/webawesome/styles/themes/default.css" />
-    <link rel="stylesheet" href="/static/vendor/webawesome/styles/utilities/visually-hidden.css" />
-    <link rel="stylesheet" href="/static/vendor/webawesome/styles/utilities/scroll-lock.css" />
+    <link rel="stylesheet" href="static/vendor/webawesome/styles/layers.css" />
+    <link rel="stylesheet" href="static/vendor/webawesome/styles/themes/default.css" />
+    <link rel="stylesheet" href="static/vendor/webawesome/styles/utilities/visually-hidden.css" />
+    <link rel="stylesheet" href="static/vendor/webawesome/styles/utilities/scroll-lock.css" />
     <!-- Self-hosted JetBrains Mono (see ui/vendor_fonts.py). -->
-    <link rel="stylesheet" href="/static/fonts.css" />
-    <link rel="stylesheet" href="/static/styles.css" />
+    <link rel="stylesheet" href="static/fonts.css" />
+    <link rel="stylesheet" href="static/styles.css" />
   </head>
   <body data-view="workspace">
     <a class="skip-link" href="#editor">Skip to the proof</a>
@@ -338,6 +338,7 @@
           >
         </div>
         <textarea id="latex-output" class="latex-textarea" readonly spellcheck="false" placeholder="Generating LaTeX..."></textarea>
+        <p id="pdf-note" class="dialog-note" hidden>PDF export needs a TeX installation, which this web version does not have. Download the .tex and compile it in Overleaf or any TeX editor.</p>
       </div>
       <div slot="footer" class="dialog-actions">
         <wa-button id="copy-latex" size="s" appearance="filled-outlined">Copy LaTeX</wa-button>
@@ -365,6 +366,6 @@
 
     <wa-toast id="toast" placement="bottom-center" role="status" aria-live="polite"></wa-toast>
 
-    <script type="module" src="/static/js/main.js"></script>
+    <script type="module" src="static/js/main.js"></script>
   </body>
 </html>

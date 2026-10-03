@@ -63,6 +63,9 @@ def free_port() -> int:
         return int(sock.getsockname()[1])
 
 
+# --static runs a subset against the static build (dist/, ui/build_static.py),
+# where the checker runs in the browser and there is no /api at all.
+STATIC = "--static" in sys.argv
 PORT = free_port()
 BASE = f"http://127.0.0.1:{PORT}"
 # A dedicated session so we never hijack whatever the shared default is doing.
@@ -119,7 +122,7 @@ def probe() -> dict:
     return js(PROBE)
 
 
-def settle(timeout: float = 12.0) -> dict:
+def settle(timeout: float | None = None) -> dict:
     """Wait until the verdict describes the current buffer again.
 
     Both conditions matter.  "Checking…" covers an in-flight request, and the
@@ -127,10 +130,11 @@ def settle(timeout: float = 12.0) -> dict:
     check, an edit would be read against the *previous* buffer's verdict,
     which looks exactly like a re-check that did not happen.
     """
-    deadline = time.time() + timeout
+    # In the static build a page load starts the checker afresh (from cache).
+    deadline = time.time() + (timeout or (60.0 if STATIC else 12.0))
     state = probe()
     while time.time() < deadline and (
-        state["verdict"] in ("Checking…", "Ready", None) or state["stale"]
+        state["verdict"] in ("Checking…", "Loading…", "Ready", None) or state["stale"]
     ):
         time.sleep(0.2)
         state = probe()
@@ -225,7 +229,7 @@ def wipe() -> None:
     Done from a same-origin page that is not the app, so no open connection
     can block the IndexedDB delete.
     """
-    ab("open", f"{BASE}/api/health")
+    ab("open", f"{BASE}{'/static/data/site.json' if STATIC else '/api/health'}")
     js(
         "(() => { window.__wiped = false; localStorage.clear();"
         " const r = indexedDB.deleteDatabase('aether');"
@@ -1195,7 +1199,73 @@ def zip_checks() -> None:
     check(len(files) == 3, "and a clash with an existing file is renamed, not overwritten")
 
 
+def static_checks() -> None:
+    print("== the static build: the checker runs in this browser ==")
+    state = fresh()
+    check(state["verdict"] == "VALID", f"a first visit checks the starting proof in the browser ({state['verdict']}, {state['meta']})")
+    check(js("document.querySelectorAll('.step').length") > 0, "with a step-by-step audit")
+
+    ab("open", permalink(EXAMPLES["algebraic-blunder"]))
+    state = settle()
+    check(state["verdict"] == "INVALID", f"a blunder fails ({state['verdict']})")
+    check("Counterexample" in js("document.querySelector('#audit').textContent"), "with its counterexample")
+
+    ab("open", permalink(EXAMPLES["unguarded-division"]))
+    state = settle()
+    check(state["verdict"] == "VALID (with domain warnings)", f"an unguarded division warns ({state['verdict']})")
+    set_strict(True)
+    state = settle()
+    check(state["verdict"] == "INVALID", f"and strict domains make it an error ({state['verdict']})")
+
+    import_checks()
+
+    print("== packs, LaTeX and the budget, without a server ==")
+    fresh()
+    ab("click", ".rail-button[data-view='library']")
+    time.sleep(0.5)
+    check("MTH2010" in js("document.getElementById('library-packs').innerText"), "the bundled packs install from the static catalogue")
+    mth2010 = next(p for p in json.loads((DIST / "static" / "data" / "library.json").read_text()) if p["name"] == "core/mth2010")
+    entry = next(e for e in mth2010["entries"] if e["kind"] == "proof" and "Theorem:" in e["source"])
+    reset_page()
+    js(
+        "(async () => { document.querySelector(\".rail-button[data-view='library']\").click();"
+        " await new Promise(r => setTimeout(r, 300));"
+        " document.querySelector('.pack-button[data-pack=\"core/mth2010\"]').click();"
+        " await new Promise(r => setTimeout(r, 200));"
+        f" document.querySelector('.entry[data-entry=\"core/mth2010/{entry['id']}\"] .entry-head').click();"
+        " await new Promise(r => setTimeout(r, 200));"
+        " [...document.querySelectorAll('.entry-actions .text-button')].find(b => b.textContent === 'Use in a proof').click();"
+        " return 'ok'; })()"
+    )
+    time.sleep(0.6)
+    state = settle()
+    check(state["verdict"] == "VALID" and "Imported '@core/mth2010/" in js("document.querySelector('#audit').textContent"), f"a pack theorem imports and checks ({state['verdict']})")
+
+    ab("click", "#export-latex")
+    deadline = time.time() + 60
+    while time.time() < deadline and "documentclass" not in (js("document.querySelector('#latex-output').value") or ""):
+        time.sleep(0.5)
+    check("documentclass" in (js("document.querySelector('#latex-output').value") or ""), "LaTeX export runs in the browser")
+    check(js("document.querySelector('#download-pdf').hidden") is True and js("document.querySelector('#pdf-note').hidden") is False, "PDF export says why it is not here")
+    js("document.querySelector('#latex-dialog').open = false; 'ok'")
+
+    slow = next(e for p in json.loads((DIST / "static" / "data" / "library.json").read_text()) for e in p["entries"] if e["id"] == "example-3-22-the-geometric-series")
+    js("localStorage.setItem('aether:check-budget-ms', '1500'); 'ok'")
+    ab("open", permalink(slow["source"]))
+    state = settle(90)
+    check(state["verdict"] == "TIMEOUT", f"a check that overruns its budget answers TIMEOUT ({state['verdict']}: {state['meta']})")
+    js("localStorage.removeItem('aether:check-budget-ms'); 'ok'")
+    ab("open", permalink(EXAMPLES["even-square"]))
+    state = settle(90)
+    check(state["verdict"] == "VALID", f"and the checker restarts for the next proof ({state['verdict']})")
+
+
+DIST = PROJECT / "dist"
+
+
 def main() -> int:
+    if STATIC:
+        return static_main()
     server = subprocess.Popen(
         [sys.executable, "-m", "ui", "--port", str(PORT)],
         cwd=str(PROJECT),
@@ -1235,6 +1305,37 @@ def main() -> int:
             print(f"  - {failure}")
         return 1
     print("all browser checks passed")
+    return 0
+
+
+def static_main() -> int:
+    global DIST, STARTING_SOURCE
+    DIST = PROJECT / "dist"
+    if not (DIST / "index.html").exists():
+        print("No static build: run `uv run python ui/vendor_pyodide.py` and `uv run python ui/build_static.py` first.")
+        return 1
+    server = subprocess.Popen(
+        [sys.executable, "-m", "http.server", str(PORT), "--bind", "127.0.0.1", "--directory", str(DIST)],
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+    )
+    try:
+        time.sleep(1.0)
+        examples = next(p for p in json.loads((DIST / "static" / "data" / "library.json").read_text()) if p["name"] == "core/examples")
+        EXAMPLES.update({e["id"]: e["source"] for e in examples["entries"]})
+        STARTING_SOURCE = EXAMPLES["even-square"]
+        static_checks()
+    finally:
+        ab("close")
+        server.terminate()
+        server.wait(timeout=10)
+    print()
+    if failures:
+        print(f"{len(failures)} check(s) failed:")
+        for failure in failures:
+            print(f"  - {failure}")
+        return 1
+    print("all static-build browser checks passed")
     return 0
 
 

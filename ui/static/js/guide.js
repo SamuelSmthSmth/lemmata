@@ -44,7 +44,7 @@ export function initGuide(actions) {
 
 async function pageHtml(id) {
   if (!cache.has(id)) {
-    const response = await fetch(`/static/guide/${id}.html`);
+    const response = await fetch(new URL(`../guide/${id}.html`, import.meta.url));
     if (!response.ok) throw new Error(`the page could not be loaded (${response.status})`);
     cache.set(id, await response.text());
   }

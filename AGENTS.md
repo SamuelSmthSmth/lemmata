@@ -186,6 +186,8 @@ Every claim this repo makes is checked by a script you can run yourself:
 | `uv run python ui/verify_capabilities.py` | the CNL capability matrix listed in `USER_GUIDE.md` — and that the table published there still matches the pins; `--markdown` prints it as the doc table, and every snippet runs under a wall-clock budget (`--budget`, 10s) because Z3's soft `timeout` is not enforceable in-process |
 | `uv run python ui/verify_server.py` | the HTTP API (check budget and `TIMEOUT`, workspace imports, library, capabilities), both export styles, the vendored asset graph, and every *Try it* example in the Guide |
 | `node ui/verify_frontend.mjs` | the CodeMirror tokenizer, the frontend module graph, layout rules and the `.zip` reader/writer |
+| `node ui/verify_wasm.mjs` | every pinned verdict (course packs, examples, capability probes) gives the same answer inside Pyodide — the browser's Python — as natively, with timings; needs `uv run python ui/vendor_pyodide.py` once |
+| `uv run python ui/verify_browser.py --static` | the static build (`uv run python ui/build_static.py` → `dist/`): checking, imports, packs, LaTeX and the budget with the engine in the browser and no server |
 | `uv run python ui/verify_browser.py` | real-browser behaviour: editor keys and round-trip, panels, theme, the workspace (files, tabs, IndexedDB, migration, imports, `.zip`), diagnostics, templates, palette, Library exercises, settings |
 
 For ad-hoc browser work — screenshots, accessibility audits, HARs, layout diffs —

@@ -42,3 +42,26 @@ jobs:
       - run: uv run python ui/verify_capabilities.py
       - run: uv run python ui/verify_server.py
       - run: node ui/verify_frontend.mjs
+
+  wasm:
+    name: Engine in the browser's Python (Pyodide) and the static build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - name: Cache the vendored Pyodide set
+        uses: actions/cache@v4
+        with:
+          path: ui/static/vendor/pyodide
+          key: pyodide-${{ hashFiles('ui/vendor_pyodide.py') }}
+      - run: uv sync --frozen
+      - name: Vendor Pyodide and the engine wheels (sha256-pinned)
+        run: test -f ui/static/vendor/pyodide/pyodide.mjs || uv run python ui/vendor_pyodide.py
+      # Every pinned verdict, under Pyodide, against the native engine.
+      - run: node ui/verify_wasm.mjs
+      - run: uv run python ui/build_static.py
