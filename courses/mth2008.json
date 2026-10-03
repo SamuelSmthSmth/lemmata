@@ -1,8 +1,18 @@
 {
-  "id": "mth2008",
-  "code": "MTH2008",
+  "format": 1,
+  "name": "core/mth2008",
+  "version": "1.0.0",
   "title": "Real Analysis",
-  "note": "Transcribed from the MTH2008 lecture notes into Aether; references follow the notes' numbering.",
+  "courses": [
+    "MTH2008"
+  ],
+  "summary": "Results from the MTH2008 lecture notes, restated and proved in the checker's notation; references follow the notes' numbering.",
+  "authors": [
+    "Samuel Okwuonu"
+  ],
+  "license": "CC-BY-SA-4.0",
+  "engine": ">=0.1",
+  "depends": {},
   "chapters": [
     {
       "id": "1",

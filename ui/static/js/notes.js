@@ -7,6 +7,7 @@
 // (`file.exercise`), so it survives a reload.
 
 import { el } from "./format.js";
+import { packLabel } from "./packs.js";
 
 let handlers = {};
 
@@ -38,7 +39,7 @@ export function renderNotes({ found, file, pinned }) {
     // The notes' own numbering is the heading; where it comes from follows it.
     card.append(el("h2", "note-ref", entry.ref));
     card.append(el("p", "note-title", entry.title));
-    card.append(el("p", "note-source", `${pack.code} ${pack.title}${chapter ? ` · ${chapter.title}` : ""}`));
+    card.append(el("p", "note-source", `${packLabel(pack) === pack.title ? pack.title : `${packLabel(pack)} ${pack.title}`}${chapter ? ` · ${chapter.title}` : ""}`));
     if (entry.blurb) card.append(el("p", "note-text", entry.blurb));
 
     if (entry.kind === "trap") {

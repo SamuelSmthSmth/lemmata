@@ -10,25 +10,24 @@ the better tool while working on a failure.
 
 from __future__ import annotations
 
-import json
 from pathlib import Path
 
 import pytest
 
 from aether import ParseError, ProofChecker
+from aether.packs import load_packs, pack_label
 
 COURSES = Path(__file__).resolve().parent.parent / "courses"
 
 
 def _entries():
     """Every course-pack entry, as a pytest param named after its pack and reference."""
-    for pack_file in sorted(COURSES.glob("*.json")):
-        pack = json.loads(pack_file.read_text(encoding="utf-8"))
+    for pack in load_packs(COURSES):
         for entry in pack["entries"]:
             yield pytest.param(
                 entry["source"],
                 entry["expected"],
-                id=f"{pack['code']} {entry['ref']} {entry['title']}",
+                id=f"{pack_label(pack)} {entry['ref']} {entry['title']}",
             )
 
 
@@ -37,8 +36,7 @@ ENTRIES = list(_entries())
 
 def test_every_trap_explains_itself() -> None:
     """Spot-the-error shows the explanation after the student finds the line."""
-    for pack_file in sorted(COURSES.glob("*.json")):
-        pack = json.loads(pack_file.read_text(encoding="utf-8"))
+    for pack in load_packs(COURSES):
         chapters = {c["id"] for c in pack["chapters"]}
         for entry in pack["entries"]:
             assert entry["chapter"] in chapters, entry["id"]

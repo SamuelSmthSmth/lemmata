@@ -66,6 +66,8 @@ export function dirname(path) {
 export function pathProblem(path, ignoreId = null) {
   if (!path || !basename(path).replace(EXTENSION, "")) return "A file needs a name.";
   if (/[<>:"|?*\u0000-\u001f]/.test(path)) return "Names cannot contain < > : \" | ? or *.";
+  // "@…" is where installed packs live for `import "@scope/pack/entry"`.
+  if (path.startsWith("@")) return "Names cannot start with @; that is how proofs import from packs.";
   for (const file of model.files.values()) {
     if (file.id !== ignoreId && file.path.toLowerCase() === path.toLowerCase()) {
       return `${path} already exists.`;

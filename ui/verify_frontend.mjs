@@ -577,6 +577,71 @@ try {
 check(rejected, "zip.js does not reject a non-archive with a readable message");
 console.log("workspace archives checked");
 
+// --- packs.js: the browser's package manager for course packs ---------------
+const packs = await moduleAt("js/packs.js");
+const { readFileSync: readCourse } = await import("node:fs");
+const course = JSON.parse(readCourse(new URL("../../courses/mth2010.json", STATIC), "utf8"));
+check(packs.compareVersions("1.2.0", "1.10.0") < 0, "compareVersions does not order 1.2.0 before 1.10.0");
+check(packs.compareVersions("1.0.0", "1.0.0-beta") > 0, "compareVersions does not put a release after its pre-release");
+check(packs.compareVersions("2.0.0", "2.0.0") === 0, "compareVersions does not find equal versions equal");
+check(packs.packLabel(course) === "MTH2010", "packLabel does not use the course code");
+check(packs.packLabel({ ...course, courses: [] }) === course.title, "packLabel does not fall back to the title without a course");
+check(packs.splitKey("core/mth2010/lagrange")?.name === "core/mth2010", "splitKey does not split on the last slash");
+check(packs.migrateOrigin("mth2008/theorem-1-1") === "core/mth2008/theorem-1-1", "migrateOrigin does not scope a legacy origin");
+check(packs.migrateOrigin("examples/file-guarded_division_scratchpad") === "core/examples/file-guarded-division-scratchpad", "migrateOrigin does not re-slug an examples file entry");
+check(packs.migrateOrigin("core/mth2008/x") === "core/mth2008/x", "migrateOrigin changes an origin that is already scoped");
+
+const edited = structuredClone(course);
+edited.version = "1.1.0";
+edited.entries[0].source += "\n";
+edited.entries.pop();
+edited.entries.push({ ...course.entries[1], id: "brand-new" });
+const diff = packs.diffPacks(course, edited);
+check(diff.changed.length === 1 && diff.added.length === 1 && diff.removed.length === 1, `diffPacks miscounts: ${JSON.stringify(diff)}`);
+check(packs.describeDiff(diff) === "1 changed, 1 new, 1 removed", `describeDiff says "${packs.describeDiff(diff)}"`);
+check(packs.describeDiff(packs.diffPacks(course, course)) === null, "describeDiff describes no change");
+
+const record = { name: course.name, version: course.version, origin: "bundled", pack: course };
+check(packs.updatesFor([edited], [record]).length === 1, "updatesFor misses a newer version");
+check(packs.updatesFor([course], [record]).length === 0, "updatesFor offers an identical pack");
+check(packs.updatesFor([{ ...course, version: "0.9.0" }], [record]).length === 0, "updatesFor offers an older version");
+check(packs.browsable([course, edited], [record]).length === 0 && packs.browsable([course], []).length === 1, "browsable lists installed packs");
+
+const sources = packs.importSources([course]);
+const trapIds = course.entries.filter((e) => e.kind === "trap").map((e) => e.id);
+check(Object.keys(sources).every((k) => k.startsWith("@core/mth2010/") && k.endsWith(".aether")), "importSources keys are not @name/entry.aether");
+check(trapIds.every((id) => !(`@core/mth2010/${id}.aether` in sources)), "importSources lends out a trap");
+check(packs.importLine("core/mth2010", "lagrange") === 'import "@core/mth2010/lagrange"', "importLine is not the short import form");
+check(packs.importsFromPacks('Let x : Real\nimport "@core/a/b"\n') && !packs.importsFromPacks('import "lemmas"\n'), "importsFromPacks misreads an import");
+
+const file = packs.packToFile(course);
+check(file.filename === "core-mth2010.pack.json" && JSON.stringify(packs.parsePackFile(file.text)) === JSON.stringify(course), "a pack does not survive .pack.json round-trip");
+let notJson = false;
+try {
+  packs.parsePackFile("{ nope");
+} catch (error) {
+  notJson = /not JSON/.test(error.message);
+}
+check(notJson, "parsePackFile does not reject a non-JSON file readably");
+// Authoring: a folder exports as a pack, true by construction.
+const manifest = packs.newManifest("Sheets/Week 1");
+check(manifest.name === "me/week-1" && manifest.courses.length === 0, `newManifest starts as ${manifest.name}, with courses ${manifest.courses}`);
+manifest.entries = { b: { kind: "trap", explanation: "Step 2 divides by zero.", chapter: "Mistakes" }, a: { ref: "Lemma 1", title: "Doubling" } };
+const folderFiles = [
+  { id: "a", path: "Sheets/Week 1/Double.aether", source: "Let x : Real\nStep: x + x = 2 * x\n" },
+  { id: "b", path: "Sheets/Week 1/Bad.aether", source: "Step: 1 = 2\n" },
+];
+const built = packs.buildPack(manifest, folderFiles, new Map([["a", "VALID"], ["b", "INVALID"]]));
+check(built.problems.length === 0, `buildPack found problems in a good folder: ${built.problems}`);
+check(built.pack.entries.find((e) => e.id === "doubling")?.ref === "Lemma 1", "buildPack ignores an entry's own reference and title");
+check(built.pack.chapters.length === 2 && !("courses" in built.pack), "buildPack mis-groups chapters or invents a course code");
+const asProblems = (map, change = {}) => packs.buildPack({ ...manifest, ...change }, folderFiles, new Map(map)).problems.join(" ");
+check(/a trap must fail/.test(asProblems([["a", "VALID"], ["b", "VALID"]])), "buildPack accepts a trap that checks");
+check(/does not parse/.test(asProblems([["a", "PARSE ERROR"], ["b", "INVALID"]])), "buildPack accepts a proof that does not parse");
+check(/could not be checked/.test(asProblems([["a", "TIMEOUT"], ["b", "INVALID"]])), "buildPack records a verdict it never got");
+check(/core\/ scope/.test(asProblems([["a", "VALID"], ["b", "INVALID"]], { name: "core/mine" })), "buildPack lets a pack claim the core/ scope");
+console.log("packs checked");
+
 console.log();
 if (failures.length) {
   console.log(`${failures.length} check(s) failed:`);

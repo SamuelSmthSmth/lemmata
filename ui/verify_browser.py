@@ -582,6 +582,8 @@ def run_checks() -> None:
     lint_and_template_checks()
     palette_checks()
     library_checks()
+    pack_checks()
+    pack_author_checks()
     settings_checks()
     zip_checks()
 
@@ -937,6 +939,8 @@ def library_checks() -> None:
     check(kinds is True, "the Traps filter shows only traps")
     ab("click", ".entry--trap .entry-head")
     time.sleep(0.3)
+    js("document.querySelector('.entry.is-open .entry-actions').scrollIntoView({ block: 'center' }); 'ok'")
+    time.sleep(0.2)
     ab("click", ".entry.is-open .entry-actions .text-button--primary")
     state = settle()
     time.sleep(0.3)
@@ -951,6 +955,181 @@ def library_checks() -> None:
     check(js("document.body.dataset.exercise") == "revealed", "'Show the answer' reveals it")
     check(js("!!document.querySelector('.note-verdict')") is True, "and the Notes say which line fails")
     check(js("document.querySelector('#verdict').textContent") == "INVALID", "the real verdict comes back")
+
+
+def rail() -> str:
+    return js("document.getElementById('library-packs').innerText")
+
+
+def toasts() -> str:
+    return js("[...document.querySelectorAll('#toast wa-toast-item')].map(t => t.textContent).join(' / ')")
+
+
+def pack_action(label: str) -> None:
+    js(
+        "[...document.querySelectorAll('.pack-actions .text-button')].find(b => b.textContent.startsWith("
+        + json.dumps(label) + ")).click(); 'ok'"
+    )
+
+
+def open_pack(name: str) -> None:
+    js(f"document.querySelector('.pack-button[data-pack=\"{name}\"]').click(); 'ok'")
+    time.sleep(0.3)
+
+
+def pack_checks() -> None:
+    print("== packs: install, uninstall, update, import from them ==")
+    fresh()
+    ab("click", ".rail-button[data-view='library']")
+    time.sleep(0.5)
+    text = rail()
+    check(all(label in text for label in ("Worked examples", "MTH2008", "MTH2010", "Notation and traps")), "a first visit installs the bundled packs")
+    check("Available" not in text and "AVAILABLE" not in text, "so none are left to install")
+
+    open_pack("core/mth2010")
+    pack_action("Uninstall")
+    time.sleep(0.5)
+    check("AVAILABLE" in rail().upper() and "not installed" in rail(), "an uninstalled pack moves to Available")
+    check("still in your workspace" in toasts(), "the toast says the copies are kept")
+    ab("reload")
+    time.sleep(1.5)
+    check("not installed" in rail(), "and a reload does not put it back")
+
+    open_pack("core/mth2010")
+    pack_action("Install")
+    time.sleep(0.6)
+    check("not installed" not in rail(), "Install puts it back")
+
+    with urllib.request.urlopen(f"{BASE}/api/library", timeout=5) as resp:
+        mth2010 = next(p for p in json.loads(resp.read()) if p["name"] == "core/mth2010")
+    newer = json.loads(json.dumps(mth2010))
+    newer["version"] = "1.1.0"
+    newer["entries"][0]["title"] += " (revised)"
+    drop_file("core-mth2010.pack.json", json.dumps(newer))
+    time.sleep(1.2)
+    check("Updated MTH2010 to v1.1.0 — 1 changed" in toasts(), f"dropping a newer .pack.json updates it and says what changed ({toasts()[-90:]!r})")
+    check(js("document.querySelector('.pack-meta').textContent").startswith("v1.1.0"), "the pack page shows the new version")
+    check("update" not in rail().replace("Update", ""), "an older bundled copy is not offered as an update")
+
+    broken = dict(newer, version="soon")
+    drop_file("broken.pack.json", json.dumps(broken))
+    time.sleep(1.0)
+    check("is not a pack: version" in toasts(), "a bad pack is refused, naming the field")
+
+    drifting = {
+        "format": 1, "name": "someone/drift", "version": "1.0.0", "title": "Drift", "summary": "One entry recorded wrongly.",
+        "license": "CC-BY-SA-4.0", "chapters": [{"id": "1", "title": "Only"}],
+        "entries": [{"id": "sum", "chapter": "1", "ref": "1", "title": "x + x", "kind": "proof", "expected": "INVALID",
+                     "source": "Let x : Real\nStep: x + x = 2 * x\n"}],
+    }
+    drop_file("someone-drift.pack.json", json.dumps(drifting))
+    time.sleep(1.0)
+    check("Drift" in rail() and "courses" not in json.dumps(js("document.querySelector('.pack-meta').textContent")), "a topic pack with no course code installs")
+    pack_action("Check all entries")
+    time.sleep(2.5)
+    check("no longer give the verdict" in js("(document.querySelector('.pack-check')||{}).textContent ?? ''"), "Check all entries flags an entry that drifted from its recorded verdict")
+    check("pack says invalid" in js("(document.querySelector('.entry-tag--check.is-invalid')||{}).textContent ?? ''"), "and says which, and how")
+
+    entry = next(e for e in mth2010["entries"] if e["kind"] == "proof" and "Theorem:" in e["source"])
+    reset_page()
+    js(
+        "(async () => { document.querySelector(\".rail-button[data-view='library']\").click();"
+        " await new Promise(r => setTimeout(r, 300));"
+        " document.querySelector('.pack-button[data-pack=\"core/mth2010\"]').click();"
+        " await new Promise(r => setTimeout(r, 200));"
+        f" document.querySelector('.entry[data-entry=\"core/mth2010/{entry['id']}\"] .entry-head').click();"
+        " await new Promise(r => setTimeout(r, 200));"
+        " [...document.querySelectorAll('.entry-actions .text-button')].find(b => b.textContent === 'Use in a proof').click();"
+        " return 'ok'; })()"
+    )
+    time.sleep(0.6)
+    state = settle()
+    check(state["lines"][0] == f'import "@core/mth2010/{entry["id"]}"', f"'Use in a proof' adds the import line ({state['lines'][0]!r})")
+    check(state["verdict"] == "VALID", f"and the proof still checks with it ({state['verdict']})")
+    check("Imported '@core/mth2010/" in js("document.querySelector('#audit').textContent"), "the auditor names the pack import")
+
+    print("== an old origin finds its entry again ==")
+    fresh()
+    js(
+        "(async () => { const db = await new Promise(r => { const q = indexedDB.open('aether'); q.onsuccess = () => r(q.result); });"
+        " const tx = db.transaction('files', 'readwrite'); const store = tx.objectStore('files');"
+        " const all = await new Promise(r => { const q = store.getAll(); q.onsuccess = () => r(q.result); });"
+        " for (const f of all) { f.origin = 'examples/even-square'; store.put(f); }"
+        " await new Promise(r => tx.oncomplete = r); db.close(); window.__set = true; return 'ok'; })()"
+    )
+    time.sleep(0.5)
+    ab("reload")
+    settle()
+    ab("click", "#desk-tab-notes")
+    time.sleep(0.5)
+    check("Even square" in js("document.querySelector('#notes').textContent"), "a file opened from the old 'examples' pack still shows its entry")
+
+
+def pack_author_checks() -> None:
+    print("== a workspace folder becomes a pack ==")
+    fresh()
+    ab("click", ".rail-button[data-view='library']")
+    time.sleep(0.4)
+    js("[...document.querySelectorAll('.packs-actions .text-button')].find(b => b.textContent === 'New pack…').click(); 'ok'")
+    time.sleep(1.2)
+    check(js("document.getElementById('pack-dialog').open") is True, "New pack… opens the pack's details")
+    check("New pack/First proof.aether" in workspace()["path"], f"beside a first proof in a new folder ({workspace()['path']!r})")
+
+    ab("click", "#pack-install")
+    time.sleep(2.0)
+    check("does not parse" in js("document.getElementById('pack-status').textContent"), "a proof that does not parse keeps the pack from installing")
+
+    js("document.getElementById('pack-dialog').open = false; 'ok'")
+    time.sleep(0.5)
+    append_to_line(3, "Let x : Real")
+    ab("press", "Enter")
+    ab("keyboard", "type", "Step: x + x = 2 * x")
+    state = settle()
+    check(state["verdict"] == "VALID", f"once it checks ({state['verdict']})")
+    saved()
+    check(js("[...document.querySelectorAll('#explorer .tree-tag')].map(e => e.textContent).join()") == "pack", "the folder is marked as a pack")
+    js("document.querySelector('#explorer .tree-row--folder[data-folder=\"New pack\"] .tree-action[aria-label^=\"Pack\"]').click(); 'ok'")
+    time.sleep(0.8)
+    check(js("document.getElementById('pack-dialog').open") is True, "the folder's pack button reopens the details")
+
+    target = Path("/tmp/aether-verify-pack.json")
+    target.unlink(missing_ok=True)
+    ab("download", "#pack-export", str(target))
+    time.sleep(1.0)
+    check(target.exists(), "Export writes a .pack.json")
+    if target.exists():
+        exported = json.loads(target.read_text())
+        check(exported["name"] == "me/new-pack" and exported["entries"][0]["expected"] == "VALID", "recording each entry's real verdict")
+        check(exported.get("courses", []) == [], "with no course code unless one was given")
+
+    ab("click", "#pack-install")
+    time.sleep(2.5)
+    check(js("document.body.dataset.view") == "library", "Install in this browser goes to the Library")
+    check("made in this browser" in js("document.querySelector('.pack-meta').textContent"), "where the pack is listed as made here")
+    pack_action("Check all entries")
+    time.sleep(2.5)
+    check("gives the verdict this pack records" in js("(document.querySelector('.pack-check')||{}).textContent ?? ''"), "and its entry still gives its recorded verdict")
+
+    print("== a backup keeps a folder's pack details ==")
+    import zipfile
+
+    ab("click", ".rail-button[data-view='workspace']")
+    time.sleep(0.4)
+    ab("click", "#desk-tab-files")
+    target = Path("/tmp/aether-verify-pack-workspace.zip")
+    target.unlink(missing_ok=True)
+    ab("download", "#workspace-export", str(target))
+    time.sleep(0.8)
+    with zipfile.ZipFile(target) as archive:
+        manifests = json.loads(archive.read("packs/manifests.json")) if "packs/manifests.json" in archive.namelist() else {}
+    check(manifests.get("New pack", {}).get("name") == "me/new-pack", "the .zip carries the folder's pack details")
+    wipe()
+    ab("open", BASE)
+    settle()
+    ab("click", "#desk-tab-files")
+    ab("upload", "#workspace-import-input", str(target))
+    time.sleep(1.2)
+    check(js("[...document.querySelectorAll('#explorer .tree-tag')].map(e => e.textContent).join()") == "pack", "and restoring it makes the folder a pack again")
 
 
 def settings_checks() -> None:

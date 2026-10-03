@@ -1173,6 +1173,164 @@ kbd {
   gap: 6px;
 }
 
+/* --- Pack dialog: a folder's details as a pack ----------------------------- */
+
+.pack-dialog {
+  --width: min(760px, calc(100vw - 32px));
+}
+
+.pack-form {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+
+.pack-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px 16px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  min-width: 0;
+}
+
+.pack-fields legend {
+  grid-column: 1 / -1;
+  margin: 0 0 10px;
+  padding: 0;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.pack-summary-field {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+/* Matches the label <wa-input> draws for the fields beside it. */
+.pack-label {
+  font-size: var(--wa-form-control-label-font-size, 13px);
+  font-weight: var(--wa-form-control-label-font-weight, 600);
+  color: var(--wa-form-control-label-color, var(--text));
+}
+
+.pack-cell-label {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.pack-textarea,
+.pack-input {
+  width: 100%;
+  min-width: 0;
+  padding: 4px 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+  font-size: 13px;
+}
+
+.pack-textarea {
+  font-family: var(--font-prose);
+  line-height: 1.5;
+  resize: vertical;
+}
+
+.pack-input {
+  height: 28px;
+}
+
+.pack-textarea:focus,
+.pack-input:focus {
+  outline: 2px solid var(--wa-color-focus);
+  outline-offset: -1px;
+  border-color: transparent;
+}
+
+.pack-entries {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0;
+}
+
+.pack-empty {
+  margin: 0;
+  font-family: var(--font-prose);
+  font-size: 13px;
+  color: var(--muted);
+}
+
+/* One proof per row: its file, then the details it is listed under. */
+.pack-entry {
+  display: grid;
+  grid-template-columns: 8em minmax(0, 1.4fr) minmax(0, 1fr) 6.5em;
+  gap: 6px 10px;
+  padding: 12px 0;
+  border-top: 1px solid var(--hairline);
+}
+
+.pack-entry-file {
+  grid-column: 1 / -1;
+  margin: 0;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.pack-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.pack-cell--explain {
+  grid-column: 1 / -1;
+  display: none;
+}
+
+.pack-entry.is-trap .pack-cell--explain {
+  display: flex;
+}
+
+.pack-dialog-actions {
+  flex-wrap: wrap;
+}
+
+.pack-status {
+  flex: 1 1 100%;
+  font-family: var(--font-prose);
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.pack-status:empty {
+  display: none;
+}
+
+.pack-status p,
+.pack-problems {
+  margin: 0;
+}
+
+.pack-problems {
+  padding-left: 1.2em;
+}
+
+.pack-status[data-tone="invalid"] {
+  color: var(--invalid);
+}
+
+.pack-status[data-tone="valid"] {
+  color: var(--valid);
+}
+
 /* =========================================================================
    Panel arrangement
    ========================================================================= */
@@ -1606,6 +1764,13 @@ html[data-desk="closed"] .desk {
   background: var(--accent-bg);
 }
 
+.text-button:disabled {
+  color: var(--muted-dim);
+  border-color: transparent;
+  background: none;
+  cursor: default;
+}
+
 .text-button--danger {
   color: var(--danger-text);
 }
@@ -1660,6 +1825,13 @@ html[data-desk="closed"] .desk {
 
 .tree-row--folder .tree-label {
   color: var(--muted);
+}
+
+/* A folder that is a pack says so, in words. */
+.tree-tag {
+  flex: none;
+  font-size: 11px;
+  color: var(--muted-dim);
 }
 
 .tree-label {
@@ -2361,6 +2533,45 @@ body[data-exercise="hidden"] .step::before {
   font-variant-numeric: tabular-nums;
 }
 
+/* "update" / "not installed": a word under the count, not a badge. */
+.pack-flag {
+  grid-column: 1 / -1;
+  font-size: 11px;
+  color: var(--accent);
+}
+
+.packs-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin: 0 0 14px;
+}
+
+/* Rail groups read like the chapter labels: small, set apart by space. */
+.packs-group-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.packs-group {
+  margin: 14px 10px 6px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.packs-group-head .packs-group {
+  margin-top: 0;
+}
+
+.packs-group-head .text-button {
+  margin-bottom: 6px;
+}
+
 .library-list:focus {
   outline: none;
 }
@@ -2373,6 +2584,31 @@ body[data-exercise="hidden"] .step::before {
   margin: 0 0 4px;
   font-size: 13px;
   font-weight: 700;
+}
+
+.pack-meta {
+  margin: 0 0 8px;
+  font-size: 12px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.pack-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: -6px 0 18px;
+}
+
+.pack-check {
+  margin: -8px 0 18px;
+  font-family: var(--font-prose);
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.pack-check.is-invalid {
+  color: var(--invalid);
 }
 
 .pack-note {
@@ -2475,6 +2711,20 @@ body[data-exercise="hidden"] .step::before {
 .entry-tag--copy.is-invalid,
 .entry-tag--copy.is-parse {
   color: var(--invalid);
+}
+
+/* "Check all entries": quiet when an entry still gives its recorded verdict,
+   red when it no longer does. */
+.entry-tag--check.is-same {
+  color: var(--muted-dim);
+}
+
+.entry-tag--check.is-invalid {
+  color: var(--invalid);
+}
+
+.entry-blurb--quiet {
+  color: var(--muted);
 }
 
 .entry-body {
@@ -3187,6 +3437,14 @@ body[data-exercise="hidden"] .tree-row.is-active .tree-mark {
 
 /* Narrow: the panes stack and scroll as one page; the rail becomes a bar. */
 @media (max-width: 760px) {
+  .pack-fields {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .pack-entry {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   body {
     grid-template-columns: minmax(0, 1fr);
     grid-template-rows: minmax(0, 1fr) 44px 24px;

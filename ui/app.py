@@ -8,7 +8,8 @@ Endpoints
 ---------
 GET  /               -> the single-page frontend
 GET  /api/examples   -> bundled sample proofs
-GET  /api/library    -> course packs (courses/*.json) plus the examples, for the Library
+GET  /api/library    -> the bundled pack catalogue (examples + courses/*.json), format 1
+POST /api/packs/validate -> check a .pack.json before the browser installs it
 GET  /api/capabilities -> the capability matrix (pins), for the Guide
 POST /api/check      -> verify a proof source string
 GET  /api/site       -> the product name, tagline and version (ui/site.json)
@@ -21,7 +22,6 @@ stalled solver query can cost a request its answer but never a server thread.
 
 from __future__ import annotations
 
-import json
 import re
 import time
 from html import escape
@@ -33,6 +33,8 @@ from fastapi import FastAPI
 from fastapi.responses import HTMLResponse, Response, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
+
+from aether.packs import PACK_FORMAT, load_packs, validate_pack
 
 from .checking import CheckTimeout, WorkerCrashed, pool
 from .examples import EXAMPLES
@@ -210,12 +212,30 @@ class LibraryChapterModel(BaseModel):
 
 
 class LibraryPackModel(BaseModel):
-    id: str
-    code: str
+    """A pack in format 1 (see ``aether.packs``)."""
+
+    format: int
+    name: str
+    version: str
     title: str
-    note: str
+    courses: list[str]
+    summary: str
+    authors: list[str]
+    license: str
+    engine: str
+    depends: dict[str, str]
     chapters: list[LibraryChapterModel]
     entries: list[LibraryEntryModel]
+
+
+# The verdict each standalone proof in examples/ gives, where it is not VALID.
+# ui/verify_examples.py checks every file against this.
+EXAMPLE_FILE_VERDICTS: dict[str, str] = {
+    # The witnesses' `1 + (-1)^m / m` needs m != 0, which `m >= 1` beside it in
+    # the same existential guarantees -- but a guard inside a quantifier is not
+    # yet seen as discharging the obligation, so the theorem holds with a warning.
+    "sequence_bounds.aether": "WARN",
+}
 
 
 def _examples_pack() -> dict[str, Any]:
@@ -240,35 +260,59 @@ def _examples_pack() -> dict[str, Any]:
     for path in sorted(EXAMPLE_FILES_DIR.glob("*.aether")):
         entries.append(
             {
-                "id": f"file-{path.stem}",
+                "id": "file-" + re.sub(r"[^a-z0-9]+", "-", path.stem.lower()).strip("-"),
                 "chapter": "files",
                 "ref": path.name,
                 "title": path.stem.replace("_", " ").capitalize(),
                 "kind": "proof",
-                "expected": "VALID",
+                "expected": EXAMPLE_FILE_VERDICTS.get(path.name, "VALID"),
                 "source": path.read_text(encoding="utf-8"),
             }
         )
-    return {
-        "id": "examples",
-        "code": "EXAMPLES",
-        "title": "Worked examples",
-        "note": "Short proofs that show each part of the language, including deliberate failures.",
-        "chapters": [
-            {"id": "bundled", "title": "The language, by example"},
-            {"id": "files", "title": "Standalone proofs"},
-        ],
-        "entries": entries,
-    }
+    pack, errors = validate_pack(
+        {
+            "format": PACK_FORMAT,
+            "name": "core/examples",
+            "version": VERSION,
+            "title": "Worked examples",
+            "summary": "Short proofs that show each part of the language, including deliberate failures.",
+            "license": "Apache-2.0",
+            "chapters": [
+                {"id": "bundled", "title": "The language, by example"},
+                {"id": "files", "title": "Standalone proofs"},
+            ],
+            "entries": entries,
+        }
+    )
+    assert pack is not None, errors
+    return pack
 
 
-@app.get("/api/library", response_model=list[LibraryPackModel])
+@app.get("/api/library", response_model=list[LibraryPackModel], response_model_exclude_none=True)
 def library() -> list[dict[str, Any]]:
-    """Every course pack, read fresh so a new pack file shows up without a restart."""
-    packs = [_examples_pack()]
-    for pack_file in sorted(COURSES_DIR.glob("*.json")):
-        packs.append(json.loads(pack_file.read_text(encoding="utf-8")))
-    return packs
+    """The bundled catalogue: the examples, then every pack in courses/.
+
+    Read fresh on each request, so a new pack file shows up without a restart.
+    The browser installs these into its own pack store; this list is what
+    "Browse" and "Updates" compare against.
+    """
+    return [_examples_pack(), *load_packs(COURSES_DIR)]
+
+
+class PackValidateRequest(BaseModel):
+    pack: Any = Field(description="The parsed contents of a .pack.json file.")
+
+
+class PackValidateResponse(BaseModel):
+    pack: Optional[LibraryPackModel] = None
+    errors: list[str] = Field(default_factory=list)
+
+
+@app.post("/api/packs/validate", response_model=PackValidateResponse, response_model_exclude_none=True)
+def validate_pack_file(request: PackValidateRequest) -> PackValidateResponse:
+    """Check a pack someone wants to install, naming every problem by where it is."""
+    pack, errors = validate_pack(request.pack)
+    return PackValidateResponse(pack=pack, errors=errors)
 
 
 @app.get("/api/capabilities")

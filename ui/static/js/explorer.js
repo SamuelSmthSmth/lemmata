@@ -74,7 +74,11 @@ function actionButton(label, onClick) {
   const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
   path.setAttribute(
     "d",
-    label.startsWith("Rename") ? "M3 13l1-3.5L10.5 3 13 5.5 6.5 12zM9.5 4l2.5 2.5" : "M3.5 4.5h9M6.5 4.5V3h3v1.5M5 4.5l.6 8.5h4.8l.6-8.5",
+    label.startsWith("Rename")
+      ? "M3 13l1-3.5L10.5 3 13 5.5 6.5 12zM9.5 4l2.5 2.5"
+      : label.startsWith("Pack")
+        ? "M2.5 5 8 2.5 13.5 5v6L8 13.5 2.5 11zM2.5 5 8 7.5 13.5 5M8 7.5v6"
+        : "M3.5 4.5h9M6.5 4.5V3h3v1.5M5 4.5l.6 8.5h4.8l.6-8.5",
   );
   svg.append(path);
   button.append(svg);
@@ -122,6 +126,7 @@ function row({ key, depth, label, kind, fileId = null, folder = null, expanded =
 
   item.append(icon(kind === "folder" ? (expanded ? "folder-open" : "folder") : "file"));
   item.append(el("span", "tree-label", label));
+  if (folder !== null && handlers.isPack?.(folder)) item.append(el("span", "tree-tag", "pack"));
   if (fileId) {
     const tone = verdicts.get(fileId);
     const mark = el("span", `tree-mark${tone ? ` tree-mark--${tone}` : ""}`);
@@ -138,6 +143,7 @@ function row({ key, depth, label, kind, fileId = null, folder = null, expanded =
   } else {
     actions.append(
       actionButton(`Rename folder ${label}`, () => startRename(item)),
+      actionButton(`Pack details for ${label}`, () => handlers.onPack?.(folder)),
       actionButton(`Delete folder ${label}`, () => handlers.onDeleteFolder?.(folder)),
     );
   }

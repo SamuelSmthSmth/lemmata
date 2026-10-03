@@ -1,8 +1,18 @@
 {
-  "id": "mth2010",
-  "code": "MTH2010",
+  "format": 1,
+  "name": "core/mth2010",
+  "version": "1.0.0",
   "title": "Algebra",
-  "note": "Transcribed from the MTH2010 lecture notes into Aether; references follow the notes' numbering.",
+  "courses": [
+    "MTH2010"
+  ],
+  "summary": "Results from the MTH2010 lecture notes, restated and proved in the checker's notation; references follow the notes' numbering.",
+  "authors": [
+    "Samuel Okwuonu"
+  ],
+  "license": "CC-BY-SA-4.0",
+  "engine": ">=0.1",
+  "depends": {},
   "chapters": [
     {
       "id": "1",

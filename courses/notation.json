@@ -1,8 +1,15 @@
 {
-  "id": "notation",
-  "code": "NOTATION",
-  "title": "The notes' notation, and the traps around it",
-  "note": "Writing proofs the way typeset notes write them, and the mistakes the checker must refuse.",
+  "format": 1,
+  "name": "core/notation",
+  "version": "1.0.0",
+  "title": "Notation and traps",
+  "summary": "Writing proofs the way typeset notes write them, and the mistakes the checker must refuse.",
+  "authors": [
+    "Samuel Okwuonu"
+  ],
+  "license": "CC-BY-SA-4.0",
+  "engine": ">=0.1",
+  "depends": {},
   "chapters": [
     {
       "id": "notation",

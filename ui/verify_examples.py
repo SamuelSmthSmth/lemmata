@@ -96,6 +96,22 @@ def main() -> int:
             print(f"  [{'ok ' if strict_verdict == 'INVALID' else 'FAIL'}] "
                   f"{key:<20} -> {strict_verdict} (strict mode)")
 
+    # The standalone proofs in examples/ are listed in the Library with the
+    # verdict ui/app.py records for them; hold them to it.
+    from ui.app import EXAMPLE_FILES_DIR, EXAMPLE_FILE_VERDICTS
+
+    word = {"VALID": "VALID", "WARN": "VALID (with domain warnings)", "INVALID": "INVALID"}
+    files = sorted(EXAMPLE_FILES_DIR.glob("*.aether"))
+    for path in files:
+        want = word[EXAMPLE_FILE_VERDICTS.get(path.name, "VALID")]
+        verdict, _ = classify(path.read_text(encoding="utf-8"))
+        if verdict != want:
+            failures.append(f"examples/{path.name}: listed as {want}, got {verdict}")
+        print(f"  [{'ok ' if verdict == want else 'FAIL'}] examples/{path.name:<28} -> {verdict}")
+    for name in EXAMPLE_FILE_VERDICTS:
+        if not (EXAMPLE_FILES_DIR / name).exists():
+            failures.append(f"examples/{name}: has a recorded verdict but no file")
+
     if len(EXAMPLES) != len(EXPECTATIONS):
         failures.append(
             f"{len(EXAMPLES)} examples but {len(EXPECTATIONS)} expectations registered"
@@ -107,7 +123,7 @@ def main() -> int:
         for failure in failures:
             print(f"  - {failure}")
         return 1
-    print(f"all {len(EXAMPLES)} examples behave as advertised")
+    print(f"all {len(EXAMPLES)} examples and {len(files)} example files behave as advertised")
     return 0
 
 

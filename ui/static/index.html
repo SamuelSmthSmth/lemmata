@@ -142,7 +142,7 @@
                 <path d="M4 15v4h16v-4"></path>
               </svg>
             </button>
-            <input id="workspace-import-input" type="file" accept=".aether,.txt,.md,.proof,.zip" multiple hidden />
+            <input id="workspace-import-input" type="file" accept=".aether,.txt,.md,.proof,.zip,.json" multiple hidden />
           </div>
           <div id="explorer" class="explorer scroll" role="tree" aria-label="Your proofs"></div>
         </div>
@@ -276,7 +276,7 @@
       <div class="page">
         <header class="page-head">
           <h1 id="library-title">Library</h1>
-          <p class="page-lede">Proofs transcribed from lecture notes, keyed to the notes' own numbering, and worked examples of the language. Open one beside a copy of its proof; traps are mistakes to find.</p>
+          <p class="page-lede">Your installed packs: proofs keyed to a module's own numbering, worked examples of the language, and traps to find. Open an entry beside a copy of its proof, or import a proved theorem into your own. Packs install, update and export like packages, and a folder in your workspace can become one.</p>
         </header>
         <div class="library-controls" role="search">
           <wa-input id="library-search" class="library-search" size="s" label="Search the library" placeholder="Search by reference or title — e.g. 2.18, Lagrange, limit" with-clear></wa-input>
@@ -287,7 +287,7 @@
           </div>
         </div>
         <div class="library-body">
-          <nav id="library-packs" class="library-packs" aria-label="Course packs"></nav>
+          <nav id="library-packs" class="library-packs" aria-label="Packs"></nav>
           <div id="library-list" class="library-list" aria-live="polite"></div>
         </div>
       </div>
@@ -324,7 +324,7 @@
     </footer>
 
     <div id="drop-overlay" class="drop-overlay" hidden>
-      <p>Drop <code>.aether</code> files or a <code>.zip</code> to add them to your workspace</p>
+      <p>Drop <code>.aether</code> files or a <code>.zip</code> to add them to your workspace, or a <code>.pack.json</code> to install a pack</p>
     </div>
 
     <wa-dialog id="latex-dialog" label="Export to LaTeX &amp; PDF" light-dismiss>
@@ -343,6 +343,15 @@
         <wa-button id="copy-latex" size="s" appearance="filled-outlined">Copy LaTeX</wa-button>
         <wa-button id="download-tex" size="s" appearance="filled-outlined">Download .tex</wa-button>
         <wa-button id="download-pdf" size="s" variant="brand">Download PDF</wa-button>
+      </div>
+    </wa-dialog>
+
+    <wa-dialog id="pack-dialog" class="pack-dialog" label="Pack">
+      <form id="pack-form" class="pack-form" novalidate></form>
+      <div slot="footer" class="dialog-actions pack-dialog-actions">
+        <div id="pack-status" class="pack-status" role="status" aria-live="polite"></div>
+        <wa-button id="pack-install" size="s" appearance="filled-outlined">Install in this browser</wa-button>
+        <wa-button id="pack-export" size="s" variant="brand">Export .pack.json</wa-button>
       </div>
     </wa-dialog>
 

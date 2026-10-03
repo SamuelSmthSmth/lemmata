@@ -7,7 +7,7 @@
 // Side-effect import: defines every <wa-*> custom element. Imported first so
 // nothing below can touch an element that has not been upgraded yet.
 import "./components.js";
-import { checkProof, exportLatex, exportPdf, fetchLibrary } from "./api.js";
+import { checkProof, exportLatex, exportPdf, fetchLibrary, validatePack } from "./api.js";
 import { initAuditNav, selectStepForLine } from "./audit.js";
 import { insertSymbol, insertTemplate, setScopeSource, SYMBOLS, TEMPLATES } from "./complete.js";
 import { renderContext } from "./context.js";
@@ -22,9 +22,11 @@ import { initHistory, renderHistory } from "./history.js";
 // Side-effect import: reads the stored panel arrangement and applies it during
 // module evaluation, which is still before the first paint.
 import { layoutApi } from "./layout.js";
-import { entryKey, findEntry, initLibrary, libraryPacks, renderLibrary } from "./library.js";
+import { entryKey, findEntry, initLibrary, libraryPacks, renderLibrary, showPack } from "./library.js";
 import { showDiagnostics } from "./lint.js";
 import { initNotes, renderNotes } from "./notes.js";
+import { allManifests, initPackAuthor, isPackFolder, openPackDialog, renameManifestFolder, restoreManifests } from "./pack-author.js";
+import * as packs from "./packs.js";
 import { initPalette, openPalette } from "./palette.js";
 import { permalinkFor, readPermalink, writePermalink } from "./permalink.js";
 import { getPref, setPref } from "./prefs.js";
@@ -39,7 +41,7 @@ import * as ws from "./workspace.js";
 import { readZip, writeZip } from "./zip.js";
 
 const SAVE_DEBOUNCE_MS = 400;
-const STARTING_ENTRY = "examples/even-square";
+const STARTING_ENTRY = "core/examples/even-square";
 
 // fileId -> "valid" | "warning" | "invalid": the last verdict of every file
 // checked this session, shown in the tabs and the explorer.
@@ -134,6 +136,13 @@ function scheduleCheck() {
   state.timer = window.setTimeout(runCheck, Number(getPref("debounce")));
 }
 
+/** What `import` may resolve against: the workspace, and installed packs when asked for. */
+function importableFiles(path, source) {
+  const files = { ...ws.sourcesByPath(), [path]: source };
+  if (Object.values(files).some(packs.importsFromPacks)) Object.assign(files, packs.importSources(packs.installedPacks()));
+  return files;
+}
+
 async function runCheck() {
   window.clearTimeout(state.timer);
   state.timer = null;
@@ -152,7 +161,7 @@ async function runCheck() {
       source,
       strictDomains: dom.strict.checked,
       // The workspace travels only when this proof imports from it.
-      files: ws.hasImports(source) ? { ...ws.sourcesByPath(), [file.path]: source } : null,
+      files: ws.hasImports(source) ? importableFiles(file.path, source) : null,
       path: file.path,
       signal: controller.signal,
     });
@@ -350,7 +359,7 @@ function safeName(text) {
 }
 
 async function openLibraryEntry(pack, entry, { exercise = false, fresh = false } = {}) {
-  const key = entryKey(pack.id, entry.id);
+  const key = entryKey(pack.name, entry.id);
   if (!fresh) {
     const existing = [...ws.model.files.values()].find((f) => f.origin === key);
     if (existing) {
@@ -360,8 +369,9 @@ async function openLibraryEntry(pack, entry, { exercise = false, fresh = false }
       return existing;
     }
   }
-  const folder = pack.id === "examples" ? "Examples" : pack.code;
-  const stem = pack.id === "examples" ? entry.title : `${entry.ref} ${entry.title}`;
+  const examples = pack.name === "core/examples";
+  const folder = examples ? "Examples" : safeName(packs.packLabel(pack));
+  const stem = examples ? entry.title : `${entry.ref} ${entry.title}`;
   let path = `${folder}/${safeName(stem)}.aether`;
   if (ws.pathProblem(path)) path = ws.freePath(safeName(stem), folder);
   const file = await newProof({
@@ -373,6 +383,168 @@ async function openLibraryEntry(pack, entry, { exercise = false, fresh = false }
   showDesk("notes");
   return file;
 }
+
+// ---------------------------------------------------------------------------
+// Packs: install, uninstall, update, export, and importing from them
+// ---------------------------------------------------------------------------
+
+function refreshPacks() {
+  renderLibrary();
+  renderNotesPanel();
+}
+
+/** Install a pack, offering to undo; an install over an older copy reports what changed. */
+async function installPack(pack, origin) {
+  const before = packs.installedRecords().find((r) => r.name === pack.name)?.pack ?? null;
+  const previous = await packs.install(pack, origin);
+  showPack(pack.name);
+  refreshPacks();
+  const what = before ? packs.describeDiff(packs.diffPacks(before, pack)) : null;
+  const label = packs.packLabel(pack);
+  const text = previous
+    ? `Updated ${label} to v${pack.version}${what ? ` — ${what}` : ""}`
+    : `Installed ${label} (${pack.entries.length} entries)`;
+  showToast(text, {
+    action: "Undo",
+    onAction: async () => {
+      if (previous) await packs.restore(previous);
+      else await packs.uninstall(pack.name);
+      refreshPacks();
+    },
+  });
+}
+
+async function uninstallPack(pack) {
+  const previous = await packs.uninstall(pack.name);
+  if (!previous) return;
+  refreshPacks();
+  showToast(`Uninstalled ${packs.packLabel(pack)}. Your copies of its proofs are still in your workspace.`, {
+    action: "Undo",
+    onAction: async () => {
+      await packs.restore(previous);
+      showPack(pack.name);
+      refreshPacks();
+    },
+  });
+}
+
+async function updateAllPacks() {
+  const pending = packs.updates();
+  for (const { pack } of pending) await packs.install(pack, "bundled");
+  refreshPacks();
+  showToast(pending.length === 1 ? `Updated ${packs.packLabel(pending[0].pack)}` : `Updated ${pending.length} packs`);
+}
+
+function exportPack(pack) {
+  const { filename, text } = packs.packToFile(pack);
+  downloadBlob(new Blob([text], { type: "application/json" }), filename);
+  showToast(`Saved ${filename}`);
+}
+
+/** Read .pack.json files, have the server validate them, and install the good ones. */
+async function installPackFiles(fileList) {
+  for (const file of fileList) {
+    try {
+      const data = packs.parsePackFile(await readTextFile(file));
+      const { pack, errors } = await validatePack(data);
+      if (!pack) {
+        const more = errors.length > 1 ? ` (and ${errors.length - 1} more)` : "";
+        showToast(`${file.name} is not a pack: ${errors[0]}${more}`, { tone: "danger", ms: 8000 });
+        continue;
+      }
+      await installPack(pack, "file");
+    } catch (error) {
+      showToast(`Could not install ${file.name}: ${error.message}`, { tone: "danger" });
+    }
+  }
+}
+
+function choosePackFile() {
+  const input = document.createElement("input");
+  input.type = "file";
+  input.accept = ".json,application/json";
+  input.multiple = true;
+  input.addEventListener("change", () => {
+    if (input.files?.length) installPackFiles([...input.files]);
+  });
+  input.click();
+}
+
+/** Put `import "@pack/entry"` at the top of the proof in front of the student. */
+async function useInProof(pack, entry) {
+  const line = packs.importLine(pack.name, entry.id);
+  let file = active();
+  if (!file) file = await newProof({ source: `${line}\n\n` });
+  else {
+    await saveActive();
+    const source = currentSource();
+    if (!source.includes(line)) {
+      const lines = source.split("\n");
+      let at = 0;
+      while (at < lines.length && /^\s*import\s+"/.test(lines[at])) at++;
+      lines.splice(at, 0, line);
+      editor.setContent(lines.join("\n"));
+      await saveActive();
+    }
+  }
+  setView("workspace");
+  await showActive();
+  showToast(`Imported ${entry.ref} into ${ws.basename(active().path)}; its theorem holds wherever its assumptions do`);
+}
+
+/** The proofs a pack folder holds, its subfolders included. */
+function filesIn(folder) {
+  return ws.filesSorted().filter((f) => f.path.startsWith(`${folder}/`));
+}
+
+/** "New pack…": a fresh folder with one proof in it, and the pack's details open. */
+async function newPackFromWorkspace() {
+  const folders = new Set(ws.allFolders().map((f) => f.toLowerCase()));
+  let folder = "New pack";
+  for (let n = 2; folders.has(folder.toLowerCase()); n++) folder = `New pack ${n}`;
+  await ws.createFolder(folder);
+  await newProof({ path: `${folder}/First proof.aether`, source: 'Theorem: "First result"\nProof:\n    \nQED\n' });
+  showDesk("files");
+  await openPackDialog(folder);
+}
+
+/** Manifests as a workspace backup carries them: entry details keyed by path, not file id. */
+function manifestsForBackup() {
+  const out = {};
+  for (const [folder, manifest] of Object.entries(allManifests())) {
+    const entries = {};
+    for (const file of filesIn(folder)) {
+      if (manifest.entries?.[file.id]) entries[file.path] = manifest.entries[file.id];
+    }
+    out[folder] = { ...manifest, entries };
+  }
+  return out;
+}
+
+async function restoreManifestsFromBackup(text) {
+  const incoming = JSON.parse(text);
+  const byPath = new Map(ws.filesSorted().map((f) => [f.path, f.id]));
+  for (const manifest of Object.values(incoming)) {
+    const entries = {};
+    for (const [path, meta] of Object.entries(manifest.entries ?? {})) {
+      if (byPath.has(path)) entries[byPath.get(path)] = meta;
+    }
+    manifest.entries = entries;
+  }
+  await restoreManifests(incoming);
+}
+
+const libraryActions = {
+  onOpen: openLibraryEntry,
+  onUse: useInProof,
+  onInstall: (pack) => installPack(pack, "bundled"),
+  onUninstall: uninstallPack,
+  onUpdate: (pack) => installPack(pack, "bundled"),
+  onUpdateAll: updateAllPacks,
+  onExport: exportPack,
+  onInstallFile: choosePackFile,
+  onNewPack: () => newPackFromWorkspace(),
+};
 
 async function deleteWithUndo(id) {
   const file = ws.model.files.get(id);
@@ -391,11 +563,16 @@ async function deleteWithUndo(id) {
 
 async function importFiles(fileList) {
   const added = [];
+  const packFiles = [];
+  let manifestText = null;
   for (const file of fileList) {
     try {
-      if (/\.zip$/i.test(file.name)) {
+      if (/\.json$/i.test(file.name)) {
+        packFiles.push(file);
+      } else if (/\.zip$/i.test(file.name)) {
         const entries = await readZip(await file.arrayBuffer());
         for (const entry of entries) {
+          if (entry.path === PACK_MANIFESTS_PATH) manifestText = entry.text;
           if (!ACCEPTED_EXTENSIONS.test(entry.path)) continue;
           let path = ws.normalizePath(entry.path.replace(/\.(txt|md|proof)$/i, ".aether"));
           if (ws.pathProblem(ws.withExtension(path))) path = ws.freePath(`${ws.basename(path).replace(/\.aether$/, "")} (imported)`, ws.dirname(path));
@@ -407,19 +584,30 @@ async function importFiles(fileList) {
         const path = ws.pathProblem(`${stem}.aether`) ? ws.freePath(stem) : `${stem}.aether`;
         added.push(await ws.createFile({ path, source: text, strict: strictDefault(), open: false }));
       } else {
-        showToast(`“${file.name}” is not a proof file (.aether, .txt, .md) or a .zip`, { tone: "warning" });
+        showToast(`“${file.name}” is not a proof file (.aether, .txt, .md), a .zip or a .pack.json`, { tone: "warning" });
       }
     } catch (error) {
       showToast(`Could not open ${file.name}: ${error.message}`, { tone: "danger" });
     }
   }
+  if (packFiles.length) await installPackFiles(packFiles);
   if (!added.length) return;
   for (const file of added) await ws.updateFile(file.id, { initial: file.source });
+  if (manifestText) {
+    try {
+      await restoreManifestsFromBackup(manifestText);
+    } catch (error) {
+      showToast(`The backup's pack details could not be read: ${error.message}`, { tone: "warning" });
+    }
+  }
   ws.openFile(added[added.length - 1].id);
   setView("workspace");
   await showActive();
   showToast(added.length === 1 ? `Opened ${ws.basename(added[0].path)}` : `Added ${added.length} proofs to your workspace`);
 }
+
+// Where a workspace backup keeps the details of folders made into packs.
+const PACK_MANIFESTS_PATH = "packs/manifests.json";
 
 async function exportWorkspace() {
   await saveActive();
@@ -428,7 +616,10 @@ async function exportWorkspace() {
     showToast("There is nothing to export yet.", { tone: "warning" });
     return;
   }
-  const bytes = writeZip(files.map((f) => ({ path: f.path, text: f.source, date: new Date(f.updated) })));
+  const entries = files.map((f) => ({ path: f.path, text: f.source, date: new Date(f.updated) }));
+  const manifests = manifestsForBackup();
+  if (Object.keys(manifests).length) entries.push({ path: PACK_MANIFESTS_PATH, text: `${JSON.stringify(manifests, null, 2)}\n`, date: new Date() });
+  const bytes = writeZip(entries);
   const stamp = new Date().toISOString().slice(0, 10);
   downloadBlob(new Blob([bytes], { type: "application/zip" }), `aether-workspace-${stamp}.zip`);
   showToast(`Exported ${files.length} proof${files.length === 1 ? "" : "s"}`);
@@ -700,7 +891,7 @@ function paletteItems() {
   for (const file of ws.filesSorted()) items.push({ kind: "file", label: ws.basename(file.path), detail: ws.dirname(file.path), keywords: file.path, boost: 1, run: () => (setView("workspace"), activate(file.id)) });
   for (const pack of libraryPacks()) {
     for (const entry of pack.entries) {
-      items.push({ kind: "entry", label: `${entry.ref} ${entry.title}`, detail: pack.code, keywords: `${pack.code} ${pack.title} ${entry.kind}`, run: () => openLibraryEntry(pack, entry) });
+      items.push({ kind: "entry", label: `${entry.ref} ${entry.title}`, detail: packs.packLabel(pack), keywords: `${pack.courses?.join(" ") ?? ""} ${pack.title} ${entry.kind}`, run: () => openLibraryEntry(pack, entry) });
     }
   }
   return items;
@@ -763,9 +954,13 @@ initExplorer(
         showToast(error.message, { tone: "warning" });
       }
     },
+    onPack: (folder) => openPackDialog(folder),
+    isPack: (folder) => isPackFolder(folder),
     onRenameFolder: async (folder, name) => {
       try {
-        await ws.renameFolder(folder, `${ws.dirname(folder) ? `${ws.dirname(folder)}/` : ""}${name}`);
+        const renamed = `${ws.dirname(folder) ? `${ws.dirname(folder)}/` : ""}${name}`;
+        await ws.renameFolder(folder, renamed);
+        await renameManifestFolder(folder, ws.normalizePath(renamed));
         await showActive({ check: false });
       } catch (error) {
         showToast(error.message, { tone: "warning" });
@@ -809,7 +1004,7 @@ dom.folderNew.addEventListener("click", async () => {
     const name = ws.freePath("New folder").replace(/\.aether$/, "");
     await ws.createFolder(name);
     renderExplorer();
-    document.querySelector(`.tree-row[data-folder="${CSS.escape(name)}"] .tree-action`)?.click();
+    document.querySelector(`.tree-row[data-folder="${CSS.escape(name)}"] .tree-action[aria-label^="Rename"]`)?.click();
   } catch (error) {
     showToast(error.message, { tone: "warning" });
   }
@@ -987,13 +1182,14 @@ async function init() {
   setDeskOpen(getPref("desk") === "open" && !narrowScreen.matches, { persist: false });
   setDeskPanel(getPref("deskPanel"));
 
-  let packs = [];
+  let catalog = [];
   try {
-    packs = await fetchLibrary();
+    catalog = await fetchLibrary();
   } catch (error) {
-    showToast(`The Library could not be loaded: ${error.message}`, { tone: "warning" });
+    showToast(`The pack catalogue could not be loaded: ${error.message}. Installed packs still work.`, { tone: "warning" });
   }
-  initLibrary(packs, { onOpen: openLibraryEntry }, () => {
+  await packs.load(catalog);
+  initLibrary(libraryActions, () => {
     const out = new Map();
     for (const file of ws.model.files.values()) {
       if (file.origin) out.set(file.origin, { fileId: file.id, tone: verdicts.get(file.id) ?? null });
@@ -1002,6 +1198,19 @@ async function init() {
   });
 
   await ws.load();
+  // Origins recorded before packs had scoped names point at the same entries.
+  for (const file of ws.model.files.values()) {
+    const migrated = packs.migrateOrigin(file.origin);
+    if (migrated !== file.origin) await ws.updateFile(file.id, { origin: migrated });
+  }
+  await initPackAuthor({
+    filesIn,
+    onExport: exportPack,
+    onInstall: async (pack) => {
+      setView("library");
+      await installPack(pack, "local");
+    },
+  });
   pinnedGuide = await db.meta.get("pinnedGuide", null);
   dom.statusStorage.textContent = ws.model.persistent ? "Saved in this browser" : "Not saved — storage unavailable";
   dom.statusStorage.dataset.ok = String(ws.model.persistent);

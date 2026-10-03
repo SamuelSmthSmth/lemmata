@@ -150,15 +150,42 @@ def main() -> int:
         print("== GET /api/library ==")
         status, _, body = server.request("/api/library")
         packs = json.loads(body)
-        codes = [p["code"] for p in packs]
-        check(status == 200 and codes[:1] == ["EXAMPLES"], f"library packs: {codes}")
-        check({"MTH2008", "MTH2010", "NOTATION"} <= set(codes), "the course packs are served")
+        names = [p["name"] for p in packs]
+        check(status == 200 and names[:1] == ["core/examples"], f"library packs: {names}")
+        check({"core/mth2008", "core/mth2010", "core/notation"} <= set(names), "the course packs are served")
+        check(all(p["format"] == 1 and p["version"] for p in packs), "every pack is format 1, with a version")
+        by_name = {p["name"]: p for p in packs}
+        check(by_name["core/mth2008"]["courses"] == ["MTH2008"] and by_name["core/notation"]["courses"] == [], "a course code is optional")
         traps = [e for p in packs for e in p["entries"] if e["kind"] == "trap"]
         check(traps and all(e.get("explanation") for e in traps), f"{len(traps)} traps, each with an explanation")
         check(
             all(e["expected"] in ("VALID", "INVALID", "WARN", "PARSE ERROR") for p in packs for e in p["entries"]),
             "every entry's expected verdict is one the UI knows",
         )
+
+        print("== POST /api/packs/validate ==")
+        good = by_name["core/mth2010"]
+        status, _, body = server.request("/api/packs/validate", "POST", {"pack": good})
+        result = json.loads(body)
+        check(status == 200 and result["errors"] == [] and result["pack"]["name"] == "core/mth2010", "a bundled pack validates")
+        bad = {**good, "version": "one", "entries": [{**good["entries"][0], "kind": "lemma"}]}
+        status, _, body = server.request("/api/packs/validate", "POST", {"pack": bad})
+        result = json.loads(body)
+        check(
+            result.get("pack") is None and any(e.startswith("version") for e in result["errors"]) and any(e.startswith("entries[0].kind") for e in result["errors"]),
+            f"a bad pack is refused, naming each field: {result['errors']}",
+        )
+
+        print("== POST /api/check (importing from a pack) ==")
+        lemma = next(e for e in good["entries"] if e["kind"] == "proof" and "Theorem:" in e["source"])
+        key = f"@{good['name']}/{lemma['id']}"
+        status, _, body = server.request(
+            "/api/check", "POST",
+            {"source": f'import "{key}"\nLet x : Real\nStep: x = x\n', "strict_domains": False, "files": {f"{key}.aether": lemma["source"]}, "path": "main.aether"},
+        )
+        result = json.loads(body)
+        first = result["reports"][-1]["results"][0]
+        check(first["status"] == "VALID" and "Imported" in first["message"], f"import {key} resolves: {first['message'][:80]}")
 
         print("== GET /api/capabilities ==")
         from ui.verify_capabilities import PROBES

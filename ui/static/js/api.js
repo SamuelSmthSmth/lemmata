@@ -14,6 +14,18 @@ export const fetchLibrary = () => getJson("/api/library");
 export const fetchCapabilities = () => getJson("/api/capabilities");
 export const fetchSite = () => getJson("/api/site");
 
+/** Ask the server whether parsed .pack.json contents are a pack: {pack} or {errors}. */
+export async function validatePack(data) {
+  const response = await fetch("/api/packs/validate", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ pack: data }),
+  });
+  if (!response.ok) throw new Error(`server returned ${response.status}`);
+  const result = await response.json();
+  return { pack: result.pack ?? null, errors: result.errors ?? [] };
+}
+
 /**
  * Check a proof.  `files` (workspace path -> source) and `path` (this file's
  * own workspace path) let `import` statements resolve against the browser

@@ -9,7 +9,6 @@ interrupted from Python, so an in-process timeout would not fire.
 from __future__ import annotations
 
 import argparse
-import json
 import multiprocessing as mp
 import os
 import sys
@@ -21,11 +20,12 @@ COURSES = Path(__file__).resolve().parents[2] / "courses"
 
 
 def _load() -> list[tuple[str, str, str, str]]:
+    from aether.packs import load_packs, pack_label
+
     rows = []
-    for pack_file in sorted(COURSES.glob("*.json")):
-        pack = json.loads(pack_file.read_text(encoding="utf-8"))
+    for pack in load_packs(COURSES):
         for entry in pack["entries"]:
-            rows.append((pack["code"], f"{entry['ref']} {entry['title']}", entry["expected"], entry["source"]))
+            rows.append((pack_label(pack), f"{entry['ref']} {entry['title']}", entry["expected"], entry["source"]))
     return rows
 
 

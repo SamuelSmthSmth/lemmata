@@ -2,19 +2,21 @@
 //
 // Everything a student writes lives in their browser.  This module is the only
 // place that knows *how*, so a future account-backed store replaces this file
-// and nothing else.  Three stores:
+// and nothing else.  Four stores:
 //
 //   files      {id, path, source, strict, created, updated}
 //   snapshots  {id, fileId, name, ts, source, strict, auto}     index: fileId
 //   meta       {key, value}   settings, folders, tabs, timeline, migration flag
+//   packs      {name, version, origin, installed, pack}   installed packs (v2)
 //
 // When IndexedDB is unavailable (some private modes) or refuses to open, the
 // same interface runs over memory and mirrors into localStorage, so the app
 // keeps working and `persistent()` says whether work will survive a reload.
 
 const DB_NAME = "aether";
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 const FALLBACK_KEY = "aether:db-fallback";
+const STORES = ["files", "snapshots", "meta", "packs"];
 
 let dbPromise = null;
 let fallback = null; // {files: Map, snapshots: Map, meta: Map} when IndexedDB is out
@@ -44,6 +46,7 @@ function openDb() {
         snaps.createIndex("fileId", "fileId");
       }
       if (!db.objectStoreNames.contains("meta")) db.createObjectStore("meta", { keyPath: "key" });
+      if (!db.objectStoreNames.contains("packs")) db.createObjectStore("packs", { keyPath: "name" });
     };
     req.onsuccess = () => resolve(req.result);
     req.onerror = () => resolve(null);
@@ -57,11 +60,11 @@ function openDb() {
 
 function startFallback() {
   if (fallback) return;
-  fallback = { files: new Map(), snapshots: new Map(), meta: new Map() };
+  fallback = { files: new Map(), snapshots: new Map(), meta: new Map(), packs: new Map() };
   try {
     const raw = JSON.parse(localStorage.getItem(FALLBACK_KEY) || "null");
     if (raw) {
-      for (const name of ["files", "snapshots", "meta"]) {
+      for (const name of STORES) {
         for (const [k, v] of raw[name] ?? []) fallback[name].set(k, v);
       }
     }
@@ -76,7 +79,7 @@ function saveFallback() {
   fallbackTimer = window.setTimeout(() => {
     try {
       const dump = {};
-      for (const name of ["files", "snapshots", "meta"]) dump[name] = [...fallback[name].entries()];
+      for (const name of STORES) dump[name] = [...fallback[name].entries()];
       localStorage.setItem(FALLBACK_KEY, JSON.stringify(dump));
     } catch (error) {
       // Quota or private mode: work stays in memory for this session.
@@ -101,7 +104,7 @@ async function tx(storeName, mode, fn) {
 }
 
 function keyFor(storeName, value) {
-  return storeName === "meta" ? value.key : value.id;
+  return { meta: value.key, packs: value.name }[storeName] ?? value.id;
 }
 
 const store = (name) => ({
@@ -139,6 +142,7 @@ const store = (name) => ({
 
 export const files = store("files");
 export const snapshots = store("snapshots");
+export const packs = store("packs");
 const metaStore = store("meta");
 
 export const meta = {
@@ -189,9 +193,9 @@ export async function requestPersistence() {
   }
 }
 
-/** Delete everything: files, snapshots and settings. */
+/** Delete everything: files, snapshots, settings and installed packs. */
 export async function wipe() {
-  await Promise.all([files.clear(), snapshots.clear(), metaStore.clear()]);
+  await Promise.all([files.clear(), snapshots.clear(), metaStore.clear(), packs.clear()]);
 }
 
 let idSeq = 0;
