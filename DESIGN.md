@@ -1,5 +1,5 @@
 ---
-name: Aether
+name: Lemmata
 description: Proof intern — a controlled-natural-language proof checker, typeset like a proof.
 colors:
   paper: "#ffffff"
@@ -170,13 +170,13 @@ components:
 
 <!-- Recorded from the shipped build at commit cdd8ca2 (ui/static/styles.css, index.html, js/). Verification at that commit: axe-core reports zero violations on every view, in both themes and at phone width; the impeccable finish review returned "pass with fixes", and all fixes are applied in cdd8ca2. -->
 
-# Design System: Aether
+# Design System: Lemmata
 
 ## Overview
 
 **Creative North Star: "The Typeset Proof"**
 
-Aether is set the way a printed proof is set, not built the way a dashboard is built. The page is white paper (or near-black at night) divided by hairlines rather than boxes; the formal layer, meaning the proof, its line numbers, the variables, the hypotheses and the verdict, is machine-checked and therefore set in one monospace face, and the only type that breaks that grid is prose: the intern explaining a step, the course notes stating a theorem, the handbook teaching the language. The palette stays almost entirely ink and paper so that status colour means something when it appears.
+Lemmata is set the way a printed proof is set, not built the way a dashboard is built. The page is white paper (or near-black at night) divided by hairlines rather than boxes; the formal layer, meaning the proof, its line numbers, the variables, the hypotheses and the verdict, is machine-checked and therefore set in one monospace face, and the only type that breaks that grid is prose: the intern explaining a step, the course notes stating a theorem, the handbook teaching the language. The palette stays almost entirely ink and paper so that status colour means something when it appears.
 
 The system's single idea is that **failure is the event**. A step that verifies is the unremarkable case and gets no box, no fill and no colour. A step that fails gets a 2px rail in the margin, and so does every step after it that rests on it, because those rows are flush and consecutive rails read as one continuous line down the margin. The same rail marks the failing line in the editor gutter, and the verdict in the status bar uses the same rail-and-word language, so the whole interface speaks one dialect.
 

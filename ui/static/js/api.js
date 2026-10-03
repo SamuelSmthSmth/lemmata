@@ -12,6 +12,7 @@ async function getJson(path) {
 export const fetchExamples = () => getJson("/api/examples");
 export const fetchLibrary = () => getJson("/api/library");
 export const fetchCapabilities = () => getJson("/api/capabilities");
+export const fetchSite = () => getJson("/api/site");
 
 /**
  * Check a proof.  `files` (workspace path -> source) and `path` (this file's

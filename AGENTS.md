@@ -1,4 +1,4 @@
-# AGENTS.md — Aether Project Guide for UI Development
+# AGENTS.md — Lemmata Project Guide for UI Development
 
 ## ⚠️ Critical Rules for Agents
 
@@ -10,11 +10,13 @@
 
 ---
 
-## 1. What Aether Is
+## 1. What Lemmata Is
 
-**Aether** is a lightweight, Controlled Natural Language (CNL) "Proof Intern" / step-by-step mathematical proof checker designed for undergraduate pure mathematics (such as Real Analysis and Abstract Algebra).
+> **Naming.** Lemmata is the working product name (from `ui/site.json`; "Leaner" is pending permission from the Lean FRO). The engine is still the `aether` Python package, with the `aether` CLI and `.aether` files, and the public API below is unchanged. Never hard-code the product name in the UI: read it from `site.json` (Python: `ui/site.py`; frontend: `js/site.js` or `[data-site-name]`).
 
-Instead of requiring users to learn complex formal type-theory compilers (like Lean 4), Aether lets users write structured, human-readable mathematical proofs using natural deduction keywords (`Let`, `Given`, `Assume`, `Obtain`, `Step:`, `Therefore`, `Hence`, `QED`) combined with standard mathematical expressions.
+**Lemmata** is a lightweight, Controlled Natural Language (CNL) "Proof Intern" / step-by-step mathematical proof checker designed for undergraduate pure mathematics (such as Real Analysis and Abstract Algebra).
+
+Instead of requiring users to learn complex formal type-theory compilers (like Lean 4), Lemmata lets users write structured, human-readable mathematical proofs using natural deduction keywords (`Let`, `Given`, `Assume`, `Obtain`, `Step:`, `Therefore`, `Hence`, `QED`) combined with standard mathematical expressions.
 
 ### How the Engine Works Under the Hood
 - **Parser (`aether.parser`)**: Uses a Lark LALR grammar with Python-style indentation tracking (`AetherIndenter`) to parse proof documents into typed AST nodes (`DocumentNode`, `TheoremNode`, `VarDeclNode`, `AssumeNode`, `ObtainNode`, `StepNode`, `DeduceNode`, `SubProofNode`).
@@ -32,7 +34,7 @@ Instead of requiring users to learn complex formal type-theory compilers (like L
 
 ---
 
-## 2. Example Aether Proof Syntax
+## 2. Example Lemmata Proof Syntax
 
 ```text
 Theorem: "Even square theorem"
@@ -115,10 +117,10 @@ Each item in `report.results` corresponds to one parsed statement and contains:
 
 ## 4. What Needs to Be Present in the UI
 
-The UI should expose the full capabilities of the Aether engine to the user. It must include the following functional elements and information readouts:
+The UI should expose the full capabilities of the Lemmata engine to the user. It must include the following functional elements and information readouts:
 
 1. **Proof Input / Editor Area**
-   - Multi-line text input where the user writes or edits Aether CNL proof scripts.
+   - Multi-line text input where the user writes or edits Lemmata CNL proof scripts.
    - Support for loading pre-built example proofs (e.g., valid Even Square theorem, Odd Square theorem, an algebraic blunder with a counterexample, an unguarded division-by-zero example, and a guarded domain example) so users can test features immediately. In the current app these live in the **Library** (`GET /api/library`), alongside the course packs.
 
 2. **Overall Proof Verdict & Controls**

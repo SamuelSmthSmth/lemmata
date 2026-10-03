@@ -1,7 +1,7 @@
-# Aether UI
+# Lemmata UI
 
 A study app for writing proofs and checking them line by line, built on the
-Aether proof checker:
+Lemmata proof checker:
 
 - a **FastAPI** backend that exposes the engine over a small JSON API, with
   every check run in a worker process under a hard time budget
@@ -293,6 +293,14 @@ decide* page. Metadata only; nothing is run on request.
 The proof as LaTeX (two styles, with or without the verification report), or
 compiled to PDF when a TeX engine is installed.
 
+### `GET /api/site`
+
+The product's name, tagline and version: `{name, tagline, version}`. The name
+and tagline come from `ui/site.json`, the only place the brand is written
+down (`ui/site.py` reads it for the server title, the page `<title>` and the
+LaTeX/PDF report; `js/site.js` fills `[data-site-name]` in the frontend). The
+version is the installed `aether` package's.
+
 ### `GET /api/health`
 
 Liveness probe.
@@ -316,7 +324,7 @@ ui/
   static/
     index.html             the shell: rail, four views, status bar, dialogs
     styles.css
-    aether-language.js     Aether syntax mode (DOM-free, testable)
+    aether-language.js     Lemmata syntax mode (DOM-free, testable)
     guide/*.html           the Guide's pages (plain HTML partials)
     js/
       main.js              entry point: wiring, views, check/save flow, boot
@@ -629,7 +637,7 @@ on a fresh page under a hairline rule:
 | Verification Report | the verdict and counts, then a `longtable` of line / status / backend / canonical statement, then a note for every statement that had something to say — so a clean proof says nothing |
 | Proof State | what was in scope at each statement: scope depth, declared variables, active hypotheses and derived facts |
 | Session | the History tab's verdict timeline and snapshots, which live in the browser and so are sent by the client |
-| Original Proof Source | the Aether source, verbatim |
+| Original Proof Source | the Lemmata source, verbatim |
 
 The designed document carries exactly the same facts in a different shape. It
 opens on a **full-bleed navy cover plate**: brand and kicker, the theorem at

@@ -1,10 +1,12 @@
-# Aether — The Mathematical Proof Intern
+# Lemmata — The Mathematical Proof Intern
 
-**Aether** is a lightweight, Controlled Natural Language (CNL) step-by-step mathematical proof checker designed for undergraduate pure mathematics (Real Analysis, Abstract Algebra, Number Theory, and Combinatorics).
+> Lemmata is the working name (formerly Aether). The engine ships as the `aether` Python package, and proofs are still `.aether` files.
 
-Instead of requiring formal type-theory compilers (like Lean 4 or Coq), Aether lets users write structured, human-readable mathematical proofs using natural deduction keywords (`Let`, `Given`, `Assume`, `Obtain`, `Step:`, `Therefore`, `Hence`, `Base case:`, `Inductive step:`, `QED`) paired with standard algebraic and logic expressions.
+**Lemmata** is a lightweight, Controlled Natural Language (CNL) step-by-step mathematical proof checker designed for undergraduate pure mathematics (Real Analysis, Abstract Algebra, Number Theory, and Combinatorics).
 
-Behind the scenes, Aether orchestrates:
+Instead of requiring formal type-theory compilers (like Lean 4 or Coq), Lemmata lets users write structured, human-readable mathematical proofs using natural deduction keywords (`Let`, `Given`, `Assume`, `Obtain`, `Step:`, `Therefore`, `Hence`, `Base case:`, `Inductive step:`, `QED`) paired with standard algebraic and logic expressions.
+
+Behind the scenes, Lemmata orchestrates:
 - **SymPy**: Algebraic equivalence verification, pre-simplification domain obligation extraction (denominators $\neq 0$, radicands $\ge 0$), and concrete numeric counterexample search.
 - **Z3 SMT Solver**: Inequality verification, propositional and predicate logic, existential witness checks, exhaustiveness of case splits, and refutation models.
 - **Scope & Context Guardrails**: Enforcing strict monotonicity in inequality chains, preventing implicit existential variable capture, and forbidding illegal universal generalization over undischarged hypotheses.
@@ -31,7 +33,7 @@ Guides for different audiences:
 ## 🚀 Quick Start
 
 ### Installation & Environment Setup
-Aether uses `uv` for Python virtual environment management:
+Lemmata uses `uv` for Python virtual environment management:
 
 ```bash
 # Clone the repository
@@ -61,7 +63,7 @@ EOF
 ```
 
 ### Running the Web UI
-Aether includes a study app that runs locally in your browser:
+Lemmata includes a study app that runs locally in your browser:
 
 ```bash
 uv run python -m ui

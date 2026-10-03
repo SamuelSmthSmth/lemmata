@@ -1,7 +1,7 @@
 {
   "schemaVersion": 2,
   "generatedAt": "2026-10-03T09:16:06+00:00",
-  "title": "Design System: Aether",
+  "title": "Design System: Lemmata",
   "extensions": {
     "colorMeta": {
       "proof-blue": {
@@ -282,7 +282,7 @@
   ],
   "narrative": {
     "northStar": "The Typeset Proof",
-    "overview": "Aether is set the way a printed proof is set, not built the way a dashboard is built. Paper divided by hairlines; the formal layer and all chrome in one monospace; sentences the only break in the grid. Failure is the event: a failing step gets a 2px rail in the margin, in the auditor and the editor gutter alike, and so does everything that rests on it. The app is a study desk, not an IDE: the notes stay open beside the proof.",
+    "overview": "Lemmata is set the way a printed proof is set, not built the way a dashboard is built. Paper divided by hairlines; the formal layer and all chrome in one monospace; sentences the only break in the grid. Failure is the event: a failing step gets a 2px rail in the margin, in the auditor and the editor gutter alike, and so does everything that rests on it. The app is a study desk, not an IDE: the notes stay open beside the proof.",
     "keyCharacteristics": [
       "Paper and ink, hairline rules, near-square corners (2px).",
       "One monospace family for everything formal; system sans only for sentences.",

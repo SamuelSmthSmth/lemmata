@@ -30,6 +30,7 @@ import { permalinkFor, readPermalink, writePermalink } from "./permalink.js";
 import { getPref, setPref } from "./prefs.js";
 import { applyResponse } from "./render.js";
 import { initSettings, renderSettings } from "./settings.js";
+import { loadSite, site } from "./site.js";
 import { state } from "./state.js";
 import { initTabs, renderTabs } from "./tabs.js";
 import { showToast } from "./toast.js";
@@ -165,7 +166,7 @@ async function runCheck() {
     dom.verdict.className = "verdict verdict--invalid";
     dom.verdict.textContent = "Unreachable";
     dom.verdictMeta.textContent = error.message;
-    dom.audit.replaceChildren(el("p", "empty-state", `Could not reach the Aether server: ${error.message}. Your work is still saved in this browser.`));
+    dom.audit.replaceChildren(el("p", "empty-state", `Could not reach the ${site.name} server: ${error.message}. Your work is still saved in this browser.`));
   }
 }
 
@@ -270,7 +271,7 @@ async function renderNotesPanel() {
 
 function prependWelcomeCard() {
   const card = el("section", "welcome-card");
-  card.append(el("h2", null, "Welcome to Aether"));
+  card.append(el("h2", null, `Welcome to ${site.name}`));
   card.append(el("p", null, "A proof checker that reads the notation in your notes. A short tour of the desk:"));
   const steps = [
     ["Write the proof here.", ".pane--editor"],
@@ -982,6 +983,7 @@ document.addEventListener("visibilitychange", () => {
 
 async function init() {
   applySyntax(currentSyntax());
+  await loadSite();
   setDeskOpen(getPref("desk") === "open" && !narrowScreen.matches, { persist: false });
   setDeskPanel(getPref("deskPanel"));
 

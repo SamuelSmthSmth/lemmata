@@ -1,4 +1,4 @@
-"""HTTP/API smoke test for the Aether UI.
+"""HTTP/API smoke test for the web UI.
 
 Starts its own server on a free port, exercises every endpoint and the whole
 vendored CodeMirror graph over HTTP, then shuts the server down.
@@ -137,6 +137,15 @@ def main() -> int:
         examples = json.loads(body)
         check(status == 200 and len(examples) == 19, f"GET /api/examples -> {len(examples)} examples")
         by_id = {e["id"]: e for e in examples}
+
+        print("== GET /api/site ==")
+        from ui.site import NAME, TAGLINE, VERSION
+
+        status, _, body = server.request("/api/site")
+        site = json.loads(body)
+        check(status == 200 and site == {"name": NAME, "tagline": TAGLINE, "version": VERSION}, f"site identity from ui/site.json: {site}")
+        status, _, body = server.request("/")
+        check(f"<title>{NAME} · {TAGLINE}</title>".encode() in body, "the page <title> carries the site name")
 
         print("== GET /api/library ==")
         status, _, body = server.request("/api/library")

@@ -1,6 +1,6 @@
-# Aether System Architecture & AI Agent Reference Manual
+# Lemmata System Architecture & AI Agent Reference Manual
 
-This document is the comprehensive technical reference for AI assistants, autonomous coding agents, and compiler/tooling engineers working with the **Aether** Controlled Natural Language (CNL) mathematical proof-checking engine.
+This document is the comprehensive technical reference for AI assistants, autonomous coding agents, and compiler/tooling engineers working with the **Lemmata** Controlled Natural Language (CNL) mathematical proof-checking engine.
 
 It covers the formal grammar, AST node specifications, scope management algorithms, CAS and SMT verification backends, guardrails, API schemas, and generation rules for synthetic proof authoring.
 
@@ -8,7 +8,7 @@ It covers the formal grammar, AST node specifications, scope management algorith
 
 ## 1. System Architecture Pipeline
 
-The Aether verification engine operates as a sequential pipeline with no circular dependencies:
+The Lemmata verification engine operates as a sequential pipeline with no circular dependencies:
 
 ```
 Source Code (.aether or string)
@@ -76,7 +76,7 @@ ProofReport / StepResult / REST API JSON
 
 ## 2. Formal Grammar Specification
 
-Aether uses Lark with a Python-style indentation tracking indenter (`AetherIndenter`).
+Lemmata uses Lark with a Python-style indentation tracking indenter (`AetherIndenter`).
 
 ### 2.1 Grammar Rules (EBNF Summary)
 
@@ -382,7 +382,7 @@ solver has no infinite element. Equalities about these functions never reach Z3 
 
 ## 9. AI Proof Generation Rules & Best Practices
 
-When generating synthetic Aether proof scripts, adhere to these rules:
+When generating synthetic Lemmata proof scripts, adhere to these rules:
 
 1. **Calculus Notation:** Use `diff(y, x)` or `diff(y, x, order)` for derivatives. Use `integrate(f, x, a, b)` or `\int_{a}^{b} f dx` for integrals. Use `lim(f, x, a)` or `\lim_{x -> a} f` for limits.
 2. **Algebraic Structures:** Declare groups with `Assume Group(G, op, e, inv)` and reference elements with `op(a, b)` and `inv(a)`.

@@ -12,16 +12,16 @@ Undergraduate pure-mathematics students: anyone, not one cohort. They are workin
 
 ## Product Purpose
 
-Aether checks proofs written in a controlled natural language (`Let`, `Assume`, `Obtain`, `Step:`, `Therefore`, `QED`) step by step. Each step is verified by SymPy (algebra) or Z3 (logic and inequalities), and a failure comes back with the reason and, where one exists, a concrete counterexample. Success is a student who finds the exact step their reasoning slipped on and understands why, without first learning a formal proof assistant.
+Lemmata checks proofs written in a controlled natural language (`Let`, `Assume`, `Obtain`, `Step:`, `Therefore`, `QED`) step by step. Each step is verified by SymPy (algebra) or Z3 (logic and inequalities), and a failure comes back with the reason and, where one exists, a concrete counterexample. Success is a student who finds the exact step their reasoning slipped on and understands why, without first learning a formal proof assistant.
 
 ## Positioning
 
-A "proof intern": it reads proofs written the way the notes write them, `∀ ε > 0, ∃ δ > 0`, `a⁻¹`, `n!` and `∞` included, and audits every line. Formal assistants (Lean, Coq) demand type theory before the first proof, and a CAS checks single calculations, not arguments. Aether sits between them: the whole proof, in the notes' own notation, checked line by line with counterexamples.
+A "proof intern": it reads proofs written the way the notes write them, `∀ ε > 0, ∃ δ > 0`, `a⁻¹`, `n!` and `∞` included, and audits every line. Formal assistants (Lean, Coq) demand type theory before the first proof, and a CAS checks single calculations, not arguments. Lemmata sits between them: the whole proof, in the notes' own notation, checked line by line with counterexamples.
 
 ## Operating Context
 
 - Students write a proof, see a verdict per line, inspect the proof state (declared variables, active hypotheses, scope) at any step, fix it, and export it to LaTeX or PDF for submission or revision.
-- Course packs transcribe a module's lecture notes into checkable proofs, keyed to the notes' own numbering ("Example 2.18"). MTH2008 Real Analysis and MTH2010 Algebra are the first two packs. The packs ship Aether transcriptions only, never the original notes.
+- Course packs transcribe a module's lecture notes into checkable proofs, keyed to the notes' own numbering ("Example 2.18"). MTH2008 Real Analysis and MTH2010 Algebra are the first two packs. The packs ship Lemmata transcriptions only, never the original notes.
 - Packs also carry deliberate blunders ("traps") that students can study as spot-the-error exercises.
 
 ## Capabilities and Constraints
@@ -34,7 +34,8 @@ A "proof intern": it reads proofs written the way the notes write them, `∀ ε 
 
 ## Brand Commitments
 
-- The name is **Aether**, with the tagline "Proof intern".
+- The working name is **Lemmata**, with the tagline "Proof intern". The preferred name, **Leaner**, waits on written permission from the Lean FRO (its trademark policy covers marks containing "Lean"); until then nothing ships under it.
+- The name lives in one place, `ui/site.json`, so a rename (or an institution's own branding) is a config change. The engine package, the CLI, the `.aether` file extension and storage keys keep the old `aether` identifier for compatibility; they are not the brand.
 - The existing visual identity is kept and refined, not replaced: the user chose refinement.
 
 ## Evidence on Hand

@@ -1,14 +1,14 @@
-# Aether Proof Author's Handbook & Cheat Sheet
+# Lemmata Proof Author's Handbook & Cheat Sheet
 
-Welcome to **Aether**, the lightweight, step-by-step mathematical proof intern designed for undergraduate pure mathematics (Real Analysis, Calculus & ODEs, Abstract Algebra, Number Theory, and Linear Algebra).
+Welcome to **Lemmata**, the lightweight, step-by-step mathematical proof intern designed for undergraduate pure mathematics (Real Analysis, Calculus & ODEs, Abstract Algebra, Number Theory, and Linear Algebra).
 
-Instead of requiring you to learn arcane type theory or complex interactive theorem provers (like Lean 4 or Coq), Aether lets you write **Controlled Natural Language (CNL)** proofs using familiar English keywords (`Given`, `Assume`, `Obtain`, `Step:`, `Therefore`, `QED`) paired with standard mathematical notation.
+Instead of requiring you to learn arcane type theory or complex interactive theorem provers (like Lean 4 or Coq), Lemmata lets you write **Controlled Natural Language (CNL)** proofs using familiar English keywords (`Given`, `Assume`, `Obtain`, `Step:`, `Therefore`, `QED`) paired with standard mathematical notation.
 
 ---
 
 ## 1. Quick Start: The 30-Second Mental Model
 
-Every Aether proof file contains either:
+Every Lemmata proof file contains either:
 1. **A Formal Theorem:**
    ```text
    Theorem: "Title of Theorem"
@@ -174,7 +174,7 @@ Proof:
     ...
 QED
 ```
-Aether automatically resolves the file, verifies that it is valid, imports all definitions and theorem claims, and guards against cyclic dependencies.
+Lemmata automatically resolves the file, verifies that it is valid, imports all definitions and theorem claims, and guards against cyclic dependencies.
 
 Where the file is looked for: in the web app, first among the proofs in your workspace — relative to the importing proof's folder, then from the top of the workspace — and then on disk. On the command line, beside the importing file, then a `base_dir` if one was given, then the working directory. An import that cannot be found is reported by name.
 
@@ -291,14 +291,14 @@ QED
 2. **Domain Obligations:**
    - Dividing by an expression $B$ requires $B \neq 0$.
    - Square rooting $\sqrt{A}$ requires $A \ge 0$.
-   - If not guarded by an active assumption (`Assume x != 2`), Aether emits a domain warning (or a hard error if **Strict Domain Checking** is enabled).
+   - If not guarded by an active assumption (`Assume x != 2`), Lemmata emits a domain warning (or a hard error if **Strict Domain Checking** is enabled).
    - Each distinct obligation is reported once, however many times the offending sub-expression occurs.
 3. **Implicit Variable Capture Guard:**
    - `Obtain k : Int ...` will be rejected if variable `k` is already in scope. Always pick a fresh witness name!
 4. **Illegal Universal Generalization:**
    - Deducing `Therefore forall x : Real, ...` is rejected if `x` is constrained by an undischarged local hypothesis.
 5. **Concrete Counterexamples:**
-   - When an algebraic or inequality step is wrong, Aether calculates an exact numeric counterexample (e.g. `Counterexample at x=3: LHS = 16, RHS = 10`), displayed in the auditor.
+   - When an algebraic or inequality step is wrong, Lemmata calculates an exact numeric counterexample (e.g. `Counterexample at x=3: LHS = 16, RHS = 10`), displayed in the auditor.
 6. **What the Solver Cannot Decide:**
    - The SMT backend has no theory of `exp`, `log`, `sin`, `cos` or `tan`. It is given only true facts about their *ranges* — `-1 <= sin, cos <= 1`, `exp(t) > 0` and `exp(t) >= 1 + t`, `log(t) <= t - 1` for `t > 0`, `cosh >= 1`, `|tanh| < 1` — so `Step: exp(x) > 0` and `Step: |x * sin(1/x)| <= |x|` are proved, but an inequality needing more than that (`exp(x) >= 1 + x + x^2/2`) cannot be decided. The message says as much rather than presenting a misleading counterexample. Equalities (`Step: sin(x)^2 + cos(x)^2 = 1`) are settled by SymPy instead, and do work.
    - A logarithm's argument is **not** subject to a domain obligation, since the check would have to be discharged by that same solver. See §8 for the reasoning.
@@ -342,7 +342,7 @@ For how each of these is put together — and the checks that keep them honest �
 
 ## 8. Capability Matrix: What Parses, Verifies, and Refuses
 
-The tables above advertise what an Aether proof may contain, and where the engine stops. This is that surface in one place: every row is a snippet plus the verdict it must still produce. It is generated from the pins themselves —
+The tables above advertise what an Lemmata proof may contain, and where the engine stops. This is that surface in one place: every row is a snippet plus the verdict it must still produce. It is generated from the pins themselves —
 
 ```bash
 uv run python ui/verify_capabilities.py --markdown

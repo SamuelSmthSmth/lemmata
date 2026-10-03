@@ -7,6 +7,7 @@
 
 import { fetchCapabilities } from "./api.js";
 import { el } from "./format.js";
+import { applySiteName } from "./site.js";
 
 export const GUIDE_PAGES = [
   { id: "start", title: "Getting started" },
@@ -52,6 +53,7 @@ async function pageHtml(id) {
 
 /** Decorate a page's DOM: Try-it buttons, and the capability matrix where it lives. */
 function decorate(root, { compact = false } = {}) {
+  applySiteName(root);
   for (const pre of root.querySelectorAll("pre.try")) {
     const wrap = el("div", "try-block");
     pre.replaceWith(wrap);

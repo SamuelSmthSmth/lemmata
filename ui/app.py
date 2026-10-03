@@ -1,4 +1,4 @@
-"""FastAPI backend exposing the Aether engine to the web UI.
+"""FastAPI backend exposing the proof-checking engine (``aether``) to the web UI.
 
 The engine is used strictly as a library -- nothing here reaches into
 ``aether.core`` / ``aether.parser`` / ``aether.engine`` internals, it only
@@ -11,6 +11,7 @@ GET  /api/examples   -> bundled sample proofs
 GET  /api/library    -> course packs (courses/*.json) plus the examples, for the Library
 GET  /api/capabilities -> the capability matrix (pins), for the Guide
 POST /api/check      -> verify a proof source string
+GET  /api/site       -> the product name, tagline and version (ui/site.json)
 GET  /api/health     -> liveness probe
 
 Every engine call (checking and the LaTeX/PDF report, which re-checks) runs in
@@ -21,18 +22,21 @@ stalled solver query can cost a request its answer but never a server thread.
 from __future__ import annotations
 
 import json
+import re
 import time
+from html import escape
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Any, Literal, Optional
 
 from fastapi import FastAPI
-from fastapi.responses import FileResponse, Response, JSONResponse
+from fastapi.responses import HTMLResponse, Response, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 from .checking import CheckTimeout, WorkerCrashed, pool
 from .examples import EXAMPLES
+from .site import NAME, SITE, TAGLINE, VERSION
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
 PROJECT_DIR = Path(__file__).resolve().parent.parent
@@ -155,9 +159,9 @@ async def lifespan(_app: FastAPI):
 
 
 app = FastAPI(
-    title="Aether Proof Checker",
+    title=NAME,
     description="Controlled-natural-language proof intern for undergraduate mathematics.",
-    version="0.1.0",
+    version=VERSION,
     lifespan=lifespan,
 )
 
@@ -165,8 +169,17 @@ app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 
 
 @app.get("/", include_in_schema=False)
-def index() -> FileResponse:
-    return FileResponse(STATIC_DIR / "index.html")
+def index() -> HTMLResponse:
+    # The <title> carries the name from site.json, so it is right before any
+    # script runs (and for whatever reads the page without running them).
+    html = (STATIC_DIR / "index.html").read_text(encoding="utf-8")
+    html = re.sub(r"<title>.*?</title>", f"<title>{escape(NAME)} · {escape(TAGLINE)}</title>", html, count=1)
+    return HTMLResponse(html)
+
+
+@app.get("/api/site")
+def site() -> dict[str, str]:
+    return {**SITE, "version": VERSION}
 
 
 @app.get("/api/health")

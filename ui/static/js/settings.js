@@ -9,6 +9,7 @@
 import { el } from "./format.js";
 import { ARRANGEMENTS, layoutApi } from "./layout.js";
 import { getPref, setPref } from "./prefs.js";
+import { site } from "./site.js";
 
 let handlers = {};
 
@@ -213,6 +214,19 @@ export function renderSettings() {
         confirm: async () => `Click again to delete ${(await handlers.countFiles?.()) ?? "all"} proofs`,
         onClick: () => handlers.onWipe?.(),
       }),
+    ),
+    group(
+      "About",
+      (() => {
+        const field = el("div", "setting");
+        const text = el("div", "setting-text");
+        text.append(
+          el("span", "setting-label", site.name),
+          el("span", "setting-hint", site.version ? `Version ${site.version}. Steps are checked by SymPy and Z3.` : "Steps are checked by SymPy and Z3."),
+        );
+        field.append(text);
+        return field;
+      })(),
     ),
   );
 }
