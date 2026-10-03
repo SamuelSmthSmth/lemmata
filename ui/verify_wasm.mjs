@@ -102,6 +102,24 @@ console.log();
 if (failures.length) {
   console.log(`${failures.length} verdict(s) differ:`);
   for (const f of failures) console.log(`  - ${f}`);
+  // Each one again, on its own and in full, so the cause is in the log.
+  for (const r of wasm.results.filter((x) => x.got !== x.expected)) {
+    pyodide.globals.set("case_id", r.id);
+    console.log(`\n--- ${r.id} under Pyodide (node ${process.version}), in sequence ---\n${r.report ?? ""}`);
+    console.log(`--- the same, on its own ---`);
+    console.log(
+      pyodide.runPython(`
+import traceback
+from aether import ProofChecker
+case = next(c for c in ui.wasm_cases.cases() if c["id"] == case_id)
+try:
+    out = "\\n".join(r.format_report() for r in ProofChecker(strict_domains=case["strict"]).check_source(case["source"]))
+except Exception:
+    out = traceback.format_exc()
+out
+`),
+    );
+  }
   process.exit(1);
 }
 console.log(`every pinned verdict holds under Pyodide (${wasm.results.length} of ${wasm.results.length})`);

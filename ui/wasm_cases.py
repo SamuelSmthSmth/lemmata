@@ -108,8 +108,15 @@ def run(only: str = "", progress=None) -> dict[str, Any]:
         except Exception as exc:  # noqa: BLE001 - a crash is a finding
             got = f"CRASH {type(exc).__name__}: {exc}"[:200]
         ms = (time.perf_counter() - t0) * 1000
+        result = {"id": case["id"], "expected": case["expected"], "got": got, "ms": round(ms, 1)}
+        if got != case["expected"]:
+            # Asked again of the same warm checker, so the report shows the cause.
+            try:
+                result["report"] = "\n".join(r.format_report() for r in checker.check_source(case["source"]))
+            except Exception as exc:  # noqa: BLE001
+                result["report"] = f"{type(exc).__name__}: {exc}"
         checker.clear_cache()
-        results.append({"id": case["id"], "expected": case["expected"], "got": got, "ms": round(ms, 1)})
+        results.append(result)
         if progress:
             progress(i + 1, len(selected), case["id"], got, ms)
     return {"python": sys.version.split()[0], "checkers_ms": round(warm_ms, 1), "results": results}
