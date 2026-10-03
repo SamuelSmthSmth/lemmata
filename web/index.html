@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <script>
+      // Proof links from before the site moved the app to /app/ still open it.
+      if (location.hash.indexOf("#p=") === 0) location.replace("app/" + location.search + location.hash);
+    </script>
+    {{ partial_head }}
+    <title>{{ name }} · Check proofs the way your notes write them</title>
+    <meta name="description" content="{{ name }} checks proofs written in your lecture notes' own notation, line by line, and gives a counterexample when a step is wrong. Free, in your browser or on your desktop." />
+  </head>
+  <body class="page-home">
+    {{ partial_nav }}
+    <main id="main">
+      <section class="hero" aria-labelledby="hero-title">
+        <figure class="specimen" aria-label="The claim being checked: for every epsilon greater than 0 there is a delta greater than 0 such that for all real x, if |x minus 2| is less than delta then |3x minus 6| is less than epsilon.">
+          <p class="specimen-claim" aria-hidden="true">{{ hero_claim_head }}</p>
+          <p class="specimen-rest" aria-hidden="true">{{ hero_claim_tail }}</p>
+          <figcaption class="specimen-caption">
+            <span>lim 3x = 6 as x → 2, in the shape of an ε–δ definition</span>
+            <span>typed exactly like this</span>
+          </figcaption>
+        </figure>
+
+        <div class="hero-grid">
+          <div class="run" data-fail="{{ hero_fail_index }}">
+            <div class="scrub">
+              <label class="scrub-label" for="scrub">Step through the audit</label>
+              <input id="scrub" type="range" min="0" max="{{ hero_last_index }}" value="{{ hero_fail_index }}" step="1" aria-describedby="scrub-readout" />
+              <ol class="scrub-ticks" aria-hidden="true"></ol>
+              <p id="scrub-readout" class="scrub-readout" aria-live="polite">Line {{ hero_fail_line }} fails: δ = ε / 2 is too big.</p>
+              <button class="text-button scrub-replay" type="button">Replay</button>
+            </div>
+            <ol class="audit" aria-label="The checker's audit of the proof, line by line">
+              {{ hero_audit }}
+            </ol>
+          </div>
+
+          <div class="pitch">
+            <h1 id="hero-title">Check proofs the way your notes write them.</h1>
+            <p class="lede">{{ name }} checks every line, and when one fails it shows which, why, and a counterexample.</p>
+            <div class="actions">
+              <a class="button button--primary button--large" href="app/">Open {{ name }}</a>
+              <a class="button button--outline button--large" href="download/">Download</a>
+            </div>
+            <p class="pitch-note">Free. Runs in your browser, or offline on your desktop. No account.</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="section notation" aria-labelledby="notation-title">
+        <div class="section-head">
+          <h2 id="notation-title">Write what your lecturer writes.</h2>
+          <p>Type the symbol, or its name: <code>forall</code>, <code>\epsilon</code>, <code>&lt;=</code>. Both read the same, and the app's symbol strip inserts any of these with a click.</p>
+        </div>
+        <ul class="glyphs">
+          {{ symbol_grid }}
+        </ul>
+      </section>
+
+      <section class="section reasons" aria-labelledby="reasons-title">
+        <div class="section-head">
+          <h2 id="reasons-title">It also says what you assumed.</h2>
+          <p>Cancelling (x − 1) is right, unless x = 1. The checker points out the assumption the proof never states; add <code>Assume x != 1</code> and the warning goes.</p>
+        </div>
+        <div class="reasons-grid">
+          <ol class="audit audit--static" aria-label="The checker's audit of a proof that cancels a factor">
+            {{ domain_audit }}
+          </ol>
+          <ul class="facts">
+            <li><strong>Algebra and logic, both.</strong> Calculations are checked by SymPy; inequalities, quantifiers and deductions by Z3.</li>
+            <li><strong>Strict when you want it.</strong> Turn on strict domains and an unstated assumption fails the proof instead of warning.</li>
+            <li><strong>What is known, at every line.</strong> Click any step to see the variables in scope, the hypotheses and the facts derived so far.</li>
+            <li><strong>Honest about its limits.</strong> When the solver cannot decide, it says so. <a href="app/?view=guide&amp;page=limits">What it can check</a></li>
+          </ul>
+        </div>
+        <figure class="screenshot">
+          <img class="themed shot-wide" src="assets/img/app-light.webp" data-light="assets/img/app-light.webp" data-dark="assets/img/app-dark.webp" alt="The {{ name }} app: the proof in the editor, its audit beneath with the failing step marked, and the reading pane beside it." width="1440" height="900" loading="lazy" decoding="async" />
+          <img class="themed shot-narrow" src="assets/img/app-phone-light.webp" data-light="assets/img/app-phone-light.webp" data-dark="assets/img/app-phone-dark.webp" alt="The {{ name }} app on a phone: the proof in the editor and its audit below, the failing step marked." width="390" height="844" loading="lazy" decoding="async" />
+          <figcaption>The study desk: your proof, its audit, and your notes beside it.</figcaption>
+        </figure>
+      </section>
+
+      <section class="section packs" aria-labelledby="packs-title">
+        <div class="section-head">
+          <h2 id="packs-title">Your module, as proofs you can check.</h2>
+          <p>Course packs transcribe a module's results into {{ name }}, numbered as in the notes, with deliberate mistakes to find. Install them from the Library, use a theorem in your own proof, or make a pack of your own.</p>
+        </div>
+        <table class="pack-table">
+          <caption class="visually-hidden">The course packs that ship with {{ name }}</caption>
+          <thead>
+            <tr><th scope="col">Pack</th><th scope="col">Entries</th><th scope="col">Traps</th><th scope="col">Chapters</th></tr>
+          </thead>
+          <tbody>
+            <tr><th scope="row"><span class="pack-code">MTH2008</span> {{ mth2008_title }}</th><td>{{ mth2008_entries }}</td><td>{{ mth2008_traps }}</td><td>{{ mth2008_chapters }}</td></tr>
+            <tr><th scope="row"><span class="pack-code">MTH2010</span> {{ mth2010_title }}</th><td>{{ mth2010_entries }}</td><td>{{ mth2010_traps }}</td><td>{{ mth2010_chapters }}</td></tr>
+            <tr><th scope="row"><span class="pack-code">Notation</span> {{ notation_title }}</th><td>{{ notation_entries }}</td><td>{{ notation_traps }}</td><td>{{ notation_chapters }}</td></tr>
+          </tbody>
+        </table>
+        <p class="packs-more">More are published to the <a href="https://samuelsmthsmth.github.io/lemmata-packs/">public pack registry</a>, where every entry is re-checked before it is listed. Search it from the Library.</p>
+      </section>
+
+      <section class="section lecturers" aria-labelledby="lecturers-title">
+        <div class="section-head">
+          <h2 id="lecturers-title">For lecturers and departments.</h2>
+          <p>{{ name }} is a study tool, not a grader: it explains and points, and never scores anyone.</p>
+        </div>
+        <dl class="points">
+          <div><dt>Publish a module</dt><dd>Put your results and exercises in a pack and open a pull request. The registry checks every entry with the engine students use before anyone can install it. <a href="https://github.com/SamuelSmthSmth/lemmata-packs/blob/main/CONTRIBUTING.md">How to publish</a></dd></div>
+          <div><dt>Traps to find</dt><dd>A pack can carry deliberate mistakes. Students open one as an exercise and look for the failing line before the checker shows it.</dd></div>
+          <div><dt>Your own copy</dt><dd>Host it yourself: one <code>site.json</code> sets the name, the accent colour, the packs a first visit installs and your own registry. <a href="download/#self-host">Self-hosting</a></dd></div>
+          <div><dt>What it can and cannot check</dt><dd>The capability matrix lists every construction the checker supports and every known gap, each one verified by a test. <a href="app/?view=guide&amp;page=limits">Read it</a></dd></div>
+        </dl>
+      </section>
+
+      <section class="section lean" aria-labelledby="lean-title">
+        <div class="section-head">
+          <h2 id="lean-title">Before Lean, not instead of it.</h2>
+          <p>Proof assistants such as Lean check everything, once you have learned type theory and their syntax. A computer algebra system checks one calculation at a time. {{ name }} sits between them: the whole argument, line by line, in the notation of your notes, so you learn what a checked proof feels like before you formalise one.</p>
+        </div>
+      </section>
+
+      <section class="section ways" aria-labelledby="ways-title">
+        <div class="section-head">
+          <h2 id="ways-title">Use it your way.</h2>
+        </div>
+        <ul class="way-list">
+          <li>
+            <h3>In your browser</h3>
+            <p>Nothing to install. The checker runs on your computer, inside the page, and your work stays there.</p>
+            <a class="text-link" href="app/">Open {{ name }}</a>
+          </li>
+          <li>
+            <h3>On your desktop</h3>
+            <p>Linux, Windows and macOS. Works offline from the first launch.</p>
+            <a class="text-link" href="download/">Download</a>
+          </li>
+          <li>
+            <h3>From the command line</h3>
+            <p>Check <code>.aether</code> files from a terminal or a script.</p>
+            <a class="text-link" href="download/#cli">Install the CLI</a>
+          </li>
+          <li>
+            <h3>On your own server</h3>
+            <p>A folder of static files that any web server can host, branded with one config file.</p>
+            <a class="text-link" href="download/#self-host">Self-host</a>
+          </li>
+        </ul>
+      </section>
+
+      <section class="close" aria-labelledby="close-title">
+        <p class="close-mark" aria-hidden="true">QED</p>
+        <div>
+          <h2 id="close-title">Bring tonight's problem sheet.</h2>
+          <p class="close-lede">Type the first line of your proof and see how far the argument holds.</p>
+          <a class="button button--primary button--large" href="app/">Open {{ name }}</a>
+        </div>
+      </section>
+    </main>
+    {{ partial_footer }}
+  </body>
+</html>

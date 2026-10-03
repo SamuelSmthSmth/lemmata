@@ -26,6 +26,7 @@ colors:
   night-verified-green: "#4ab960"
   night-caveat-amber: "#d9a520"
   night-error-red: "#f2645c"
+  night-proof-blue-fill: "#1f6feb"
 typography:
   title:
     fontFamily: "JetBrains Mono, ui-monospace, SFMono-Regular, Menlo, Consolas, monospace"
@@ -72,6 +73,40 @@ typography:
     fontSize: "11px"
     fontWeight: 700
     letterSpacing: "0.09em"
+  specimen:
+    fontFamily: "JetBrains Mono, ui-monospace, SFMono-Regular, Menlo, Consolas, monospace"
+    fontSize: "clamp(2.25rem, 10.3vw, 10rem)"
+    fontWeight: 500
+    lineHeight: 1
+    letterSpacing: "-0.04em"
+  specimen-tail:
+    fontFamily: "JetBrains Mono, ui-monospace, SFMono-Regular, Menlo, Consolas, monospace"
+    fontSize: "clamp(1.05rem, 2.6vw, 2rem)"
+    fontWeight: 400
+    lineHeight: 1.3
+    letterSpacing: "-0.02em"
+  site-page-title:
+    fontFamily: "JetBrains Mono, ui-monospace, SFMono-Regular, Menlo, Consolas, monospace"
+    fontSize: "clamp(2rem, 4vw, 3rem)"
+    fontWeight: 600
+    lineHeight: 1.08
+    letterSpacing: "-0.03em"
+  site-headline:
+    fontFamily: "JetBrains Mono, ui-monospace, SFMono-Regular, Menlo, Consolas, monospace"
+    fontSize: "clamp(1.75rem, 3.2vw, 2.5rem)"
+    fontWeight: 600
+    lineHeight: 1.12
+    letterSpacing: "-0.02em"
+  site-body:
+    fontFamily: "-apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Helvetica, Arial, sans-serif"
+    fontSize: "16px"
+    fontWeight: 400
+    lineHeight: 1.6
+  site-lede:
+    fontFamily: "-apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Helvetica, Arial, sans-serif"
+    fontSize: "17px"
+    fontWeight: 400
+    lineHeight: 1.6
 rounded:
   sm: "2px"
   md: "2px"
@@ -81,6 +116,8 @@ spacing:
   gutter: "11px"
   page-x: "32px"
   page-y: "28px"
+  site-page: "1200px"
+  site-gutter: "clamp(16px, 4vw, 32px)"
 components:
   verdict-valid:
     textColor: "{colors.verified-green}"
@@ -189,10 +226,65 @@ components:
   pack-dialog:
     backgroundColor: "{colors.paper}"
     width: "760px"
+  site-nav:
+    backgroundColor: "{colors.paper}"
+    textColor: "{colors.ink-quiet}"
+    height: "60px"
+  site-specimen:
+    textColor: "{colors.ink}"
+    typography: "{typography.specimen}"
+  site-button-primary:
+    backgroundColor: "{colors.proof-blue}"
+    textColor: "{colors.paper}"
+    rounded: "{rounded.sm}"
+    padding: "0 14px"
+    height: "32px"
+  site-button-primary-large:
+    backgroundColor: "{colors.proof-blue}"
+    textColor: "{colors.paper}"
+    rounded: "{rounded.sm}"
+    padding: "0 20px"
+    height: "44px"
+  site-button-outline:
+    textColor: "{colors.ink}"
+    rounded: "{rounded.sm}"
+    padding: "0 20px"
+    height: "44px"
+  site-button-quiet:
+    backgroundColor: "{colors.paper-lowered}"
+    textColor: "{colors.ink}"
+    rounded: "{rounded.sm}"
+    padding: "0 14px"
+    height: "28px"
+  audit-row:
+    backgroundColor: "{colors.paper}"
+    textColor: "{colors.ink}"
+    padding: "9px 12px 9px 14px"
+  glyph-cell:
+    textColor: "{colors.ink}"
+    padding: "18px 16px 16px"
+  glyph-cell-lit:
+    textColor: "{colors.proof-blue}"
+    padding: "18px 16px 16px"
+  storage-notice:
+    backgroundColor: "{colors.paper-raised}"
+    textColor: "{colors.ink-quiet}"
+    rounded: "{rounded.sm}"
+    padding: "10px 10px 10px 16px"
+    width: "min(640px, calc(100% - 32px))"
+  command-block:
+    backgroundColor: "{colors.paper-raised}"
+    textColor: "{colors.ink}"
+    rounded: "{rounded.sm}"
+    padding: "12px 12px 12px 16px"
+  doc-column:
+    backgroundColor: "{colors.paper}"
+    width: "760px"
 ---
 
 <!-- Recorded from the shipped build at commit cdd8ca2 (ui/static/styles.css, index.html, js/). Verification at that commit: axe-core reports zero violations on every view, in both themes and at phone width; the impeccable finish review returned "pass with fixes", and all fixes are applied in cdd8ca2. -->
 <!-- Pack-manager refinement recorded from the shipped build (606f4ed, fa70b9c) (styles.css, js/library.js, js/pack-author.js, js/explorer.js, index.html #pack-dialog): Library pack rail and pack head, the pack dialog, the control boundary and secondary-button tokens, toast rules, the explorer's pack folder. -->
+<!-- Public site recorded from the shipped build in web/ (assets/site.css, assets/site.js, index.html, partials/, download/, privacy/, terms/, cookies/; screenshots in .impeccable/review/), after the impeccable finish review returned "ship" following one fix batch. An extension of this world, not a new one: every site colour is one of the app's tokens with the same light/dark pairs. Site entries are marked "Public site" below; the app's sections are unchanged. Also recorded: the JetBrains Mono math subset (ui/vendor_fonts.py, ui/static/fonts.css). -->
 
 # Design System: Lemmata
 
@@ -237,6 +329,9 @@ A restrained ink-and-paper system with one blue accent and three status hues use
 - **Caveat Amber** (caveat-amber; night-caveat-amber): warnings, meaning unresolved domain obligations; an unavailable storage state.
 - **Error Red** (error-red; night-error-red): invalid steps, counterexamples, parse errors, a copy that fails, destructive actions. Quiet fills use the same hue at 8–11% alpha.
 
+### Public site
+The site uses the app's palette, light and dark pairs alike, under its own short names (`--accent`, `--invalid`, `--caveat`, …). Three values it names are the app's own, mirrored rather than invented: Caveat Amber's quiet fill (amber at 10%, 13% at night) behind a domain-obligation callout; the modal scrim (ink at 42%, black at 62% at night) behind the open phone menu; and **Proof Blue Fill** (proof-blue by day; night-proof-blue-fill, the app's Web Awesome loud brand fill, at night), the ground of a filled primary button with paper text, because the light night accent cannot carry white text. Green is defined but appears nowhere on the site: no proof there is a whole verdict.
+
 ### Named Rules
 **The Green Is Rare Rule.** Green marks a verdict on a whole proof (the status bar, a history bar, an exercise answer, a Library copy that checks, a pack export whose every entry was just checked, a Guide example's expected result) and nowhere else; a passing step's status is set in dim ink. Scarcity is what makes red legible.
 
@@ -244,12 +339,16 @@ A restrained ink-and-paper system with one blue accent and three status hues use
 
 **The Two Schemes Rule.** Syntax colour has two schemes over one token vocabulary: "mono" (default; keywords take Proof Blue, everything else is ink or recedes into Ink Quiet and Ink Dim) and "vivid" (one hue per category, picked separately for light and dark; comments and glue words stay dim in both). Nothing branches on the scheme except the palette values.
 
+**The Red Once Rule (public site).** On a page that demonstrates the checker, Error Red appears at one failing step only: its rail, its status word, its counterexample, its tick on the scrub and its readout. A second example teaches with Caveat Amber (an unresolved domain obligation), never a second failure.
+
 ## Typography
 
 **Formal Font:** JetBrains Mono (self-hosted subsets; ui-monospace fallback)
 **Prose Font:** the system UI sans stack (-apple-system, Segoe UI, Roboto, …)
 
 **Character:** One working monospace carries every formal mark and every piece of chrome; the sans appears only where something speaks in sentences. There is no display face and no second family to pair.
+
+**Math subset.** JetBrains Mono ships a third self-hosted subset, cut from the upstream variable font (pinned by sha256) for U+2100–214F, U+2190–21FF and U+2200–22FF, so the notes' symbols (∀ ∃ ∈ ⇒ ≤ ℝ ℤ ℕ) are set in the same face, at every weight on the 100–800 axis, in the editor and on the site alike, instead of falling back to a system font.
 
 ### Hierarchy
 - **Title** (600, 20px, 1.25, mono, no uppercase): page titles in the Library, Guide and Settings. A title, not a label: it outranks the uppercase section labels beneath it.
@@ -262,6 +361,16 @@ A restrained ink-and-paper system with one blue accent and three status hues use
 - **Label** (700, 11px, 0.09em tracking, uppercase): pane heads, reading-pane tabs, context sections, the Guide contents heading. Metadata (line numbers, status bar, step status) is 11px unbolded.
 
 The scale is consolidated: 11, 12 and 13px for UI chrome; 13–15px for reading prose (13px in the reading pane and Library, 14–15px on full pages); 20px for page titles. Nothing in the app is set below 11px.
+
+### Public site
+The site sets the same two families at the scale of a page. Headings are mono 600 with slight negative tracking and balanced wrapping; sentences are the system sans.
+- **Specimen** (500, clamp(2.25rem, 10.3vw, 10rem), 1, −0.04em, word spacing −0.28em): the hero's quantifier clauses ("∀ ε > 0, ∃ δ > 0,"), spanning the 1200px measure at most. Each clause is an unbreakable unit, so the line wraps between clauses and never inside one. It is JetBrains Mono, not a display face.
+- **Specimen Tail** (400, clamp(1.05rem, 2.6vw, 2rem), 1.3, Ink Quiet): the rest of the claim beneath, about a third of the specimen.
+- **Lit symbol**: a symbol the scrub's current step uses turns Proof Blue and moves along the weight axis to 750 (0.35s ease-out), so the specimen answers the control.
+- **Site Page Title** (600, clamp(2rem, 4vw, 3rem), 1.08) on reading pages; the hero headline sits a step down (clamp(1.9rem, 2.9vw, 2.6rem), 1.1).
+- **Site Headline** (600, clamp(1.75rem, 3.2vw, 2.5rem), 1.12): section heads and the close.
+- **Site Body** (sans 16px, 1.6) and **Site Lede** (sans 17px, 1.6, Ink Quiet, about 62ch); reading pages set paragraphs at 16px/1.7 to 68ch.
+- Chrome keeps the app's sizes: 11px uppercase tracked labels (scrub label, table heads, footer column heads), 12–13px mono for nav links, buttons, readouts and captions. Literal code turns ligatures off, as the editor does.
 
 ### Named Rules
 **The Formal-Mono Rule.** Anything the engine checks, and every piece of chrome, is set in the monospace; only sentences use the sans. No italics: the subsets ship none, and a synthesised slant on a mono face reads as a rendering fault.
@@ -280,6 +389,10 @@ Library, Guide and Settings are pages: a centred column (1080px max; 720px for n
 
 **Motion.** Two transitions only: the reading pane collapses by animating the column width (180ms ease), disabled under prefers-reduced-motion; and step rows fade their hover background (0.1s). Nothing animates on load.
 
+**Public site.** A centred page of 1200px between fluid gutters (clamp(16px, 4vw, 32px)) under a 60px sticky nav whose hairline underline is inset to the gutters. Sections open with clamp(72px, 10vw, 128px) of space and a head held to 62ch. The hero puts the specimen across the full measure, closed by a Rule line and a dim mono caption, then an 8:4 grid: the scrub and audit on the left, the pitch (headline, lede, actions) on the right, sticky beside the audit. Further down: a two-column 7:5 grid (a second audit beside a hairline list of facts), the app screenshot (a phone capture at narrow widths), and the reading pages as a 760px column. Below 1080px the hero and reasons grids collapse to one column with the pitch first, the glyph grid goes from 6 to 3 columns, the ways list from 4 to 2, and the footer from 2:1:1:1 to three columns under the brand. Below 720px the nav links fold into a menu, the points and ways lists stack, audit rows drop the status to its own line, the pack table hides its chapter column, the close stacks, and the footer is two columns.
+
+**Public site motion.** The site's one choreography is the scrub: it plays once to the failing step (520ms per step, 900ms onto the failure) the first time the audit is a third on screen, and stops there; under reduced motion it starts on the failure and nothing transitions. Otherwise only state changes ease (colour and background, 0.15–0.4s, cubic-bezier(0.16, 1, 0.3, 1)).
+
 ## Elevation & Depth
 
 Flat by default. Depth is tonal: paper, raised and lowered surfaces, separated by 1px Rule borders and hairlines. The only shadow in the system is a 1px inset ring marking the selected step, so selection can never be mistaken for a status. Floating layers separate by surface and border alone: the command palette is a paper dialog on a 1px Rule border over a modal scrim (ink at 42%, black at 62% at night); the arrangement popover sits on Paper Raised with a Rule border; the overlaid reading pane keeps its paper and right border. Toasts are flat, with no countdown ring; an info toast carries no edge rule, and only warning and danger toasts keep a 2px rule (the margin belongs to failure). Dialogs (export, pack) separate their footer from the form with a 1px Rule edge, not a fill.
@@ -288,6 +401,8 @@ Flat by default. Depth is tonal: paper, raised and lowered surfaces, separated b
 **The No Boxes Rule.** Organise with hairlines and alignment; never wrap content in cards. A box is reserved for callouts that carry a failure (counterexample, domain warning).
 
 **The Border, Not Shadow Rule.** Anything that floats is told apart by its surface and a 1px border, plus a scrim when it is modal. Never a drop shadow.
+
+On the public site the same holds: the storage notice floats on Paper Raised with a 1px Rule border, and the open phone menu is a paper panel with a Rule underline over the modal scrim. The scrim is drawn as a 100vmax spread clipped to below the panel; it is the scrim, not a shadow.
 
 ## Shapes
 
@@ -351,6 +466,24 @@ While an exercise is open and uncommitted, every verdict signal is withheld: ste
 ### Browser Surfaces
 The parts the page did not draw are themed too: text selection takes the Proof Blue selection tint, the caret and native accent colour are Proof Blue, scrollbars are ink at 22% on a transparent track, and links underline at 1px with a 0.18em offset.
 
+### Public Site
+The public site (`web/`) is the same world at the scale of a page. It shares the theme with the app through the one storage key, resolved before first paint so neither flashes the other palette, and its fonts are the app's own files.
+
+- **Specimen (signature).** The claim in the notes' own notation at Specimen scale, symbols lit by the scrub, closed by a Rule line and a two-part dim mono caption.
+- **Scrub (signature).** A native range input drawn as a ruler: a 1px Control Border track, a 4px × 22px Proof Blue thumb, and one 1px × 7px tick per audited step, inked once reached; the failing step's tick is 2px × 11px in Error Red. An 11px uppercase label sits above; a 12px tabular mono readout (line, step n of N, status in red at the failure, backend) and a quiet "Replay" text link sit beside. Arrows, Home and End move it; moving it stops the playback.
+- **Audit Row.** The app's step row, built from the engine's real report: right-aligned dim line number, the statement in mono, status and backend as 12px lowercase dim text, nested rows indented 22px per depth. The failing row takes the red rail and a bold red status; rows resting on it carry the rail at 30%; a caveat row takes the amber rail, a bold amber status, and a boxed amber callout (quiet amber fill, 2px rail) holding the obligation. The counterexample callout is the loudest thing in the audit (15px mono 600). Rows the scrub has not reached stay legible in Ink Dim with their status and callouts hidden; the current row takes Paper Lowered.
+- **Glyph Grid.** A 6-column grid of hairline cells (Rule lines, no boxes): the symbol at clamp(2rem, 3.6vw, 3rem), its ASCII spelling in 12px mono, its name in 13px dim. A symbol the scrub's step uses lights: Proof Blue mark on the quiet blue fill.
+- **Pack Table.** A full-width hairline table: 11px uppercase heads, each pack's code in Proof Blue mono, its title in ink, tabular counts in Ink Quiet, rows divided by Rule lines.
+- **Points and Ways.** A 2×2 definition list and a 4-column list, both divided only by Rule lines (the ways list adds vertical Rule lines between columns); a mono 600 term, a quiet sans sentence, and a mono text link.
+- **Close.** A band between two Rule lines: "QED" in mono 600 at clamp(3rem, 9vw, 6rem) beside a Site Headline, a lede and the primary action.
+- **Nav.** The app icon and name in mono 700 at 15px; 13px mono links in Ink Quiet, ink on hover; a 32px theme toggle (line sun and moon); the primary button. Below 720px the links become a disclosure under a 32px menu button (Paper Lowered while open): a paper panel of 15px ink links divided by hairlines, over the modal scrim.
+- **Site Buttons.** Mono 600, 2px corners, 32px (44px large). **Primary** is a Proof Blue Fill with paper text, darkened 14% toward ink on hover; **Outline** draws the Control Border around ink text, Paper Lowered on hover; **Quiet** sits on Paper Lowered (28px, weight 500) for Dismiss and Copy.
+- **Storage Notice.** A non-blocking strip fixed 16px above the foot, up to 640px wide, on Paper Raised with a Rule border: one quiet sentence with a link, and a quiet Dismiss. On the landing page it waits until the hero has scrolled away, so it never covers the first view; dismissal is remembered.
+- **Download Platforms.** A hairline list of rows (platform name, a prose sentence, its files as outline buttons). The visitor's own platform adds "your system" in 11px Proof Blue under its name: news, so it takes the accent. A platform with no release says so in 12px dim mono.
+- **Command Block.** A copyable one-line command: Paper Raised with a 1px Rule border at 2px, the command in 14px ink mono scrolling sideways, and a quiet Copy button that reports failure in its own label. It behaves as a read-only field, not a container.
+- **Reading Pages (Download, Privacy, Terms, Cookies).** A 760px column: Site Page Title, a lede, a dim mono date line, then mono 600 section heads with 56px above, sans paragraphs at 16px/1.7, and hairline tables with 12px uppercase mono heads.
+- **Footer.** A brand column (icon, name, one quiet sentence) and three link columns under 11px uppercase heads, then a dim 12px mono meta line (engine version, licences, the Lean notice) above a Rule line.
+
 ## Do's and Don'ts
 
 ### Do:
@@ -362,6 +495,7 @@ The parts the page did not draw are themed too: text selection takes the Proof B
 - **Do** keep corners at 2px and status rails at 2px.
 - **Do** use the segmented control for a choice among a few options, and the native text and icon buttons for actions.
 - **Do** give every form control the one Control Border, and give a flag the accent only when it is news.
+- **Do** set the public site's display specimen in JetBrains Mono, wrapping only between clauses, and let red appear once per demonstration, at its failing step.
 
 ### Don't:
 - **Don't** use green anywhere but a verdict.

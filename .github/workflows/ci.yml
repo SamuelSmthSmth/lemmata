@@ -68,3 +68,7 @@ jobs:
       # Every pinned verdict, under Pyodide, against the native engine.
       - run: node ui/verify_wasm.mjs
       - run: uv run python ui/build_static.py
+      # The public site around it: links, the landing page's audits against
+      # the engine, hosting rules, the installer (browser checks need
+      # agent-browser, so they run locally).
+      - run: uv run python web/verify_web.py

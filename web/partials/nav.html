@@ -1,0 +1,21 @@
+<a class="skip-link" href="#main">Skip to the content</a>
+    <header class="nav">
+      <a class="nav-brand" href="{{ root }}" aria-label="{{ name }}, home">
+        <img src="{{ root }}app/static/icon.svg" alt="" width="24" height="24" />
+        <span>{{ name }}</span>
+      </a>
+      <button class="nav-menu" type="button" aria-label="Menu" aria-expanded="false" aria-controls="site-links">
+        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"></path></svg>
+      </button>
+      <nav class="nav-links" id="site-links" aria-label="Site">
+        <a href="{{ root }}download/">Download</a>
+        <a href="{{ root }}app/?view=guide">Guide</a>
+        <a href="https://samuelsmthsmth.github.io/lemmata-packs/">Packs</a>
+        <a href="https://github.com/SamuelSmthSmth/lemmata">GitHub</a>
+      </nav>
+      <button class="theme-toggle" type="button" aria-label="Switch between light and dark theme">
+        <svg class="icon icon--sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"></path></svg>
+        <svg class="icon icon--moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"></path></svg>
+      </button>
+      <a class="button button--primary nav-open" href="{{ root }}app/">Open {{ name }}</a>
+    </header>

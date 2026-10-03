@@ -304,6 +304,14 @@ function prependWelcomeCard() {
     list.append(item);
   }
   card.append(list);
+  // The storage notice, said once: there is nothing to consent to.
+  const storage = el("p", "welcome-storage", `No cookies, no tracking: your work is kept ${kept}. `);
+  const how = el("a", null, "How storage works");
+  how.href = "https://lemmata.sous.systems/cookies/";
+  how.target = "_blank";
+  how.rel = "noopener";
+  storage.append(how);
+  card.append(storage);
   const done = el("button", "text-button text-button--primary", "Got it");
   done.type = "button";
   done.addEventListener("click", () => {

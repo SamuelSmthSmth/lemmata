@@ -19,6 +19,7 @@ dependencies = [
 ]
 
 [project.scripts]
+lemmata = "aether:main"
 aether = "aether:main"
 
 [build-system]

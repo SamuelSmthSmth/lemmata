@@ -118,6 +118,19 @@ jobs:
         with:
           path: installers
           merge-multiple: true
+      # Versionless copies, so the site's .../releases/latest/download/<file>
+      # links (web/content.py DESKTOP_FILES) always reach the newest build.
+      - name: Add versionless copies
+        working-directory: installers
+        run: |
+          shopt -s nullglob
+          for f in *.AppImage; do cp "$f" Lemmata_amd64.AppImage; done
+          for f in *_amd64.deb; do cp "$f" Lemmata_amd64.deb; done
+          for f in *.x86_64.rpm; do cp "$f" Lemmata.x86_64.rpm; done
+          for f in *_x64-setup.exe; do cp "$f" Lemmata_x64-setup.exe; done
+          for f in *_x64_en-US.msi; do cp "$f" Lemmata_x64_en-US.msi; done
+          for f in *_universal.dmg; do cp "$f" Lemmata_universal.dmg; done
+          ls -la
       - env:
           GH_TOKEN: ${{ github.token }}
         run: |

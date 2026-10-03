@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    {{ partial_head }}
+    <title>Download · {{ name }}</title>
+    <meta name="description" content="{{ name }} for Linux, Windows and macOS, the command-line checker, and how to host your own copy." />
+  </head>
+  <body>
+    {{ partial_nav }}
+    <main id="main">
+      <article class="doc">
+        <h1>Get {{ name }}</h1>
+        <p class="lede">The quickest way is your browser: nothing to install, and the checker still runs on your own computer. The desktop app is the same thing, offline from the first launch.</p>
+        <div class="actions">
+          <a class="button button--primary button--large" href="{{ root }}app/">Open {{ name }} in your browser</a>
+        </div>
+
+        <h2 id="desktop">Desktop app</h2>
+        <p>The same app in its own window, with your work kept on your computer. On Linux the .deb and .rpm are about 16 MB; the AppImage, which carries its own libraries, about 125 MB.</p>
+        <ul class="platforms">
+          <li class="platform" data-os="linux">
+            <h3>Linux</h3>
+            <p>AppImage runs anywhere; the .deb and .rpm install it system-wide.</p>
+            <div class="platform-files">{{ desktop_linux }}</div>
+          </li>
+          <li class="platform" data-os="windows">
+            <h3>Windows</h3>
+            <p>Windows 10 and 11. Until the installer is signed, SmartScreen asks you to confirm: <em>More info</em>, then <em>Run anyway</em>.</p>
+            <div class="platform-files">{{ desktop_windows }}</div>
+          </li>
+          <li class="platform" data-os="macos">
+            <h3>macOS</h3>
+            <p>macOS 11 or later, Apple silicon and Intel. Until the app is notarised, open it the first time with right-click, then <em>Open</em>.</p>
+            <div class="platform-files">{{ desktop_macos }}</div>
+          </li>
+        </ul>
+
+        <h2 id="cli">Command line</h2>
+        <p>The <code>lemmata</code> command checks <code>.aether</code> files from a terminal or a script, and exits with status 1 when a step is invalid. The installer uses <a href="https://docs.astral.sh/uv/">uv</a> to give it its own Python, so nothing else on your system changes. Read it first if you like: <a href="{{ root }}install.sh">install.sh</a>, <a href="{{ root }}install.ps1">install.ps1</a>.</p>
+        <h3>macOS and Linux</h3>
+        <div class="command"><code id="cmd-sh" tabindex="0">curl -fsSL https://lemmata.sous.systems/install.sh | sh</code><button class="button button--quiet" type="button" data-copy="cmd-sh">Copy</button></div>
+        <h3>Windows (PowerShell)</h3>
+        <div class="command"><code id="cmd-ps" tabindex="0">irm https://lemmata.sous.systems/install.ps1 | iex</code><button class="button button--quiet" type="button" data-copy="cmd-ps">Copy</button></div>
+        <p>Then <code>lemmata proof.aether</code> prints the audit. Run the installer again to upgrade; <code>uv tool uninstall aether</code> removes it.</p>
+
+        <h2 id="self-host">Host your own copy</h2>
+        <p>The app is a folder of static files with the checker inside, so any web server can host it: a department's own, GitHub Pages, or a laptop for a seminar. One file, <code>site.json</code>, makes it yours:</p>
+        <table>
+          <thead><tr><th scope="col">Field</th><th scope="col">What it sets</th></tr></thead>
+          <tbody>
+            <tr><td><code>name</code>, <code>tagline</code></td><td>What the app calls itself, in the page title, the welcome and the exports.</td></tr>
+            <tr><td><code>accent</code></td><td>The one brand colour, for light and dark. It must reach 4.5:1 contrast, or the default is kept.</td></tr>
+            <tr><td><code>registry</code></td><td>Where packs are searched and installed from: this public registry, your own copy of it, or none.</td></tr>
+            <tr><td><code>preinstall</code></td><td>The packs a first visit installs, such as your module's.</td></tr>
+          </tbody>
+        </table>
+        <p>Build it from the source with <code>LEMMATA_SITE=site.json uv run python ui/build_static.py</code> and serve the <code>dist/</code> folder. The same file builds a branded desktop app. The <a href="https://github.com/SamuelSmthSmth/lemmata#readme">README</a> has the details.</p>
+      </article>
+    </main>
+    {{ partial_footer }}
+  </body>
+</html>

@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    {{ partial_head }}
+    <title>Privacy · {{ name }}</title>
+    <meta name="description" content="What {{ name }} stores, where, and what it never collects." />
+  </head>
+  <body>
+    {{ partial_nav }}
+    <main id="main">
+      <article class="doc">
+        <h1>Privacy</h1>
+        <p class="lede">{{ name }} has no accounts, no analytics and no tracking. Your proofs stay on your device, and we never receive them.</p>
+        <p class="doc-meta">Last updated {{ updated }}</p>
+
+        <h2>Who we are</h2>
+        <p>{{ name }} is made by Samuel Okwuonu, in England. For anything about your data, write to <a href="mailto:s.okwuonu07@gmail.com">s.okwuonu07@gmail.com</a>.</p>
+
+        <h2>What is stored, and where</h2>
+        <p>Everything you make in {{ name }} is kept on your own device and nowhere else:</p>
+        <ul>
+          <li><strong>Your work:</strong> proofs, folders, snapshots, installed packs and their checks. In the browser this lives in the browser's own storage (IndexedDB) for this site; in the desktop app, in the app's data folder.</li>
+          <li><strong>Your settings:</strong> theme, editor size, panel layout and similar choices, in the browser's local storage, along with a note that you have seen the storage notice.</li>
+        </ul>
+        <p>The checker runs on your computer too, inside the page or the app. Your proofs are never sent to a server to be checked.</p>
+
+        <h2>What reaches a server</h2>
+        <p>Using {{ name }} means fetching files, and the services that serve them see ordinary request details: your IP address, your browser and the time.</p>
+        <table>
+          <thead><tr><th scope="col">When</th><th scope="col">Who serves it</th><th scope="col">What they see</th></tr></thead>
+          <tbody>
+            <tr><td>Opening this site or the web app</td><td>Vercel, our host</td><td>Request details, kept in their logs for a short time. See <a href="https://vercel.com/legal/privacy-policy">Vercel's privacy policy</a>.</td></tr>
+            <tr><td>Searching or installing packs from the registry</td><td>GitHub Pages</td><td>Request details. See <a href="https://docs.github.com/site-policy/privacy-policies/github-general-privacy-statement">GitHub's privacy statement</a>. You can turn the registry off by hosting your own copy.</td></tr>
+            <tr><td>Sharing a pack you made</td><td>GitHub</td><td>Only if you choose to: you upload the pack yourself, with your GitHub account.</td></tr>
+          </tbody>
+        </table>
+        <p>We do not receive these logs, and nothing else is sent: no proof contents, no identifiers, no usage statistics.</p>
+
+        <h2>Cookies</h2>
+        <p>{{ name }} sets no cookies. The <a href="{{ root }}cookies/">cookies page</a> explains the local storage it uses instead.</p>
+
+        <h2>Your rights</h2>
+        <p>Under UK data protection law you can ask what personal data we hold about you, and have it corrected or deleted. Because your work never leaves your device, we hold none of it; you can delete all of it yourself at any time:</p>
+        <ul>
+          <li>in the app, <strong>Settings → Delete everything</strong>;</li>
+          <li>or clear this site's data in your browser, or uninstall the desktop app and remove its data folder.</li>
+        </ul>
+        <p>Export the workspace first if you want to keep a copy. If you are unhappy with how we handle data, you can complain to the <a href="https://ico.org.uk/make-a-complaint/">Information Commissioner's Office</a>.</p>
+
+        <h2>Changes</h2>
+        <p>If this changes, for example if accounts are ever added, this page will say so first, with a new date at the top.</p>
+      </article>
+    </main>
+    {{ partial_footer }}
+  </body>
+</html>

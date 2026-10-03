@@ -14,6 +14,11 @@ Undergraduate pure-mathematics students: anyone, not one cohort. They are workin
 
 Lemmata checks proofs written in a controlled natural language (`Let`, `Assume`, `Obtain`, `Step:`, `Therefore`, `QED`) step by step. Each step is verified by SymPy (algebra) or Z3 (logic and inequalities), and a failure comes back with the reason and, where one exists, a concrete counterexample. Success is a student who finds the exact step their reasoning slipped on and understands why, without first learning a formal proof assistant.
 
+## Surfaces
+
+- **The app** (`ui/`, at `/app/`): Operate. Everything below describes it unless it says otherwise.
+- **The public site** (`web/`, at `/`): Persuade for the landing page, Read for Download, Privacy, Terms and Cookies. Its audiences are students first (someone with tonight's problem sheet, who should open the app) and lecturers and departments second (packs, honest limits, self-hosting). It shows only what the engine produces at build time; no testimonials, usage numbers or endorsements. Its direction lives in `.impeccable/surfaces/web-index-html.md`.
+
 ## Positioning
 
 A "proof intern": it reads proofs written the way the notes write them, `∀ ε > 0, ∃ δ > 0`, `a⁻¹`, `n!` and `∞` included, and audits every line. Formal assistants (Lean, Coq) demand type theory before the first proof, and a CAS checks single calculations, not arguments. Lemmata sits between them: the whole proof, in the notes' own notation, checked line by line with counterexamples.

@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-10-03T12:00:00+00:00",
+  "generatedAt": "2026-10-03T18:00:00+00:00",
   "title": "Design System: Lemmata",
   "extensions": {
     "colorMeta": {
@@ -125,6 +125,22 @@
           "#c9ced6",
           "#eceef1"
         ]
+      },
+      "night-proof-blue-fill": {
+        "role": "primary",
+        "displayName": "Proof Blue Fill (night)",
+        "canonical": "#1f6feb",
+        "purpose": "Night ground of a filled primary button with paper text (the app's --wa-color-brand-fill-loud; the site's --accent-fill). By day the fill is proof-blue.",
+        "tonalRamp": [
+          "#0a2350",
+          "#0f3a80",
+          "#1656b8",
+          "#1f6feb",
+          "#4f8ff0",
+          "#80aff4",
+          "#b3cff8",
+          "#e3eefd"
+        ]
       }
     },
     "typographyMeta": {
@@ -159,6 +175,30 @@
       "label": {
         "displayName": "Label",
         "purpose": "Uppercase 11px section labels: pane heads, reading-pane tabs."
+      },
+      "specimen": {
+        "displayName": "Specimen",
+        "purpose": "Public site hero: the quantifier clauses at page scale, JetBrains Mono 500; clauses are unbreakable units. Lit symbols go Proof Blue at weight 750."
+      },
+      "specimen-tail": {
+        "displayName": "Specimen Tail",
+        "purpose": "The rest of the claim beneath the specimen, Ink Quiet."
+      },
+      "site-page-title": {
+        "displayName": "Site Page Title",
+        "purpose": "h1 of the site's reading pages (Download, Privacy, Terms, Cookies)."
+      },
+      "site-headline": {
+        "displayName": "Site Headline",
+        "purpose": "Public site section heads and the close."
+      },
+      "site-body": {
+        "displayName": "Site Body",
+        "purpose": "Public site sentences, system sans 16px."
+      },
+      "site-lede": {
+        "displayName": "Site Lede",
+        "purpose": "Section and hero ledes, Ink Quiet, about 62ch."
       }
     },
     "shadows": [
@@ -178,6 +218,16 @@
         "name": "state-quick",
         "value": "background 0.1s ease",
         "purpose": "Step-row hover fade."
+      },
+      {
+        "name": "site-ease-out",
+        "value": "cubic-bezier(0.16, 1, 0.3, 1)",
+        "purpose": "Public site state changes: lit symbols (0.35s), glyph cells (0.3s), audit rows (0.4s)."
+      },
+      {
+        "name": "site-scrub-play",
+        "value": "520ms per step, 900ms onto the failing step",
+        "purpose": "Plays once when the audit is 35% visible and stops at the failure; reduced motion starts there with no transitions."
       }
     ],
     "breakpoints": [
@@ -190,6 +240,16 @@
         "name": "phone",
         "value": "760px",
         "purpose": "Below: the rail becomes a labelled bottom bar, panes stack, symbol strip hidden."
+      },
+      {
+        "name": "site-narrow",
+        "value": "1080px",
+        "purpose": "Public site: hero and reasons grids to one column (pitch first), glyph grid 6 to 3, ways 4 to 2, footer three columns under the brand."
+      },
+      {
+        "name": "site-phone",
+        "value": "720px",
+        "purpose": "Public site: nav links fold into the menu disclosure over the scrim; points and ways stack; audit status drops to its own line; pack table hides chapters; footer two columns."
       }
     ],
     "scrims": [
@@ -198,7 +258,7 @@
         "value": "var(--wa-color-overlay-modal)",
         "light": "rgba(22, 24, 29, 0.42)",
         "dark": "rgba(0, 0, 0, 0.62)",
-        "purpose": "::backdrop behind the command palette; floating layers otherwise separate by surface and a 1px border."
+        "purpose": "::backdrop behind the command palette; floating layers otherwise separate by surface and a 1px border. The public site's --scrim mirrors it behind the open phone menu, drawn as a clipped 100vmax spread below the panel."
       }
     ],
     "shell": {
@@ -228,6 +288,27 @@
         "light": "#eff1f4 / #16181d",
         "dark": "#1a1e23 / #e6e8ec",
         "purpose": "Secondary Web Awesome buttons sit on lowered paper with ink text."
+      },
+      {
+        "name": "--caveat / --caveat-bg (web/assets/site.css)",
+        "light": "#7d4e00 / rgba(125, 78, 0, 0.1)",
+        "dark": "#d9a520 / rgba(214, 160, 31, 0.13)",
+        "mirrors": "--wa-color-warning-on-quiet / --wa-color-warning-fill-quiet",
+        "purpose": "Amber rail, status and the domain-obligation callout on the site."
+      },
+      {
+        "name": "--scrim (web/assets/site.css)",
+        "light": "rgba(22, 24, 29, 0.42)",
+        "dark": "rgba(0, 0, 0, 0.62)",
+        "mirrors": "--wa-color-overlay-modal",
+        "purpose": "Behind the open phone menu."
+      },
+      {
+        "name": "--accent-fill / --on-accent (web/assets/site.css)",
+        "light": "#0a5fbf / #ffffff",
+        "dark": "#1f6feb / #ffffff",
+        "mirrors": "--wa-color-brand-fill-loud",
+        "purpose": "Filled primary button on the site."
       }
     ],
     "toasts": {
@@ -236,6 +317,16 @@
       "danger": "2px rule",
       "progressRing": "hidden",
       "purpose": "The margin belongs to failure: only caveat and failure toasts keep a rule."
+    },
+    "site": {
+      "source": "web/ (assets/site.css, assets/site.js, partials/, index.html, download/, privacy/, terms/, cookies/)",
+      "pageMaxWidth": "1200px",
+      "gutter": "clamp(16px, 4vw, 32px)",
+      "navHeight": "60px",
+      "docColumn": "760px",
+      "themeKey": "aether-theme (shared with the app, resolved before first paint)",
+      "fonts": "the app's own fonts.css, including the JetBrains Mono math subset (U+2100-214F, U+2190-21FF, U+2200-22FF; ui/vendor_fonts.py, sha256-pinned)",
+      "finishReview": "ship, after one fix batch; screenshots in .impeccable/review/"
     }
   },
   "components": [
@@ -342,6 +433,38 @@
       "description": "Native inputs share wa-input's one Control Border; focus swaps it for the blue outline.",
       "html": "<label class=\"ds-field\"><span>Summary</span><input class=\"ds-input\" placeholder=\"What this pack covers\"></label>",
       "css": ".ds-field{display:flex;flex-direction:column;gap:4px;font:600 13px -apple-system,'Segoe UI',Roboto,sans-serif;color:#16181d}.ds-input{box-sizing:border-box;height:28px;padding:4px 8px;border:1px solid #8a909c;border-radius:2px;background:#fff;color:#16181d;font:400 13px 'JetBrains Mono',monospace}.ds-input:focus{outline:2px solid #0a5fbf;outline-offset:-1px;border-color:transparent}"
+    },
+    {
+      "name": "Specimen and Scrub",
+      "kind": "custom",
+      "refersTo": "site-specimen",
+      "description": "Public site hero: the claim at specimen scale and the ruler scrub that walks the audit; the failing tick is the only red on the ruler.",
+      "html": "<figure class=\"ds-spec\"><p class=\"ds-spec-claim\"><span class=\"ds-clause\"><span class=\"ds-sym\">∀</span> <span class=\"ds-sym is-lit\">ε</span> &gt; 0,</span> <span class=\"ds-clause\"><span class=\"ds-sym\">∃</span> δ &gt; 0,</span></p></figure><div class=\"ds-scrub\"><label class=\"ds-scrub-label\" for=\"ds-r\">Step through the audit</label><input id=\"ds-r\" type=\"range\" min=\"0\" max=\"6\" value=\"4\"><ol class=\"ds-ticks\"><li class=\"r\"></li><li class=\"r\"></li><li class=\"r\"></li><li class=\"r\"></li><li class=\"f\"></li><li></li><li></li></ol><p class=\"ds-readout\"><strong>Line 11</strong> · step 5 of 7 · <span class=\"bad\">invalid</span> · SymPy</p></div>",
+      "css": ".ds-spec{margin:0;padding-bottom:20px;border-bottom:1px solid #dde1e6}.ds-spec-claim{margin:0;font:500 64px/1 'JetBrains Mono',monospace;letter-spacing:-.04em;word-spacing:-.28em;color:#16181d}.ds-clause{display:inline-block;white-space:nowrap}.ds-sym{transition:color .35s cubic-bezier(.16,1,.3,1),font-weight .35s cubic-bezier(.16,1,.3,1)}.ds-sym.is-lit{color:#0a5fbf;font-weight:750}.ds-scrub{display:grid;gap:6px;margin-top:20px;font-family:'JetBrains Mono',monospace}.ds-scrub-label{font-size:11px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:#555b6a}.ds-scrub input{grid-row:2;grid-column:1;appearance:none;width:100%;height:28px;margin:0;background:transparent;position:relative;z-index:1}.ds-scrub input::-webkit-slider-runnable-track{height:1px;background:#8a909c}.ds-scrub input::-moz-range-track{height:1px;background:#8a909c}.ds-scrub input::-webkit-slider-thumb{appearance:none;width:4px;height:22px;margin-top:-11px;border-radius:1px;background:#0a5fbf}.ds-scrub input::-moz-range-thumb{width:4px;height:22px;border:0;border-radius:1px;background:#0a5fbf}.ds-scrub input:focus-visible{outline:2px solid #0a5fbf;outline-offset:4px}.ds-ticks{grid-row:2;grid-column:1;align-self:end;display:flex;justify-content:space-between;margin:0 2px;padding:0;list-style:none;pointer-events:none}.ds-ticks li{width:1px;height:7px;background:#8a909c}.ds-ticks li.r{background:#16181d}.ds-ticks li.f{width:2px;height:11px;background:#be1824}.ds-readout{margin:0;font-size:12px;color:#555b6a;font-variant-numeric:tabular-nums}.ds-readout strong{color:#16181d}.ds-readout .bad{color:#be1824}"
+    },
+    {
+      "name": "Site Buttons",
+      "kind": "button",
+      "refersTo": "site-button-primary",
+      "description": "Public site actions: filled primary, outline, and quiet (Dismiss, Copy).",
+      "html": "<a class=\"ds-sbtn ds-sbtn--primary\" href=\"#\">Open Lemmata</a> <a class=\"ds-sbtn ds-sbtn--outline\" href=\"#\">Download</a> <button class=\"ds-sbtn ds-sbtn--quiet\">Copy</button>",
+      "css": ".ds-sbtn{display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:0 20px;border:1px solid transparent;border-radius:2px;font:600 14px 'JetBrains Mono',monospace;text-decoration:none;cursor:pointer;transition:background-color .15s ease,border-color .15s ease,color .15s ease}.ds-sbtn--primary{background:#0a5fbf;color:#fff}.ds-sbtn--primary:hover{background:color-mix(in oklab,#0a5fbf 86%,#16181d)}.ds-sbtn--outline{border-color:#8a909c;color:#16181d;background:transparent}.ds-sbtn--outline:hover{background:#eff1f4}.ds-sbtn--quiet{min-height:28px;padding:0 14px;font-size:13px;font-weight:500;background:#eff1f4;color:#16181d}.ds-sbtn--quiet:hover{background:color-mix(in oklab,#eff1f4 80%,#16181d)}.ds-sbtn:focus-visible{outline:2px solid #0a5fbf;outline-offset:2px}"
+    },
+    {
+      "name": "Glyph Grid",
+      "kind": "custom",
+      "refersTo": "glyph-cell",
+      "description": "Hairline cells of the notes' symbols; a cell the scrub's step uses lights in Proof Blue on the quiet blue fill.",
+      "html": "<ul class=\"ds-glyphs\"><li><span class=\"m\">∀</span><code>forall</code><span class=\"l\">for all</span></li><li class=\"is-lit\"><span class=\"m\">ε</span><code>\\\\epsilon</code><span class=\"l\">epsilon</span></li><li><span class=\"m\">ℝ</span><code>Real</code><span class=\"l\">the reals</span></li></ul>",
+      "css": ".ds-glyphs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));margin:0;padding:0;list-style:none;border-top:1px solid #dde1e6;border-left:1px solid #dde1e6}.ds-glyphs li{display:grid;gap:2px;padding:18px 16px 16px;border-right:1px solid #dde1e6;border-bottom:1px solid #dde1e6;transition:background-color .3s cubic-bezier(.16,1,.3,1)}.ds-glyphs .m{font:400 40px/1.15 'JetBrains Mono',monospace;color:#16181d}.ds-glyphs code{font:12px 'JetBrains Mono',monospace;color:#555b6a}.ds-glyphs .l{font:13px -apple-system,'Segoe UI',Roboto,sans-serif;color:#666c7a}.ds-glyphs li.is-lit{background:rgba(10,95,191,.08)}.ds-glyphs li.is-lit .m{color:#0a5fbf}"
+    },
+    {
+      "name": "Storage Notice",
+      "kind": "custom",
+      "refersTo": "storage-notice",
+      "description": "Non-blocking strip near the foot; on the landing page it appears only once the hero has scrolled away.",
+      "html": "<div class=\"ds-notice\" role=\"region\" aria-label=\"Storage notice\"><p>No cookies, no tracking: your work stays on your device. <a href=\"#\">How storage works</a></p><button class=\"ds-notice-btn\">Dismiss</button></div>",
+      "css": ".ds-notice{display:flex;align-items:center;gap:16px;width:min(640px,100%);padding:10px 10px 10px 16px;background:#f7f8f9;border:1px solid #dde1e6;border-radius:2px;font:14px/1.6 -apple-system,'Segoe UI',Roboto,sans-serif}.ds-notice p{flex:1;margin:0;color:#555b6a}.ds-notice a{color:#0a5fbf;text-decoration-thickness:1px;text-underline-offset:.2em}.ds-notice-btn{min-height:28px;padding:0 14px;border:0;border-radius:2px;background:#eff1f4;color:#16181d;font:500 13px 'JetBrains Mono',monospace;cursor:pointer}.ds-notice-btn:hover{background:color-mix(in oklab,#eff1f4 80%,#16181d)}.ds-notice-btn:focus-visible{outline:2px solid #0a5fbf;outline-offset:2px}"
     }
   ],
   "narrative": {
@@ -400,6 +523,11 @@
         "name": "The One Boundary Rule",
         "body": "Every form control (Web Awesome input, native input, select and textarea alike) draws the same 1px Control Border at 2px radius; focus replaces it with the 2px Proof Blue outline. A field never borrows the Rule colour, which is too faint to find an empty control by.",
         "section": "shapes"
+      },
+      {
+        "name": "The Red Once Rule",
+        "body": "On a page that demonstrates the checker, Error Red appears at one failing step only: its rail, its status word, its counterexample, its tick on the scrub and its readout. A second example teaches with Caveat Amber (an unresolved domain obligation), never a second failure.",
+        "section": "colors"
       }
     ],
     "dos": [
@@ -410,7 +538,8 @@
       "Do define colour once in the --wa-* token layer and alias it; light and dark each get picked values, and quiet text clears 4.5:1 on every surface.",
       "Do keep corners at 2px and status rails at 2px.",
       "Do use the segmented control for a choice among a few options, and the native text and icon buttons for actions.",
-      "Do give every form control the one Control Border, and give a flag the accent only when it is news."
+      "Do give every form control the one Control Border, and give a flag the accent only when it is news.",
+      "Do set the public site's display specimen in JetBrains Mono, wrapping only between clauses, and let red appear once per demonstration, at its failing step."
     ],
     "donts": [
       "Don't use green anywhere but a verdict.",

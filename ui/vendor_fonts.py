@@ -20,10 +20,17 @@ come from the `calt` feature and apply wherever the font is used -- see
 fonts.css, and `editor.js`, which turns them back off in the editor itself so
 that what you type is what you see.
 
-No npm is involved: the tarball comes straight from the npm registry and is read
-with the standard library.
+A third subset, **math**, is cut here from JetBrains Mono's own release (the
+font has the symbols; no published subset carries them): the quantifiers,
+relations, arrows and the double-struck ℝ ℤ ℕ ℚ ℂ that lecture notes are
+written in, U+2100-214F, U+2190-21FF and U+2200-22FF.  Without it those fall
+back to whatever system font has them, which shows at the landing page's
+display sizes and in the editor alike.  The source file is pinned by sha256.
 
-Run with:  uv run python ui/vendor_fonts.py
+No npm is involved: the tarball comes straight from the npm registry and is read
+with the standard library.  Cutting the math subset needs fontTools:
+
+Run with:  uv run --with fonttools --with brotli python ui/vendor_fonts.py
 """
 
 from __future__ import annotations
@@ -45,6 +52,43 @@ PREFIX = "package/"
 # `-wght-` is the variable file: one file covers the whole 100-800 weight axis,
 # which is cheaper than shipping a static file per weight.
 SUBSETS = ["latin", "greek"]
+
+# The math subset, cut from the upstream variable font (the release fontsource
+# 5.3.0 packages).
+MATH_URL = "https://github.com/JetBrains/JetBrainsMono/raw/v2.304/fonts/variable/JetBrainsMono%5Bwght%5D.ttf"
+MATH_SHA256 = "662a196d58f1183bf2d77428b6d5283fe3f45161ab021bea4036bc98e5cac016"
+MATH_RANGES = "U+2100-214F,U+2190-21FF,U+2200-22FF"
+MATH_FILE = "jetbrains-mono-math-wght-normal.woff2"
+
+
+def vendor_math() -> int:
+    import hashlib
+
+    try:
+        from fontTools import subset
+    except ImportError:
+        print("ERROR: cutting the math subset needs fontTools: uv run --with fonttools --with brotli python ui/vendor_fonts.py", file=sys.stderr)
+        return 0
+    with urllib.request.urlopen(MATH_URL, timeout=180) as resp:  # noqa: S310 - fixed host
+        blob = resp.read()
+    if hashlib.sha256(blob).hexdigest() != MATH_SHA256:
+        print("ERROR: the upstream font does not match its pinned sha256", file=sys.stderr)
+        return 0
+    source = DEST / "upstream.ttf"
+    source.write_bytes(blob)
+    options = subset.Options()
+    options.flavor = "woff2"
+    options.layout_features = ["*"]
+    options.name_IDs = ["*"]
+    font = subset.load_font(str(source), options)
+    subsetter = subset.Subsetter(options)
+    subsetter.populate(unicodes=subset.parse_unicodes(MATH_RANGES))
+    subsetter.subset(font)
+    subset.save_font(font, str(DEST / MATH_FILE), options)
+    source.unlink()
+    size = (DEST / MATH_FILE).stat().st_size
+    print(f"  {MATH_FILE} ({size / 1024:.0f} KB, cut from JetBrains Mono v2.304)")
+    return size
 
 
 def main() -> int:
@@ -69,11 +113,16 @@ def main() -> int:
         total += len(data)
         print(f"  {name} ({len(data) / 1024:.0f} KB)")
 
+    math = vendor_math()
+    if not math:
+        return 1
+    total += math
+
     # OFL requires the licence to travel with the font.
     licence = members.get(f"{PREFIX}LICENSE")
     if licence is not None:
         (DEST / "LICENSE").write_bytes(tar.extractfile(licence).read())  # type: ignore[union-attr]
-    (DEST / "VERSION").write_text(f"{PACKAGE} {VERSION}\n", encoding="utf-8")
+    (DEST / "VERSION").write_text(f"{PACKAGE} {VERSION}\nmath subset: JetBrains Mono v2.304 (sha256 {MATH_SHA256[:12]})\n", encoding="utf-8")
 
     print(f"vendored {total / 1024:.0f} KB of woff2 into {DEST.relative_to(ROOT.parent)}")
     return 0

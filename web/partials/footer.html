@@ -1,0 +1,42 @@
+<footer class="footer">
+      <div class="footer-grid">
+        <div class="footer-brand">
+          <a class="nav-brand" href="{{ root }}"><img src="{{ root }}app/static/icon.svg" alt="" width="24" height="24" /><span>{{ name }}</span></a>
+          <p>{{ tagline }}. Proofs checked line by line, in your notes' notation.</p>
+        </div>
+        <nav aria-label="Product">
+          <h2>Product</h2>
+          <ul>
+            <li><a href="{{ root }}app/">Open the app</a></li>
+            <li><a href="{{ root }}download/">Download</a></li>
+            <li><a href="{{ root }}app/?view=guide">Guide</a></li>
+            <li><a href="https://samuelsmthsmth.github.io/lemmata-packs/">Pack registry</a></li>
+          </ul>
+        </nav>
+        <nav aria-label="Project">
+          <h2>Project</h2>
+          <ul>
+            <li><a href="https://github.com/SamuelSmthSmth/lemmata">Source on GitHub</a></li>
+            <li><a href="https://github.com/SamuelSmthSmth/lemmata-packs/blob/main/CONTRIBUTING.md">Publish a pack</a></li>
+            <li><a href="https://github.com/SamuelSmthSmth/lemmata/blob/master/LICENSE">Licence</a></li>
+          </ul>
+        </nav>
+        <nav aria-label="Legal">
+          <h2>Legal</h2>
+          <ul>
+            <li><a href="{{ root }}privacy/">Privacy</a></li>
+            <li><a href="{{ root }}terms/">Terms</a></li>
+            <li><a href="{{ root }}cookies/">Cookies</a></li>
+          </ul>
+        </nav>
+      </div>
+      <p class="footer-meta">
+        <span>Engine {{ version }}</span>
+        <span>Code Apache-2.0 · packs CC BY-SA 4.0</span>
+        <span>Lean is a trademark of the Lean FRO; {{ name }} is not affiliated with it.</span>
+      </p>
+    </footer>
+    <div class="notice" role="region" aria-label="Storage notice" hidden>
+      <p>No cookies, no tracking: your work stays on your device. <a href="{{ root }}cookies/">How storage works</a></p>
+      <button class="button button--quiet" type="button" data-notice-dismiss>Dismiss</button>
+    </div>

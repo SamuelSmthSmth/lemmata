@@ -35,3 +35,14 @@
   unicode-range: U+0370-0377, U+037A-037F, U+0384-038A, U+038C, U+038E-03A1,
     U+03A3-03FF;
 }
+
+/* The notes' own symbols (∀ ∃ ∈ ⇒ ≤ ℝ …), cut from JetBrains Mono itself by
+ * ui/vendor_fonts.py, so they are set in the same face as the rest. */
+@font-face {
+  font-family: "JetBrains Mono";
+  font-style: normal;
+  font-weight: 100 800;
+  font-display: swap;
+  src: url("vendor/fonts/jetbrains-mono-math-wght-normal.woff2") format("woff2-variations");
+  unicode-range: U+2100-214F, U+2190-21FF, U+2200-22FF;
+}

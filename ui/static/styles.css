@@ -2228,6 +2228,12 @@ html[data-desk="closed"] .desk {
   border-bottom: 1px solid var(--hairline);
 }
 
+.welcome-card .welcome-storage {
+  margin: 0 0 12px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
 /* Where an entry comes from: a quiet line after its title, never a label
    above it. */
 .note-source {

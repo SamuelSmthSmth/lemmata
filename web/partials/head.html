@@ -1,0 +1,16 @@
+<meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="icon" href="{{ root }}app/static/icon.svg" type="image/svg+xml" />
+    <script>
+      // The theme is shared with the app (the same storage key), and resolved
+      // before first paint so neither flashes the other palette.
+      (function () {
+        var theme = null;
+        try { theme = localStorage.getItem("aether-theme"); } catch (err) {}
+        if (theme !== "light" && theme !== "dark") theme = matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark";
+        document.documentElement.dataset.theme = theme;
+      })();
+    </script>
+    <link rel="stylesheet" href="{{ root }}app/static/fonts.css" />
+    <link rel="stylesheet" href="{{ root }}assets/site.css" />
+    <script type="module" src="{{ root }}assets/site.js"></script>

@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    {{ partial_head }}
+    <title>Cookies · {{ name }}</title>
+    <meta name="description" content="{{ name }} sets no cookies. What it keeps in your browser's storage instead, and how to clear it." />
+  </head>
+  <body>
+    {{ partial_nav }}
+    <main id="main">
+      <article class="doc">
+        <h1>Cookies</h1>
+        <p class="lede">{{ name }} sets no cookies, and nothing on this site tracks you. It does keep your work in your browser's own storage, because that is where your work lives.</p>
+        <p class="doc-meta">Last updated {{ updated }}</p>
+
+        <h2>What is kept in your browser</h2>
+        <table>
+          <thead><tr><th scope="col">Storage</th><th scope="col">What it holds</th><th scope="col">Why</th></tr></thead>
+          <tbody>
+            <tr><td>IndexedDB</td><td>Your proofs, folders, snapshots, installed packs, and a cached copy of the pack registry's index.</td><td>So your work is there next time, and the Library works offline.</td></tr>
+            <tr><td>Local storage</td><td>Settings such as the theme, editor size and panel layout; that you have seen this site's storage notice.</td><td>So the app looks the way you left it.</td></tr>
+            <tr><td>Browser cache</td><td>The app's own files, including the checker (about 25 MB, once).</td><td>So the app opens quickly and works offline.</td></tr>
+          </tbody>
+        </table>
+        <p>None of it is sent anywhere, and none of it is used to identify or follow you. Under the UK's electronic communications rules (PECR), storage that is strictly necessary for a service you asked for does not need consent, which is why there is a notice rather than a consent banner.</p>
+
+        <h2>Clearing it</h2>
+        <ul>
+          <li>In the app: <strong>Settings → Delete everything</strong> removes your proofs, snapshots and settings.</li>
+          <li>In your browser: clear the site data for <code>lemmata.sous.systems</code>. This removes everything above.</li>
+        </ul>
+        <p>Export your workspace first if you want to keep it. More in the <a href="{{ root }}privacy/">privacy policy</a>.</p>
+      </article>
+    </main>
+    {{ partial_footer }}
+  </body>
+</html>

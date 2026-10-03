@@ -190,6 +190,7 @@ Every claim this repo makes is checked by a script you can run yourself:
 | `node ui/verify_frontend.mjs` | the CodeMirror tokenizer, the frontend module graph, layout rules and the `.zip` reader/writer |
 | `node ui/verify_wasm.mjs` | every pinned verdict (course packs, examples, capability probes) gives the same answer inside Pyodide — the browser's Python — as natively, with timings; needs `uv run python ui/vendor_pyodide.py` once |
 | `uv run python ui/verify_browser.py --static` | the static build (`uv run python ui/build_static.py` → `dist/`): checking, imports, packs, LaTeX and the budget with the engine in the browser and no server |
+| `uv run python web/verify_web.py` | the public site (`web/`, built by `ui/build_site.py` with the app at `/app/`): every link and asset, the landing page's audits against the engine, the Vercel rules, the installer, and in a browser the old-permalink redirect, the storage notice, the scrub and phone widths |
 | `uv run python desktop/verify_desktop.py` | the desktop app (`desktop/`, Tauri): the real app driven over WebDriver on its own webview (WebKitGTK), checking under its CSP, the registry, exports into Downloads, links to the system browser, and storage across a restart; needs Rust, Node and `tauri-driver` |
 | `uv run python ui/verify_browser.py` | real-browser behaviour: editor keys and round-trip, panels, theme, the workspace (files, tabs, IndexedDB, migration, imports, `.zip`), diagnostics, templates, palette, Library exercises, settings |
 

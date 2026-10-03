@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    {{ partial_head }}
+    <title>Terms · {{ name }}</title>
+    <meta name="description" content="The terms for using {{ name }} and publishing packs." />
+  </head>
+  <body>
+    {{ partial_nav }}
+    <main id="main">
+      <article class="doc">
+        <h1>Terms of use</h1>
+        <p class="lede">Short, because {{ name }} is free, open source, and keeps your work on your device. By using the site, the app or the command-line checker, you agree to these terms.</p>
+        <p class="doc-meta">Last updated {{ updated }}</p>
+
+        <h2>The software</h2>
+        <p>{{ name }} is free software under the <a href="https://github.com/SamuelSmthSmth/lemmata/blob/master/LICENSE">Apache License 2.0</a>. You may use, copy, change and share it under that licence. It is provided <strong>as is</strong>, without warranty of any kind, as the licence sets out.</p>
+
+        <h2>What a verdict means</h2>
+        <p>{{ name }} is a study tool. A <strong>valid</strong> verdict means the checker could verify each step as written, with the solvers and rules it has; it is not a guarantee that a proof is correct, complete or the one your course expects. When the checker cannot decide something it says so, and its known limits are listed in the <a href="{{ root }}app/?view=guide&amp;page=limits">Guide</a>. {{ name }} is not a grader and does not mark work.</p>
+
+        <h2>Academic integrity</h2>
+        <p>Follow your institution's rules on using tools for assessed work. If you are unsure whether checking a proof with {{ name }} is allowed for an assignment, ask the person who set it.</p>
+
+        <h2>Course packs</h2>
+        <p>Packs are shared under <a href="https://creativecommons.org/licenses/by-sa/4.0/">CC BY-SA 4.0</a> unless a pack says otherwise. The course packs are {{ name }}'s own transcriptions of results, keyed to a module's numbering; they contain no lecture notes.</p>
+        <p>If you publish a pack to the registry, you confirm that:</p>
+        <ul>
+          <li>it is your own work, or work you have the right to share under its licence;</li>
+          <li>it does not copy lecture notes, textbooks or other material you do not have permission to publish;</li>
+          <li>you agree to share it under the licence it names.</li>
+        </ul>
+        <p>Registry maintainers may decline, edit or remove packs, for example ones that copy others' material or no longer check.</p>
+
+        <h2>The service</h2>
+        <p>This site and the pack registry are offered free and may change or stop. Because your work is stored on your device, export it now and then: the workspace export in the app is your backup.</p>
+
+        <h2>Liability</h2>
+        <p>To the extent the law allows, we are not liable for any loss arising from using {{ name }}, including lost work or decisions made on the strength of a verdict. Nothing in these terms limits liability that cannot be limited under the law of England and Wales.</p>
+
+        <h2>Law</h2>
+        <p>These terms are governed by the law of England and Wales. Questions: <a href="mailto:s.okwuonu07@gmail.com">s.okwuonu07@gmail.com</a>.</p>
+      </article>
+    </main>
+    {{ partial_footer }}
+  </body>
+</html>

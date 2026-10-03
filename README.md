@@ -85,6 +85,8 @@ uv run python ui/vendor_pyodide.py && uv run python ui/build_static.py
 python -m http.server --directory dist
 ```
 
+The public site, [lemmata.sous.systems](https://lemmata.sous.systems), is that build at `/app/` inside a landing page, downloads, and the privacy, terms and cookies pages (`web/`; `uv run python ui/build_site.py` writes all of it to `dist/`). The command-line checker installs with `curl -fsSL https://lemmata.sous.systems/install.sh | sh` (or `lemmata` from a checkout: `uv run lemmata proof.aether`).
+
 And as a **desktop app** (Tauri; the same static build in a native window,
 offline from the first launch). See [`desktop/README.md`](desktop/README.md):
 

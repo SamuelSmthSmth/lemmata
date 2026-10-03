@@ -1484,7 +1484,7 @@ def static_registry_checks() -> None:
 
 
 def static_main() -> int:
-    global DIST, STARTING_SOURCE
+    global DIST, STARTING_SOURCE, BASE
     import tempfile
 
     if not (ROOT / "static" / "vendor" / "pyodide" / "pyodide.mjs").exists():
@@ -1494,7 +1494,9 @@ def static_main() -> int:
     tmp = Path(tempfile.mkdtemp(prefix="aether-verify-static-"))
     reg_port = free_port()
     (tmp / "site.json").write_text(json.dumps({"registry": f"http://127.0.0.1:{reg_port}/"}))
-    DIST = tmp / "dist"
+    # Built where the public site puts it, under /app/ (ui/build_site.py).
+    DIST = tmp / "site" / "app"
+    BASE = f"http://127.0.0.1:{PORT}/app"
     subprocess.run(
         [sys.executable, str(ROOT / "build_static.py"), "--out", str(DIST)],
         env={**os.environ, "LEMMATA_SITE": str(tmp / "site.json")},
@@ -1504,7 +1506,7 @@ def static_main() -> int:
     make_registry(tmp / "registry")
     registry_server = subprocess.Popen([sys.executable, "-c", CORS_SERVER, str(reg_port), str(tmp / "registry")])
     server = subprocess.Popen(
-        [sys.executable, "-m", "http.server", str(PORT), "--bind", "127.0.0.1", "--directory", str(DIST)],
+        [sys.executable, "-m", "http.server", str(PORT), "--bind", "127.0.0.1", "--directory", str(DIST.parent)],
         stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL,
     )

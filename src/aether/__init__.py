@@ -21,10 +21,36 @@ __all__ = [
 ]
 
 
+USAGE = """\
+usage: lemmata [--latex] [FILE]
+
+Check a proof written in Lemmata's notation, step by step, and print the
+audit; exit status 1 if any step is invalid.  Reads FILE, or standard input
+when no file is given.  (`aether` is the same command, under its old name.)
+
+  --latex     print the proof as a LaTeX document instead of checking it
+  --version   print the version
+  --help      print this message
+"""
+
+
 def main() -> None:
+    import os
     import sys
 
     args = sys.argv[1:]
+    prog = os.path.basename(sys.argv[0]) or "lemmata"
+    if "--help" in args or "-h" in args:
+        print(USAGE, end="")
+        return
+    if "--version" in args:
+        from importlib.metadata import PackageNotFoundError, version
+
+        try:
+            print(f"{prog} {version('aether')}")
+        except PackageNotFoundError:
+            print(f"{prog} (development)")
+        return
     latex_mode = False
     if "--latex" in args:
         latex_mode = True
@@ -38,10 +64,10 @@ def main() -> None:
             with open(path, encoding="utf-8") as f:
                 source = f.read()
         except OSError as e:
-            print(f"aether: cannot open {path!r}: {e}", file=sys.stderr)
+            print(f"{prog}: cannot open {path!r}: {e}", file=sys.stderr)
             sys.exit(1)
     else:
-        print("aether: reading from stdin (Ctrl-D to finish)…", file=sys.stderr)
+        print(f"{prog}: reading from stdin (Ctrl-D to finish)…", file=sys.stderr)
         source = sys.stdin.read()
 
     try:

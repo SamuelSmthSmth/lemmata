@@ -593,6 +593,24 @@ published at `https://samuelsmthsmth.github.io/lemmata-packs/` (site.json
   Students receive the change as an update, with no new app release.
 - **Sharing a pack made in the app.** A local pack's head offers *Share to the registry…*: export the file, upload it on GitHub, open the PR.
 
+## The public site: `web/` and `ui/build_site.py`
+
+The deployed site is the app at `/app/` inside a small static website:
+
+```
+/                      landing page            web/index.html
+/download/             desktop, CLI, self-host web/download/
+/privacy/ /terms/ /cookies/                    web/privacy/ ...
+/install.sh /install.ps1                       the CLI installer (uv tool install)
+/app/                  the app                 ui/build_static.py
+```
+
+- **Building.** `uv run python ui/build_site.py` runs `build_static.py --out dist/app`, then fills `web/`'s pages and writes `dist/vercel.json`. The root `vercel.json` (what Vercel's Git deploys use) carries the same rules; `web/verify_web.py` checks the two agree.
+- **Pages** are plain HTML with `{{ placeholders }}`: the site's name, tagline and version from `site.json`, `{{ root }}` (so the site works under a sub-path), the partials in `web/partials/`, and content `web/content.py` computes from the engine at build time. The landing page's audits are the checker's real output for real proofs, so the page never claims a verdict the engine does not give.
+- **Same origin, nothing lost.** The app moved from `/` to `/app/` on the same origin, so students' saved work is still there. A permalink from before the move (`/#p=...`) is sent on to `/app/` by the landing page's first script, and `/static/...` is rewritten to `/app/static/...` for anything that cached the old engine URL.
+- **The design** is the app's world at page scale (DESIGN.md); the direction is recorded in `.impeccable/surfaces/web-index-html.md`.
+- **Checking.** `uv run python web/verify_web.py`: links and assets, the audits against the engine, the hosting rules, the installer, and (with agent-browser) the redirect, the storage notice, the scrub and phone widths.
+
 ## The desktop app
 
 `desktop/` wraps the static build in a Tauri shell: the same page, with the
