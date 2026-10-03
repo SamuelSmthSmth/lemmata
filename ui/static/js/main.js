@@ -491,6 +491,28 @@ async function previewRegistryPack(stub) {
   }
 }
 
+/**
+ * `?install=<scope/name>`: the registry site's "Open in Lemmata" link.  Opens
+ * the Library on that pack: an installed one as it is, a registry one previewed
+ * with its Install button, so nothing is installed without the student's click.
+ */
+async function openPackLink(name) {
+  const params = new URLSearchParams(location.search);
+  params.delete("install");
+  params.set("view", "library");
+  history.replaceState({ view: "library" }, "", `${location.pathname}?${params}${location.hash}`);
+  setView("library", { push: false });
+  if (!packs.model.records.has(name)) await refreshRegistry();
+  const pack = packs.findPack(name);
+  if (!pack) {
+    showToast(`There is no pack called ${name} in the registry.`, { tone: "danger", ms: 8000 });
+    return;
+  }
+  showPack(name);
+  const stub = registry.findStub(name);
+  if (!packs.model.records.has(name) && stub) await previewRegistryPack(stub);
+}
+
 function exportPack(pack) {
   const { filename, text } = packs.packToFile(pack);
   downloadBlob(new Blob([text], { type: "application/json" }), filename);
@@ -1319,6 +1341,7 @@ async function init() {
   const params = new URLSearchParams(location.search);
   setView(params.get("view") ?? "workspace", { push: false });
   if (params.get("view") === "guide" && params.get("page")) openGuidePage(params.get("page"), { push: false });
+  if (params.get("install")) openPackLink(params.get("install"));
 
   await showActive();
   if (origin === "link") showToast("Loaded the proof from this link");

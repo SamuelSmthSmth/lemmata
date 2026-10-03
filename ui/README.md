@@ -591,6 +591,7 @@ published at `https://samuelsmthsmth.github.io/lemmata-packs/` (site.json
   3. Open a PR in the registry.
 
   Students receive the change as an update, with no new app release.
+- **Linking to a pack.** `app/?install=<scope/name>` opens the Library on that pack: installed ones as they are, registry ones previewed with their Install button, so nothing is installed without a click. The registry site's *Open in Lemmata* buttons use it.
 - **Sharing a pack made in the app.** A local pack's head offers *Share to the registry…*: export the file, upload it on GitHub, open the PR.
 
 ## The public site: `web/` and `ui/build_site.py`

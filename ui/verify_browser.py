@@ -1359,6 +1359,16 @@ def registry_checks(registry_server: subprocess.Popen) -> None:
     time.sleep(1.2)
     check(js("document.querySelectorAll('.pack[data-pack=\"fixture/preview-me\"] .entry').length") == 1, "Preview lists a registry pack's entries before installing")
 
+    print("== ?install=: the registry site's Open in Lemmata link ==")
+    ab("open", f"{BASE}/?install=fixture/preview-me&r={time.time_ns()}")
+    deadline = time.time() + 15
+    while time.time() < deadline and js("document.querySelectorAll('.pack[data-pack=\"fixture/preview-me\"] .entry').length") != 1:
+        time.sleep(0.3)
+    check(js("document.body.dataset.view") == "library", "the link opens the Library")
+    check(js("document.querySelectorAll('.pack[data-pack=\"fixture/preview-me\"] .entry').length") == 1, "on that registry pack, previewed")
+    check("fixture/preview-me" in available_packs(), "and nothing is installed until the student clicks Install")
+    check("install=" not in js("location.search"), "the link's install= is dropped, so a reload does not repeat it")
+
     registry_server.terminate()
     registry_server.wait(timeout=10)
     # Past the 10-minute freshness window, so the Library asks again and fails.
