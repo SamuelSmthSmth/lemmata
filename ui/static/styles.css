@@ -41,6 +41,12 @@
   --wa-focus-ring-width: 0.125rem;
   --wa-focus-ring-offset: 0.0625rem;
 
+  /* No drop shadows anywhere: a floating layer is separated by its surface
+     and a hairline, so the components' own elevation is switched off. */
+  --wa-shadow-s: none;
+  --wa-shadow-m: none;
+  --wa-shadow-l: none;
+
   --wa-font-family-body: var(--font-mono);
   --wa-font-family-code: var(--font-mono);
 
@@ -1312,8 +1318,7 @@ kbd {
 }
 
 /* The rail: four views and two global controls.  A column of quiet glyphs;
-   the current view gets the accent and a 2px rule on its inner edge -- the
-   same rail-in-the-margin language the auditor uses for failure, in blue. */
+   the current view's icon takes the accent on a lowered square (see below). */
 .rail {
   grid-area: rail;
   display: flex;
@@ -3127,7 +3132,8 @@ body[data-exercise="hidden"] .tree-row.is-active .tree-mark {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .view--workspace {
+  .view--workspace,
+  .step {
     transition: none;
   }
 }

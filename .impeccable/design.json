@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-10-02T16:42:17+00:00",
+  "generatedAt": "2026-10-03T09:16:06+00:00",
   "title": "Design System: Aether",
   "extensions": {
     "colorMeta": {
@@ -27,9 +27,9 @@
           "#16181d",
           "#2b2f37",
           "#464c57",
-          "#646b78",
-          "#868e9c",
-          "#b2b8c2",
+          "#555b6a",
+          "#666c7a",
+          "#9ba3b0",
           "#dde1e6",
           "#f7f8f9"
         ]
@@ -78,24 +78,70 @@
           "#fbcdca",
           "#fdeeed"
         ]
+      },
+      "ink-quiet": {
+        "role": "neutral",
+        "displayName": "Ink Quiet",
+        "canonical": "#555b6a",
+        "tonalRamp": [
+          "#1f2127",
+          "#2f333b",
+          "#41454f",
+          "#555b6a",
+          "#666c7a",
+          "#7f8795",
+          "#9ba3b0",
+          "#c9ced6"
+        ]
+      },
+      "ink-dim": {
+        "role": "neutral",
+        "displayName": "Ink Dim",
+        "canonical": "#666c7a",
+        "tonalRamp": [
+          "#25272d",
+          "#363a42",
+          "#4a4f5a",
+          "#555b6a",
+          "#666c7a",
+          "#7f8795",
+          "#9ba3b0",
+          "#c9ced6"
+        ]
       }
     },
     "typographyMeta": {
+      "title": {
+        "displayName": "Title",
+        "purpose": "Page titles in Library, Guide and Settings; mixed-case mono 600."
+      },
+      "entry-title": {
+        "displayName": "Entry Title",
+        "purpose": "The title of a note open in the reading pane."
+      },
       "statement": {
         "displayName": "Statement",
-        "purpose": "Proof statements in the auditor and editor."
+        "purpose": "Proof statements in the auditor and editor; the app's 13px base."
+      },
+      "control": {
+        "displayName": "Control",
+        "purpose": "Tabs, text buttons, segments, Guide contents."
       },
       "prose": {
         "displayName": "Prose",
-        "purpose": "Only the intern's explanatory sentences."
+        "purpose": "Step explanations, diagnostics, empty states."
+      },
+      "prose-reading": {
+        "displayName": "Prose Reading",
+        "purpose": "Page ledes and the handbook."
       },
       "verdict": {
         "displayName": "Verdict",
-        "purpose": "The header verdict word."
+        "purpose": "The verdict word in the status bar."
       },
       "label": {
         "displayName": "Label",
-        "purpose": "Pane headings."
+        "purpose": "Uppercase 11px section labels: pane heads, reading-pane tabs."
       }
     },
     "shadows": [
@@ -107,24 +153,57 @@
     ],
     "motion": [
       {
+        "name": "desk-collapse",
+        "value": "grid-template-columns 180ms ease",
+        "purpose": "Reading pane collapse and reopen; disabled under prefers-reduced-motion."
+      },
+      {
         "name": "state-quick",
-        "value": "0.1s ease",
-        "purpose": "Row hover and border-colour changes."
+        "value": "background 0.1s ease",
+        "purpose": "Step-row hover fade."
       }
     ],
     "breakpoints": [
       {
-        "name": "narrow",
-        "value": "900px"
+        "name": "desk-overlay",
+        "value": "1100px",
+        "purpose": "Below: the reading pane overlays the work and never opens by itself."
+      },
+      {
+        "name": "phone",
+        "value": "760px",
+        "purpose": "Below: the rail becomes a labelled bottom bar, panes stack, symbol strip hidden."
       }
-    ]
+    ],
+    "scrims": [
+      {
+        "name": "modal-scrim",
+        "value": "var(--wa-color-overlay-modal)",
+        "light": "rgba(22, 24, 29, 0.42)",
+        "dark": "rgba(0, 0, 0, 0.62)",
+        "purpose": "::backdrop behind the command palette; floating layers otherwise separate by surface and a 1px border."
+      }
+    ],
+    "shell": {
+      "railWidth": "44px",
+      "readingPaneWidth": "320px",
+      "statusBarHeight": "24px",
+      "paneHeadHeight": "30px",
+      "pageMaxWidth": "1080px",
+      "pageNarrowMaxWidth": "720px"
+    },
+    "verification": {
+      "commit": "cdd8ca2",
+      "axe": "zero violations on every view, light and dark, desktop and phone",
+      "finishReview": "pass with fixes; all fixes applied in cdd8ca2"
+    }
   },
   "components": [
     {
       "name": "Verdict",
       "kind": "custom",
       "refersTo": "verdict-valid",
-      "description": "A rail and a word: the proof's overall status in the header.",
+      "description": "A rail and a word: the proof's overall status in the status bar.",
       "html": "<span class=\"ds-verdict ds-verdict--valid\">VALID</span> <span class=\"ds-verdict ds-verdict--invalid\">INVALID</span>",
       "css": ".ds-verdict{font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;padding:2px 0 2px 8px;border-left:2px solid currentColor;margin-right:16px}.ds-verdict--valid{color:#157333}.ds-verdict--invalid{color:#be1824}"
     },
@@ -133,8 +212,8 @@
       "kind": "custom",
       "refersTo": "step-row",
       "description": "One audited statement; a failing row carries a 2px rail in the margin.",
-      "html": "<button class=\"ds-step\"><span class=\"ds-step-line\">6</span><span>Step: n^2 = (2 * k)^2<span class=\"ds-step-meta\">VALID \u00b7 SymPy</span></span></button><button class=\"ds-step ds-step--invalid\"><span class=\"ds-step-line\">7</span><span>Step: = 4 * k^3<span class=\"ds-step-meta ds-bad\">INVALID \u00b7 SymPy</span></span></button>",
-      "css": ".ds-step{position:relative;display:grid;grid-template-columns:22px 1fr;gap:11px;width:100%;text-align:left;font:12.5px/1.45 'JetBrains Mono',monospace;color:#16181d;background:#fff;border:0;border-bottom:1px solid #eceef1;padding:8px 12px 8px 14px;cursor:pointer}.ds-step:hover{background:#eff1f4}.ds-step:focus-visible{outline:2px solid #0a5fbf;outline-offset:-2px}.ds-step--invalid::before{content:'';position:absolute;left:0;top:0;bottom:0;width:2px;background:#be1824}.ds-step-line{font-size:10.5px;color:#9aa0aa;text-align:right}.ds-step-meta{float:right;font-size:9.5px;letter-spacing:.7px;color:#9aa0aa}.ds-bad{color:#be1824;font-weight:700}"
+      "html": "<button class=\"ds-step\"><span class=\"ds-step-line\">6</span><span>Step: n^2 = (2 * k)^2<span class=\"ds-step-meta\">VALID · SymPy</span></span></button><button class=\"ds-step ds-step--invalid\"><span class=\"ds-step-line\">7</span><span>Step: = 4 * k^3<span class=\"ds-step-meta ds-bad\">INVALID · SymPy</span></span></button>",
+      "css": ".ds-step{position:relative;display:grid;grid-template-columns:22px 1fr;gap:11px;width:100%;text-align:left;font:13px/1.45 'JetBrains Mono',monospace;color:#16181d;background:#fff;border:0;border-bottom:1px solid #eceef1;padding:8px 12px 8px 14px;cursor:pointer}.ds-step:hover{background:#eff1f4}.ds-step:focus-visible{outline:2px solid #0a5fbf;outline-offset:-2px}.ds-step--invalid::before{content:'';position:absolute;left:0;top:0;bottom:0;width:2px;background:#be1824}.ds-step-line{font-size:11px;color:#666c7a;text-align:right}.ds-step-meta{float:right;font-size:11px;letter-spacing:.4px;color:#666c7a}.ds-bad{color:#be1824;font-weight:700}"
     },
     {
       "name": "Pane Head",
@@ -142,7 +221,7 @@
       "refersTo": "pane-head",
       "description": "A label and a rule; no fill.",
       "html": "<div class=\"ds-pane-head\"><h2>Auditor</h2><span>Click a step to inspect it</span></div>",
-      "css": ".ds-pane-head{display:flex;align-items:center;gap:10px;padding:5px 12px;min-height:30px;border-bottom:1px solid #dde1e6;font-family:'JetBrains Mono',monospace}.ds-pane-head h2{margin:0;font-size:9.5px;font-weight:700;letter-spacing:1.3px;text-transform:uppercase;color:#646b78}.ds-pane-head span{margin-left:auto;font-size:10px;color:#9aa0aa}"
+      "css": ".ds-pane-head{display:flex;align-items:center;gap:10px;padding:5px 12px;min-height:30px;border-bottom:1px solid #dde1e6;font-family:'JetBrains Mono',monospace}.ds-pane-head h2{margin:0;font-size:11px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:#555b6a}.ds-pane-head span{margin-left:auto;font-size:11px;color:#666c7a}"
     },
     {
       "name": "Counterexample Callout",
@@ -158,53 +237,118 @@
       "refersTo": "icon-button",
       "description": "24px plain icon button; quiet ink, ink on hover.",
       "html": "<button class=\"ds-icon-btn\" aria-label=\"Download\"><svg viewBox=\"0 0 24 24\" width=\"12\" height=\"12\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\"><path d=\"M12 3v12m0 0l4-4m-4 4l-4-4\"/><path d=\"M4 20h16\"/></svg></button>",
-      "css": ".ds-icon-btn{width:24px;height:24px;display:inline-grid;place-items:center;border:0;background:none;color:#646b78;border-radius:2px;cursor:pointer}.ds-icon-btn:hover{color:#16181d;background:#eff1f4}.ds-icon-btn:focus-visible{outline:2px solid #0a5fbf}"
+      "css": ".ds-icon-btn{width:24px;height:24px;display:inline-grid;place-items:center;border:0;background:none;color:#555b6a;border-radius:2px;cursor:pointer}.ds-icon-btn svg{width:14px;height:14px}.ds-icon-btn:hover{color:#16181d;background:#eff1f4}.ds-icon-btn:focus-visible{outline:2px solid #0a5fbf;outline-offset:-2px}"
+    },
+    {
+      "name": "Text Button",
+      "kind": "button",
+      "refersTo": "text-button",
+      "description": "The native text button: plain, primary (blue outline), danger, and armed (second click of a two-click confirm).",
+      "html": "<button class=\"ds-tb\">Rename</button> <button class=\"ds-tb ds-tb--primary\">Open a copy</button> <button class=\"ds-tb ds-tb--danger\">Delete</button> <button class=\"ds-tb ds-tb--armed\">Click again to delete</button>",
+      "css": ".ds-tb{display:inline-flex;align-items:center;height:24px;padding:0 8px;border:1px solid transparent;border-radius:2px;background:none;color:#16181d;font:12px 'JetBrains Mono',monospace;cursor:pointer}.ds-tb:hover{background:#eff1f4}.ds-tb:focus-visible{outline:2px solid #0a5fbf;outline-offset:-2px}.ds-tb--primary{color:#0a5fbf;border-color:color-mix(in oklab,#0a5fbf 45%,transparent)}.ds-tb--primary:hover{background:rgba(10,95,191,.08)}.ds-tb--danger{color:#be1824}.ds-tb--danger:hover{background:rgba(190,24,36,.08)}.ds-tb--armed{color:#fff;background:#be1824;border-color:#be1824}"
+    },
+    {
+      "name": "Segmented Control",
+      "kind": "chip",
+      "refersTo": "filter-checked",
+      "description": "Library filters and every Settings choice; the checked segment is blue on a quiet blue fill.",
+      "html": "<div class=\"ds-seg\" role=\"radiogroup\"><button role=\"radio\" aria-checked=\"true\">All 42</button><button role=\"radio\" aria-checked=\"false\">Theorems</button><button role=\"radio\" aria-checked=\"false\">Traps</button></div>",
+      "css": ".ds-seg{display:inline-flex;border:1px solid #dde1e6;border-radius:2px}.ds-seg button{height:24px;padding:0 10px;border:0;border-right:1px solid #dde1e6;background:none;color:#555b6a;font:12px 'JetBrains Mono',monospace;font-variant-numeric:tabular-nums;cursor:pointer}.ds-seg button:last-child{border-right:0}.ds-seg button:hover{color:#16181d}.ds-seg button[aria-checked=true]{color:#0a5fbf;background:rgba(10,95,191,.08)}.ds-seg button:focus-visible{outline:2px solid #0a5fbf;outline-offset:-2px}"
+    },
+    {
+      "name": "View Rail",
+      "kind": "nav",
+      "refersTo": "app-rail",
+      "description": "44px rail of views; the current view is the accent icon on a 28px lowered square, never a margin rule.",
+      "html": "<nav class=\"ds-rail\"><span class=\"ds-rail-mark\">Æ</span><button class=\"ds-rail-btn\" aria-current=\"page\" aria-label=\"Workspace\"><svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.75\"><path d=\"M4 5h16M4 12h16M4 19h10\"/></svg></button><button class=\"ds-rail-btn\" aria-label=\"Library\"><svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.75\"><path d=\"M5 4v16M10 4v16M15 5l4 15\"/></svg></button></nav>",
+      "css": ".ds-rail{display:flex;flex-direction:column;gap:2px;width:44px;padding:8px 0;background:#f7f8f9;border-right:1px solid #dde1e6;font-family:'JetBrains Mono',monospace}.ds-rail-mark{display:grid;place-items:center;height:28px;margin-bottom:8px;font-size:15px;font-weight:700;color:#16181d}.ds-rail-btn{position:relative;display:grid;place-items:center;height:40px;margin:0 4px;border:0;border-radius:2px;background:none;color:#555b6a;cursor:pointer}.ds-rail-btn svg{position:relative;width:18px;height:18px}.ds-rail-btn:hover{color:#16181d;background:#eff1f4}.ds-rail-btn:focus-visible{outline:2px solid #0a5fbf;outline-offset:-2px}.ds-rail-btn[aria-current=page]{color:#0a5fbf}.ds-rail-btn[aria-current=page]::before{content:'';position:absolute;left:50%;top:50%;width:28px;height:28px;transform:translate(-50%,-50%);border-radius:2px;background:#eff1f4}"
+    },
+    {
+      "name": "Reading Pane Tabs",
+      "kind": "nav",
+      "refersTo": "desk-tab-selected",
+      "description": "Files, Notes, History: uppercase labels, the selected one inked with a 2px accent underline.",
+      "html": "<div class=\"ds-desk-tabs\" role=\"tablist\"><button role=\"tab\" aria-selected=\"false\">Files</button><button role=\"tab\" aria-selected=\"true\">Notes</button><button role=\"tab\" aria-selected=\"false\">History</button></div>",
+      "css": ".ds-desk-tabs{display:flex;gap:2px;min-height:34px;border-bottom:1px solid #dde1e6;padding:0 4px}.ds-desk-tabs button{position:relative;padding:0 9px;border:0;background:none;color:#555b6a;font:700 11px 'JetBrains Mono',monospace;letter-spacing:.09em;text-transform:uppercase;cursor:pointer}.ds-desk-tabs button:hover,.ds-desk-tabs button[aria-selected=true]{color:#16181d}.ds-desk-tabs button[aria-selected=true]::after{content:'';position:absolute;left:9px;right:9px;bottom:-1px;height:2px;background:#0a5fbf}.ds-desk-tabs button:focus-visible{outline:2px solid #0a5fbf;outline-offset:-4px}"
+    },
+    {
+      "name": "Status Bar",
+      "kind": "custom",
+      "refersTo": "status-bar",
+      "description": "24px foot: verdict rail-and-word, problem button, caret, path, storage.",
+      "html": "<footer class=\"ds-status\"><span class=\"ds-sv\">INVALID</span><button class=\"ds-sp\">1 problem</button><span>Ln 7, Col 12</span><span>notes/limits.ae</span><span>Saved locally</span></footer>",
+      "css": ".ds-status{display:flex;align-items:center;gap:14px;height:24px;padding:0 10px 0 12px;background:#f7f8f9;border-top:1px solid #dde1e6;font:11px 'JetBrains Mono',monospace;color:#555b6a;white-space:nowrap;font-variant-numeric:tabular-nums}.ds-sv{font-weight:700;letter-spacing:1px;color:#be1824;border-left:2px solid #be1824;padding-left:8px;line-height:16px}.ds-sp{height:18px;padding:0 6px;border:0;border-radius:2px;background:none;color:#be1824;font:inherit;cursor:pointer}.ds-sp:hover{background:rgba(190,24,36,.08)}.ds-sp:focus-visible{outline:2px solid #0a5fbf;outline-offset:-2px}"
     }
   ],
   "narrative": {
     "northStar": "The Typeset Proof",
-    "overview": "Aether is set the way a printed proof is set, not built the way a dashboard is built. Paper divided by hairlines; the formal layer in one monospace; the intern's prose the only break in the grid. Failure is the event: a failing step gets a 2px rail in the margin, and so does everything that rests on it.",
+    "overview": "Aether is set the way a printed proof is set, not built the way a dashboard is built. Paper divided by hairlines; the formal layer and all chrome in one monospace; sentences the only break in the grid. Failure is the event: a failing step gets a 2px rail in the margin, in the auditor and the editor gutter alike, and so does everything that rests on it. The app is a study desk, not an IDE: the notes stay open beside the proof.",
     "keyCharacteristics": [
       "Paper and ink, hairline rules, near-square corners (2px).",
-      "One monospace family for everything formal; system sans only for the intern's sentences.",
+      "One monospace family for everything formal; system sans only for sentences.",
       "Status lives in 2px rails and coloured words, never in filled pills or cards.",
-      "Green appears only in the verdict, so red lands when it does.",
+      "The left margin belongs to the failure rail; current-item marks use ink, weight and a lowered fill instead.",
+      "Green appears only in verdicts, so red lands when it does.",
       "Light and dark are equal citizens, each with its own picked palette."
     ],
     "rules": [
       {
         "name": "The Green Is Rare Rule",
-        "body": "Green appears in the verdict and nowhere else; a passing step's status is set in dim ink.",
+        "body": "Green marks a verdict on a whole proof and nowhere else; a passing step's status is set in dim ink.",
+        "section": "colors"
+      },
+      {
+        "name": "The Real Failure Rule",
+        "body": "Red means something actually failed. A hazard category such as a Library 'Trap' tag is quiet ink; red is kept for the copy that fails, the step that fails, and the action that destroys.",
         "section": "colors"
       },
       {
         "name": "The Two Schemes Rule",
-        "body": "Syntax colour has a mono default and a vivid opt-in over one token vocabulary.",
+        "body": "Syntax colour has a mono default and a vivid opt-in over one token vocabulary; comments and glue words stay dim in both.",
         "section": "colors"
       },
       {
         "name": "The Formal-Mono Rule",
-        "body": "Anything the engine checks is set in the monospace; only the intern's sentences use the sans.",
+        "body": "Anything the engine checks, and every piece of chrome, is set in the monospace; only sentences use the sans. No italics.",
+        "section": "typography"
+      },
+      {
+        "name": "The Labels Are Not Titles Rule",
+        "body": "Uppercase tracking belongs to 11px section labels only. Page and entry titles are mixed-case mono at weight 600.",
         "section": "typography"
       },
       {
         "name": "The No Boxes Rule",
         "body": "Organise with hairlines and alignment; a box is reserved for callouts that carry a failure.",
         "section": "elevation"
+      },
+      {
+        "name": "The Border, Not Shadow Rule",
+        "body": "Anything that floats is told apart by its surface and a 1px border, plus a scrim when it is modal. Never a drop shadow.",
+        "section": "elevation"
+      },
+      {
+        "name": "The Margin Belongs To Failure Rule",
+        "body": "A vertical coloured rule at the left edge of a row means a failure or a caveat, and nothing else. Current items are marked by ink, weight, accent text or a lowered fill; selected tabs by a horizontal 2px accent rule.",
+        "section": "shapes"
       }
     ],
     "dos": [
       "Do let a failing step's 2px rail and red word carry the page; keep everything that verified quiet.",
-      "Do set every checked artefact in JetBrains Mono and every explanatory sentence in the system sans.",
+      "Do set every checked artefact (statements, names, types, verdicts, line numbers) and all chrome in JetBrains Mono, and every sentence in the system sans.",
       "Do separate regions with 1px Rule/Hairline lines and tonal surfaces, not containers.",
-      "Do define colour once in the --wa-* token layer and alias it; light and dark each get picked values.",
-      "Do keep corners at 2px and status rails at 2px."
+      "Do mark a current item with ink, weight, accent text or a Paper Lowered fill; mark a selected tab with a horizontal 2px accent rule.",
+      "Do define colour once in the --wa-* token layer and alias it; light and dark each get picked values, and quiet text clears 4.5:1 on every surface.",
+      "Do keep corners at 2px and status rails at 2px.",
+      "Do use the segmented control for a choice among a few options, and the native text and icon buttons for actions."
     ],
     "donts": [
-      "Don't use green anywhere but the verdict.",
+      "Don't use green anywhere but a verdict.",
+      "Don't use red for anything that has not actually failed or will not actually destroy.",
+      "Don't draw a vertical coloured rule at the left of a row for anything but failure or caveat.",
       "Don't wrap rows in cards, give passing steps badges, or use filled status pills.",
-      "Don't introduce a display face, italics, or a second sans.",
-      "Don't add drop shadows; depth is tonal, and the selected-row inset ring is the only shadow.",
+      "Don't introduce a display face, italics, a second sans, or text below 11px.",
+      "Don't add drop shadows; floating layers separate by surface and border, and the selected-row inset ring is the only shadow.",
       "Don't fetch anything cross-origin (icons, fonts, scripts): the app makes no runtime network requests."
     ]
   }
