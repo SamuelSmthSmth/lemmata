@@ -787,10 +787,26 @@ def _uses_set_functions(solver: z3.Solver) -> bool:
 
 
 def check_solver(solver: z3.Solver) -> z3.CheckSatResult:
-    """``solver.check()``, with the set axioms added when the problem needs them."""
+    """``solver.check()``, with the set axioms added when the problem needs them.
+
+    A query that runs out of its budget is *unknown*, never an error.  Z3
+    usually reports that as an ``unknown`` result, but some builds (the
+    WebAssembly one the browser runs) raise it as an exception instead; both
+    mean the same thing, and the caller handles unknown.
+    """
     if _uses_set_functions(solver):
         _add_set_axioms(solver)
-    return solver.check()
+    try:
+        return solver.check()
+    except z3.Z3Exception as exc:
+        if _is_budget_exhausted(exc):
+            return z3.unknown
+        raise
+
+
+def _is_budget_exhausted(exc: z3.Z3Exception) -> bool:
+    text = str(exc.value if hasattr(exc, "value") else exc).lower()
+    return any(word in text for word in ("resource limit", "canceled", "cancelled", "timeout"))
 
 
 def _populate_solver_context(solver: z3.Solver, ctx: ProofContext) -> None:

@@ -29,3 +29,32 @@ def test_the_work_limit_stops_a_hopeless_query_on_any_machine() -> None:
 def test_a_caller_cannot_bring_back_a_short_wall_clock() -> None:
     assert logic.SOLVER_BACKSTOP_MS >= 5000
     assert logic.SOLVER_RLIMIT >= 100_000
+
+
+def test_a_budget_raised_as_an_exception_is_unknown():
+    """The WebAssembly Z3 can raise its resource limit instead of answering
+    unknown; check_solver must treat both the same, not crash the check."""
+    import z3
+
+    from aether.engine.logic import check_solver, new_solver
+
+    class Raising(z3.Solver):
+        def check(self, *args):
+            raise z3.Z3Exception(b"max. resource limit exceeded")
+
+    solver = new_solver(1000)
+    solver.__class__ = Raising
+    assert check_solver(solver) == z3.unknown
+
+    class Broken(z3.Solver):
+        def check(self, *args):
+            raise z3.Z3Exception(b"invalid argument")
+
+    solver = new_solver(1000)
+    solver.__class__ = Broken
+    try:
+        check_solver(solver)
+    except z3.Z3Exception:
+        pass
+    else:
+        raise AssertionError("an error that is not the budget must still surface")
