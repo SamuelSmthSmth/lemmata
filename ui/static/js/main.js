@@ -28,6 +28,7 @@ import { showDiagnostics } from "./lint.js";
 import { initNotes, renderNotes } from "./notes.js";
 import { allManifests, initPackAuthor, isPackFolder, openPackDialog, renameManifestFolder, restoreManifests } from "./pack-author.js";
 import * as packs from "./packs.js";
+import * as registry from "./registry.js";
 import { initPalette, openPalette } from "./palette.js";
 import { permalinkFor, readPermalink, writePermalink } from "./permalink.js";
 import { getPref, setPref } from "./prefs.js";
@@ -404,7 +405,7 @@ async function installPack(pack, origin) {
   const label = packs.packLabel(pack);
   const text = previous
     ? `Updated ${label} to v${pack.version}${what ? ` — ${what}` : ""}`
-    : `Installed ${label} (${pack.entries.length} entries)`;
+    : `Installed ${label} (${pack.entries.length} ${pack.entries.length === 1 ? "entry" : "entries"})`;
   showToast(text, {
     action: "Undo",
     onAction: async () => {
@@ -431,9 +432,55 @@ async function uninstallPack(pack) {
 
 async function updateAllPacks() {
   const pending = packs.updates();
-  for (const { pack } of pending) await packs.install(pack, "bundled");
+  let done = 0;
+  for (const { pack } of pending) {
+    try {
+      if (pack.remote) await packs.install(await registryPack(pack), "registry");
+      else await packs.install(pack, "bundled");
+      done += 1;
+    } catch (error) {
+      showToast(`${packs.packLabel(pack)} was not updated: ${error.message}`, { tone: "danger", ms: 8000 });
+    }
+  }
   refreshPacks();
-  showToast(pending.length === 1 ? `Updated ${packs.packLabel(pending[0].pack)}` : `Updated ${pending.length} packs`);
+  if (done) showToast(done === 1 ? `Updated ${packs.packLabel(pending[0].pack)}` : `Updated ${done} packs`);
+}
+
+// ---------------------------------------------------------------------------
+// The pack registry
+// ---------------------------------------------------------------------------
+
+/** Re-read the registry's index (if stale), then let the Library show what it offers. */
+async function refreshRegistry({ force = false } = {}) {
+  await registry.refresh(site.registry, { force });
+  packs.model.registry = registry.offered(registry.model.stubs, packs.model.catalog);
+  if (document.body.dataset.view === "library") renderLibrary();
+}
+
+/** A registry pack's file: fetched, checked against the index's sha256, validated. */
+async function registryPack(stub) {
+  const data = await registry.fetchPack(stub);
+  const { pack, errors } = await validatePack(data);
+  if (!pack) throw new Error(`it is not a valid pack (${errors[0]})`);
+  if (pack.name !== stub.name || pack.version !== stub.version) throw new Error("the file is not the pack the registry lists");
+  return pack;
+}
+
+async function installFromRegistry(stub) {
+  try {
+    await installPack(await registryPack(stub), "registry");
+  } catch (error) {
+    showToast(`${packs.packLabel(stub)} was not installed: ${error.message}`, { tone: "danger", ms: 8000 });
+  }
+}
+
+async function previewRegistryPack(stub) {
+  try {
+    registry.model.previews.set(`${stub.name}@${stub.version}`, await registryPack(stub));
+    renderLibrary();
+  } catch (error) {
+    showToast(`Could not preview ${packs.packLabel(stub)}: ${error.message}`, { tone: "danger", ms: 8000 });
+  }
 }
 
 function exportPack(pack) {
@@ -544,6 +591,8 @@ const libraryActions = {
   onUpdateAll: updateAllPacks,
   onExport: exportPack,
   onInstallFile: choosePackFile,
+  onInstallRemote: installFromRegistry,
+  onPreview: previewRegistryPack,
   onNewPack: () => newPackFromWorkspace(),
 };
 
@@ -639,7 +688,10 @@ function setView(name, { push = true } = {}) {
     else button.removeAttribute("aria-current");
   }
   setPref("view", name);
-  if (name === "library") renderLibrary();
+  if (name === "library") {
+    renderLibrary();
+    refreshRegistry();
+  }
   if (name === "settings") renderSettings();
   if (name === "guide" && !currentGuidePage()) openGuidePage(new URLSearchParams(location.search).get("page") ?? "start", { push: false });
   if (push) {
@@ -1202,6 +1254,8 @@ async function init() {
     showToast(`The pack catalogue could not be loaded: ${error.message}. Installed packs still work.`, { tone: "warning" });
   }
   await packs.load(catalog, site.preinstall ?? null);
+  // What the registry offered last time is listed at once; a fresh copy follows.
+  refreshRegistry();
   initLibrary(libraryActions, () => {
     const out = new Map();
     for (const file of ws.model.files.values()) {

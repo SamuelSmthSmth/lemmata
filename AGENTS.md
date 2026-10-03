@@ -167,6 +167,8 @@ pack's `version` when you change it**, so browsers that installed it are
 offered the update (a same-version edit is still offered, but a version says
 what changed).
 
+**The pack registry** ([`SamuelSmthSmth/lemmata-packs`](https://github.com/SamuelSmthSmth/lemmata-packs), public) publishes packs anyone can install. Its CI checks every entry with the engine the app publishes (`static/engine/`), so a change to the engine that alters a published verdict will fail the registry's weekly run. Publish a changed core pack with `uv run python ui/publish_packs.py ../lemmata-packs` after raising its version.
+
 A proved theorem in an installed pack can be imported into a student's proof:
 `import "@core/mth2010/<entry-id>"`. The browser sends installed packs' proof
 entries as `sources` keyed `@<name>/<entry-id>.aether`, and the engine finds

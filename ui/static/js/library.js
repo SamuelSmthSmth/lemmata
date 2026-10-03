@@ -11,6 +11,7 @@
 import { checkProof } from "./api.js";
 import { el } from "./format.js";
 import * as packs from "./packs.js";
+import * as registry from "./registry.js";
 
 let handlers = {};
 let copies = () => new Map(); // entryKey -> {fileId, tone}
@@ -82,8 +83,13 @@ function matches(pack, entry) {
 // The rail
 // ---------------------------------------------------------------------------
 
+const entriesText = (n) => `${n} ${n === 1 ? "entry" : "entries"}`;
+
+// A registry pack is listed from the index before its file is fetched.
+const entryCount = (pack) => (pack.remote ? pack.remote.count : pack.entries.length);
+
 function packButton(pack, { update = null } = {}) {
-  const count = pack.entries.filter((e) => matches(pack, e)).length;
+  const count = pack.remote ? pack.remote.count : pack.entries.filter((e) => matches(pack, e)).length;
   const button = el("button", "pack-button");
   button.type = "button";
   button.dataset.pack = pack.name;
@@ -125,6 +131,24 @@ function renderRail() {
     nav.append(el("p", "packs-group", "Available"));
     for (const pack of available) nav.append(packButton(pack));
   }
+  const status = registryStatus();
+  if (status) nav.append(status);
+}
+
+function clock(ts) {
+  return new Date(ts).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+}
+
+/** One quiet line about the registry; nothing when the site has none. */
+function registryStatus() {
+  const { state, fetched, stubs } = registry.model;
+  const text = {
+    loading: "Registry · checking for packs…",
+    ok: `Registry · ${stubs.length} ${stubs.length === 1 ? "pack" : "packs"}, checked ${clock(fetched)}`,
+    offline: `Registry offline · showing what it offered at ${clock(fetched)}`,
+    unavailable: "Registry unreachable · installed packs still work",
+  }[state];
+  return text ? el("p", `packs-registry packs-registry--${state}`, text) : null;
 }
 
 // ---------------------------------------------------------------------------
@@ -177,17 +201,26 @@ function packHead(pack, { installed, update }) {
   const label = packs.packLabel(pack);
   head.append(el("h2", null, label === pack.title ? pack.title : `${label} · ${pack.title}`));
   const record = packs.installedRecords().find((r) => r.name === pack.name);
-  const meta = [`v${pack.version}`, pack.authors?.join(", "), pack.license, `${pack.entries.length} ${pack.entries.length === 1 ? "entry" : "entries"}`];
+  const count = entryCount(pack);
+  const meta = [`v${pack.version}`, pack.authors?.join(", "), pack.license, `${count} ${count === 1 ? "entry" : "entries"}`];
   if (record?.origin === "file") meta.push("installed from a file");
   if (record?.origin === "local") meta.push("made in this browser");
+  if (record?.origin === "registry") meta.push("from the registry");
+  if (pack.remote) meta.push(`from the registry${pack.remote.engine ? `, verified on engine ${pack.remote.engine}` : ""}`);
   head.append(el("p", "pack-meta", meta.filter(Boolean).join(" · ")));
   head.append(el("p", "pack-note", pack.summary));
 
   const actions = el("div", "pack-actions");
-  if (!installed) {
+  if (!installed && pack.remote) {
+    actions.append(textButton("Install", "primary", () => handlers.onInstallRemote?.(pack)));
+    const preview = registry.model.previews.get(`${pack.name}@${pack.version}`);
+    if (!preview) actions.append(textButton("Preview entries", "", () => handlers.onPreview?.(pack)));
+  } else if (!installed) {
     actions.append(textButton("Install", "primary", () => handlers.onInstall?.(pack)));
   } else {
-    if (update) {
+    if (update?.pack.remote) {
+      actions.append(textButton(`Update to v${update.pack.version}`, "primary", () => handlers.onInstallRemote?.(update.pack)));
+    } else if (update) {
       const what = packs.describeDiff(update.diff);
       actions.append(textButton(`Update to v${update.pack.version}${what ? ` (${what})` : ""}`, "primary", () => handlers.onUpdate?.(update.pack)));
     }
@@ -195,11 +228,36 @@ function packHead(pack, { installed, update }) {
     check.disabled = Boolean(checking);
     actions.append(check, textButton("Export", "", () => handlers.onExport?.(pack)));
     if (!packs.PINNED.has(pack.name)) actions.append(textButton("Uninstall", "", () => handlers.onUninstall?.(pack)));
+    if (record?.origin === "local" && registry.model.contribute) actions.append(textButton(sharing === pack.name ? "Hide sharing steps" : "Share to the registry…", "", () => {
+      sharing = sharing === pack.name ? null : pack.name;
+      renderLibrary();
+    }));
   }
   head.append(actions);
+  if (sharing === pack.name && registry.model.contribute) head.append(shareSteps(pack));
   const summary = checkSummary(pack);
   if (summary) head.append(summary);
   return head;
+}
+
+let sharing = null; // name of the local pack whose sharing steps are open
+
+/** How a pack made here reaches everyone: export it, add it on GitHub, CI checks it. */
+function shareSteps(pack) {
+  const [scope] = pack.name.split("/");
+  const box = el("ol", "share-steps");
+  const one = el("li", null, "Export the pack: ");
+  one.append(textButton("Export .pack.json", "", () => handlers.onExport?.(pack)));
+  const two = el("li", null, "Add the file to the registry on GitHub, at ");
+  two.append(el("code", null, `packs/${pack.name}.pack.json`), document.createTextNode(": "));
+  const link = el("a", "share-link", "open the upload page");
+  link.href = `${registry.model.contribute}/upload/main/packs/${encodeURIComponent(scope)}`;
+  link.target = "_blank";
+  link.rel = "noopener";
+  two.append(link, document.createTextNode(" (a GitHub account is needed for this step only)."));
+  const three = el("li", null, "Open the pull request. The registry's checks run every entry with the engine this app uses; once it is merged, anyone can search for the pack and install it.");
+  box.append(one, two, three);
+  return box;
 }
 
 function checkTag(pack, entry) {
@@ -270,6 +328,47 @@ function textButton(label, tone, onClick) {
   return b;
 }
 
+/** Under a search: the registry packs that match and are not installed (or are newer). */
+function registryResults(list) {
+  const installed = new Map(packs.installedRecords().map((r) => [r.name, r]));
+  const hits = registry
+    .searchStubs(registry.model.stubs, query)
+    .filter((s) => !installed.has(s.name) || packs.compareVersions(s.version, installed.get(s.name).version) > 0);
+  if (!hits.length) return 0;
+  const section = el("section", "pack registry-results");
+  const head = el("header", "pack-head");
+  head.append(el("h2", null, "From the registry"));
+  head.append(el("p", "pack-note", "Packs anyone can install. Every entry was checked by the engine this app runs before it was listed."));
+  section.append(head);
+  for (const stub of hits) {
+    const row = el("article", "registry-row");
+    const text = el("div", "registry-text");
+    const label = packs.packLabel(stub);
+    text.append(el("p", "registry-title", label === stub.title ? stub.title : `${label} · ${stub.title}`));
+    const update = installed.has(stub.name);
+    text.append(el("p", "pack-meta", [`v${stub.version}`, stub.authors.join(", "), entriesText(stub.remote.count), update ? `you have v${installed.get(stub.name).version}` : null].filter(Boolean).join(" · ")));
+    if (stub.summary) text.append(el("p", "pack-note", stub.summary));
+    const actions = el("div", "pack-actions");
+    actions.append(
+      textButton(update ? `Update to v${stub.version}` : "Install", "primary", () => handlers.onInstallRemote?.(stub)),
+      textButton("Details", "", () => {
+        clearSearch();
+        showPack(stub.name);
+      }),
+    );
+    row.append(text, actions);
+    section.append(row);
+  }
+  list.append(section);
+  return hits.length;
+}
+
+function clearSearch() {
+  const search = document.getElementById("library-search");
+  search.value = "";
+  query = "";
+}
+
 export function renderLibrary() {
   renderRail();
   const list = document.getElementById("library-list");
@@ -284,8 +383,10 @@ export function renderLibrary() {
   // A search looks across every installed pack; otherwise one pack at a time.
   const shown = query ? installed : [...installed, ...available].filter((p) => p.name === activePack);
   let total = 0;
-  for (const pack of shown) {
-    const isInstalled = installed.includes(pack);
+  for (const listed of shown) {
+    const isInstalled = installed.includes(listed);
+    // A registry pack shows its entries once previewed (fetched, read-only).
+    const pack = listed.remote ? { ...(registry.model.previews.get(`${listed.name}@${listed.version}`) ?? listed), remote: listed.remote } : listed;
     const entries = pack.entries.filter((e) => matches(pack, e));
     if (query && !entries.length) continue;
     total += entries.length;
@@ -300,8 +401,13 @@ export function renderLibrary() {
       for (const entry of inChapter) group.append(entryRow(pack, entry, { installed: isInstalled }));
       section.append(group);
     }
+    if (pack.remote && !pack.entries.length) {
+      section.append(el("p", "library-empty-sub", `${entriesText(pack.remote.count)}${pack.remote.traps ? `, ${pack.remote.traps} of them traps` : ""}${pack.remote.chapters.length ? ` in ${pack.remote.chapters.join(", ")}` : ""}. Preview them, or install the pack to open them.`));
+      total += 1;
+    }
     list.append(section);
   }
+  if (query) total += registryResults(list);
   if (!shown.length && !query) {
     const empty = el("div", "library-empty");
     empty.append(

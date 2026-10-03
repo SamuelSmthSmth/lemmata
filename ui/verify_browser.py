@@ -1263,12 +1263,150 @@ def static_checks() -> None:
 DIST = PROJECT / "dist"
 
 
-def main() -> int:
-    if STATIC:
-        return static_main()
+# ---------------------------------------------------------------------------
+# A pack registry of our own, served locally, so no check depends on the network
+# ---------------------------------------------------------------------------
+
+ACCENT = "#7a1f5c"
+ACCENT_DARK = "#e08cc4"
+
+# A static server that, like GitHub Pages, lets any origin read what it serves.
+CORS_SERVER = """
+import functools, http.server, sys
+class Handler(http.server.SimpleHTTPRequestHandler):
+    def end_headers(self):
+        self.send_header("Access-Control-Allow-Origin", "*")
+        super().end_headers()
+    def log_message(self, *args):
+        pass
+http.server.ThreadingHTTPServer(("127.0.0.1", int(sys.argv[1])), functools.partial(Handler, directory=sys.argv[2])).serve_forever()
+"""
+
+
+def make_registry(root: Path) -> None:
+    """index.json and pack files shaped exactly as the registry's build writes them."""
+    import hashlib
+
+    library = json.loads(urllib.request.urlopen(f"{BASE}/api/library", timeout=10).read()) if not STATIC else json.loads((DIST / "static" / "data" / "library.json").read_text())
+    mth2010 = next(p for p in library if p["name"] == "core/mth2010")
+    newer = json.loads(json.dumps(mth2010))
+    newer["version"] = "1.1.0"
+    newer["entries"][0]["title"] += " (revised)"
+    template = json.loads((PROJECT / "courses" / "mth2010.json").read_text())  # a known-good source of entries
+    group = {
+        "format": 1, "name": "fixture/group-basics", "version": "1.0.0", "title": "Group basics", "summary": "First facts about groups.",
+        "authors": ["Fixture Author"], "license": "CC-BY-SA-4.0", "chapters": [{"id": "1", "title": "Groups"}],
+        "entries": [dict(template["entries"][0], chapter="1")],
+    }
+    preview = dict(group, name="fixture/preview-me", title="Preview me", summary="A pack to look inside before installing.")
+    tampered = dict(group, name="fixture/tampered", title="Tampered with", summary="Its file does not match the index.")
+    rows = []
+    for pack, honest in ((newer, True), (group, True), (preview, True), (tampered, False)):
+        raw = json.dumps(pack).encode()
+        path = root / "packs" / f"{pack['name']}.pack.json"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        # The tampered file differs from the bytes the index's sha256 vouches for.
+        path.write_bytes(raw if honest else raw.replace(b'"Tampered with"', b'"Tampered with!"'))
+        rows.append({
+            "name": pack["name"], "version": pack["version"], "title": pack["title"], "courses": pack.get("courses", []),
+            "summary": pack["summary"], "authors": pack["authors"], "license": pack["license"], "entries": len(pack["entries"]),
+            "traps": sum(e["kind"] == "trap" for e in pack["entries"]), "chapters": [c["title"] for c in pack["chapters"]],
+            "search": " ".join(e["title"] for e in pack["entries"]), "url": f"packs/{pack['name']}.pack.json",
+            "sha256": hashlib.sha256(raw).hexdigest(),
+        })
+    (root / "index.json").write_text(json.dumps({"format": 1, "generated": "2026-10-03T00:00:00+00:00", "engine": "0.1.0", "contribute": "https://github.com/example/packs", "packs": rows}))
+
+
+def registry_checks(registry_server: subprocess.Popen) -> None:
+    print("== the pack registry: search, install, update, preview, offline ==")
+    fresh()
+    ab("click", ".rail-button[data-view='library']")
+    deadline = time.time() + 10
+    while time.time() < deadline and "Registry · 4 packs" not in rail():
+        time.sleep(0.3)
+    check("Registry · 4 packs" in rail(), f"the rail says what the registry offers ({rail().splitlines()[-1]!r})")
+
+    print("== site.json: preinstall and accent ==")
+    check(available_packs()[:2] == ["core/mth2008", "core/notation"], f"only the packs site.json preinstalls are installed ({available_packs()})")
+    colour = js("getComputedStyle(document.documentElement).getPropertyValue('--wa-color-text-link').trim()")
+    want = ACCENT_DARK if js("document.documentElement.dataset.theme") == "dark" else ACCENT
+    check(colour.lower() == want, f"the site's accent replaces the link colour in this theme ({colour})")
+
+    js("(() => { const s = document.querySelector('#library-search'); s.value = 'group basics'; s.dispatchEvent(new Event('input')); return 1; })()")
+    time.sleep(0.4)
+    found = js("[...document.querySelectorAll('.registry-row .registry-title')].map(e => e.textContent).join(' | ')")
+    check("Group basics" in found, f"a search finds a registry pack ({found!r})")
+    js("[...document.querySelectorAll('.registry-row')].find(r => r.textContent.includes('Group basics')).querySelector('.text-button--primary').click(); 'ok'")
+    time.sleep(1.5)
+    check("Installed Group basics" in toasts(), f"Install fetches, checks and installs it ({toasts()[-80:]!r})")
+    check("fixture/group-basics" not in available_packs() and "Group basics" in rail(), "it moves to Installed")
+
+    js("(() => { const s = document.querySelector('#library-search'); s.value = 'tampered'; s.dispatchEvent(new Event('input')); return 1; })()")
+    time.sleep(0.4)
+    js("document.querySelector('.registry-row .text-button--primary').click(); 'ok'")
+    time.sleep(1.5)
+    check("checksum" in toasts(), "a file that does not match the index's sha256 is refused")
+    js("(() => { const s = document.querySelector('#library-search'); s.value = ''; s.dispatchEvent(new Event('input')); return 1; })()")
+
+    open_pack("core/mth2010")
+    check("update" in js("document.querySelector('.pack-button[data-pack=\"core/mth2010\"]').textContent"), "a newer registry version of an installed pack is an update")
+    pack_action("Update to v1.1.0")
+    time.sleep(1.5)
+    check("Updated MTH2010 to v1.1.0 — 1 changed" in toasts(), f"updating from the registry says what changed ({toasts()[-80:]!r})")
+
+    open_pack("fixture/preview-me")
+    pack_action("Preview entries")
+    time.sleep(1.2)
+    check(js("document.querySelectorAll('.pack[data-pack=\"fixture/preview-me\"] .entry').length") == 1, "Preview lists a registry pack's entries before installing")
+
+    registry_server.terminate()
+    registry_server.wait(timeout=10)
+    # Past the 10-minute freshness window, so the Library asks again and fails.
+    js(
+        "(async () => { const db = await new Promise(r => { const q = indexedDB.open('aether'); q.onsuccess = () => r(q.result); });"
+        " const tx = db.transaction('meta', 'readwrite'); const store = tx.objectStore('meta');"
+        " const row = await new Promise(r => { const q = store.get('registryIndex'); q.onsuccess = () => r(q.result); });"
+        " row.value.fetched -= 3600000; store.put(row); await new Promise(r => tx.oncomplete = r); db.close(); return 'ok'; })()"
+    )
+    ab("reload")
+    settle()
+    ab("click", ".rail-button[data-view='library']")
+    deadline = time.time() + 10
+    while time.time() < deadline and "Registry offline" not in rail():
+        time.sleep(0.3)
+    check("Registry offline · showing what it offered" in rail(), f"offline, the Library says so ({rail().splitlines()[-1]!r})")
+    check("fixture/preview-me" in available_packs(), "and still lists what the registry offered")
+
+
+def start_ui(env: dict[str, str]) -> subprocess.Popen:
     server = subprocess.Popen(
         [sys.executable, "-m", "ui", "--port", str(PORT)],
         cwd=str(PROJECT),
+        env={**os.environ, **env},
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+    )
+    for _ in range(80):
+        try:
+            urllib.request.urlopen(f"{BASE}/api/health", timeout=1)
+            return server
+        except Exception:
+            time.sleep(0.25)
+    raise RuntimeError("server did not start")
+
+
+def main() -> int:
+    if STATIC:
+        return static_main()
+    import tempfile
+
+    tmp = Path(tempfile.mkdtemp(prefix="aether-verify-"))
+    # The main run has no registry: its checks are about the app's own packs.
+    (tmp / "no-registry.json").write_text(json.dumps({"registry": ""}))
+    server = subprocess.Popen(
+        [sys.executable, "-m", "ui", "--port", str(PORT)],
+        cwd=str(PROJECT),
+        env={**os.environ, "LEMMATA_SITE": str(tmp / "no-registry.json")},
         stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL,
     )
@@ -1290,6 +1428,27 @@ def main() -> int:
         STARTING_SOURCE = EXAMPLES["even-square"]
 
         run_checks()
+
+        # Then the registry, against one of our own, with a branded site.json.
+        reg_port = free_port()
+        make_registry(tmp / "registry")
+        registry_server = subprocess.Popen(
+            [sys.executable, "-c", CORS_SERVER, str(reg_port), str(tmp / "registry")],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+        (tmp / "registry-site.json").write_text(json.dumps({
+            "registry": f"http://127.0.0.1:{reg_port}/",
+            "accent": {"light": ACCENT, "dark": ACCENT_DARK},
+            "preinstall": ["core/examples", "core/mth2010"],
+        }))
+        server.terminate()
+        server.wait(timeout=10)
+        server = start_ui({"LEMMATA_SITE": str(tmp / "registry-site.json")})
+        try:
+            registry_checks(registry_server)
+        finally:
+            registry_server.terminate()
     finally:
         ab("close")
         server.terminate()
@@ -1308,12 +1467,42 @@ def main() -> int:
     return 0
 
 
+def static_registry_checks() -> None:
+    print("== the registry in the static build: validated by the browser's own engine ==")
+    fresh()
+    ab("click", ".rail-button[data-view='library']")
+    deadline = time.time() + 15
+    while time.time() < deadline and "Registry · 4 packs" not in rail():
+        time.sleep(0.3)
+    js("(() => { const s = document.querySelector('#library-search'); s.value = 'group basics'; s.dispatchEvent(new Event('input')); return 1; })()")
+    time.sleep(0.4)
+    js("[...document.querySelectorAll('.registry-row')].find(r => r.textContent.includes('Group basics')).querySelector('.text-button--primary').click(); 'ok'")
+    deadline = time.time() + 60
+    while time.time() < deadline and "Installed Group basics" not in toasts():
+        time.sleep(0.5)
+    check("Installed Group basics" in toasts(), f"a registry pack installs with no server ({toasts()[-80:]!r})")
+
+
 def static_main() -> int:
     global DIST, STARTING_SOURCE
-    DIST = PROJECT / "dist"
-    if not (DIST / "index.html").exists():
-        print("No static build: run `uv run python ui/vendor_pyodide.py` and `uv run python ui/build_static.py` first.")
+    import tempfile
+
+    if not (ROOT / "static" / "vendor" / "pyodide" / "pyodide.mjs").exists():
+        print("Pyodide is not vendored: run `uv run python ui/vendor_pyodide.py` first.")
         return 1
+    # A build of our own, pointed at a local registry, so nothing depends on the network.
+    tmp = Path(tempfile.mkdtemp(prefix="aether-verify-static-"))
+    reg_port = free_port()
+    (tmp / "site.json").write_text(json.dumps({"registry": f"http://127.0.0.1:{reg_port}/"}))
+    DIST = tmp / "dist"
+    subprocess.run(
+        [sys.executable, str(ROOT / "build_static.py"), "--out", str(DIST)],
+        env={**os.environ, "LEMMATA_SITE": str(tmp / "site.json")},
+        check=True,
+        stdout=subprocess.DEVNULL,
+    )
+    make_registry(tmp / "registry")
+    registry_server = subprocess.Popen([sys.executable, "-c", CORS_SERVER, str(reg_port), str(tmp / "registry")])
     server = subprocess.Popen(
         [sys.executable, "-m", "http.server", str(PORT), "--bind", "127.0.0.1", "--directory", str(DIST)],
         stdout=subprocess.DEVNULL,
@@ -1325,10 +1514,12 @@ def static_main() -> int:
         EXAMPLES.update({e["id"]: e["source"] for e in examples["entries"]})
         STARTING_SOURCE = EXAMPLES["even-square"]
         static_checks()
+        static_registry_checks()
     finally:
         ab("close")
         server.terminate()
         server.wait(timeout=10)
+        registry_server.terminate()
     print()
     if failures:
         print(f"{len(failures)} check(s) failed:")

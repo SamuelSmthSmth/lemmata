@@ -566,6 +566,55 @@ python -m http.server --directory dist # or any web server
   Paths are relative, so the folder also works under a sub-path. The app needs
   no network once loaded, apart from fetching more of itself.
 
+## The pack registry
+
+Packs anyone can install live in a public registry,
+[`SamuelSmthSmth/lemmata-packs`](https://github.com/SamuelSmthSmth/lemmata-packs),
+published at `https://samuelsmthsmth.github.io/lemmata-packs/` (site.json
+`registry`).
+
+- **What it is.** A Git repository of `packs/<scope>/<slug>.pack.json` files.
+  - Its CI downloads the engine this app publishes (`static/engine/engine.zip`, `requirements.txt`, `version.json`).
+  - It re-checks every entry of every pack, each in its own process under a time budget, and refuses any verdict that differs from `expected`.
+  - On `main` it publishes `index.json`: metadata, a search text and each file's sha256.
+  - Pull requests are the moderation; there is no server and no accounts.
+- **In the app** (`js/registry.js`):
+  - The index is fetched at most every 10 minutes and cached in IndexedDB, so the Library still lists what the registry offered when it is offline.
+  - A search shows *From the registry* under the installed results.
+  - Registry packs appear under *Available*, and can be previewed before installing.
+  - A newer registry version of an installed pack is an *Update*.
+  - A pack file is installed only if its bytes match the index's sha256 and it then validates.
+  - The registry is optional: `"registry": ""` turns it off, and installed packs never depend on it.
+- **The core packs** are published there too, from `courses/` (still the source of truth, because the engine tests use it):
+  1. Raise the pack's `version`.
+  2. Run `uv run python ui/publish_packs.py ../lemmata-packs`.
+  3. Open a PR in the registry.
+
+  Students receive the change as an update, with no new app release.
+- **Sharing a pack made in the app.** A local pack's head offers *Share to the registry…*: export the file, upload it on GitHub, open the PR.
+
+## Customising for an institution
+
+One file, `site.json`, names and points a copy of the app. Write your own, set
+`LEMMATA_SITE=/path/to/site.json`, and run the server or `ui/build_static.py`:
+
+```json
+{
+  "name": "Proof Lab",
+  "tagline": "Department of Mathematics",
+  "accent": { "light": "#7a1f5c", "dark": "#e08cc4" },
+  "registry": "https://packs.example.ac.uk/",
+  "preinstall": ["core/examples", "core/notation"]
+}
+```
+
+Every field is optional:
+- **`accent`** is the one brandable colour. It must reach 4.5:1 on its theme's paper, or the default is used and a warning is printed.
+- **`registry`** can point at your own copy of the registry repository, so a department curates its own packs. `""` means no registry.
+- **`preinstall`** lists the bundled packs a first visit installs.
+
+The name also reaches the page title, the PDF report and the engine archive.
+
 ## About `static/vendor/`
 
 CodeMirror 6 is a graph of packages that share singleton state — facets like

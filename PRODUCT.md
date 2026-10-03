@@ -23,7 +23,7 @@ A "proof intern": it reads proofs written the way the notes write them, `∀ ε 
 - Students write a proof, see a verdict per line, inspect the proof state (declared variables, active hypotheses, scope) at any step, fix it, and export it to LaTeX or PDF for submission or revision.
 - Course packs transcribe a module's lecture notes into checkable proofs, keyed to the notes' own numbering ("Example 2.18"). MTH2008 Real Analysis and MTH2010 Algebra are the first two packs. The packs ship Lemmata transcriptions only, never the original notes.
 - Packs also carry deliberate blunders ("traps") that students can study as spot-the-error exercises.
-- Packs are installable packages (format 1, `aether.packs`): students install, uninstall, update and export them in the browser, install one from a shared `.pack.json`, and make their own from a workspace folder. A course code is optional. A cloud registry to search and install from comes later; the local machinery is what it will feed.
+- Packs are installable packages (format 1, `aether.packs`): students install, uninstall, update and export them in the browser, install one from a shared `.pack.json`, and make their own from a workspace folder. A course code is optional. The public pack registry (`SamuelSmthSmth/lemmata-packs`) is where anyone publishes packs: pull requests are the moderation, and its CI re-checks every entry with the engine students use. The app searches it and installs from it, offline-tolerant and optional. An institution can point its copy at its own registry through `site.json`.
 
 ## Capabilities and Constraints
 

@@ -2789,6 +2789,77 @@ body[data-exercise="hidden"] .step::before {
   gap: 6px;
 }
 
+/* --- The pack registry ---------------------------------------------------- */
+
+/* One quiet line under the rail: the registry's state, never a banner. */
+.packs-registry {
+  margin: 14px 10px 0;
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--muted-dim);
+}
+
+.packs-registry--offline,
+.packs-registry--unavailable {
+  color: var(--muted);
+}
+
+.registry-results {
+  margin-top: 32px;
+}
+
+.registry-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 4px 16px;
+  padding: 12px 6px;
+  border-top: 1px solid var(--hairline);
+}
+
+.registry-row:last-child {
+  border-bottom: 1px solid var(--hairline);
+}
+
+.registry-row .pack-meta,
+.registry-row .pack-note {
+  margin: 0;
+}
+
+.registry-row .pack-actions {
+  margin: 0;
+}
+
+.registry-title {
+  margin: 0 0 2px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.share-steps {
+  margin: 0 0 18px;
+  padding-left: 1.4em;
+  max-width: 68ch;
+  font-family: var(--font-prose);
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--text);
+}
+
+.share-steps li + li {
+  margin-top: 6px;
+}
+
+.share-steps code {
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+
+.share-link {
+  color: var(--accent);
+  text-underline-offset: 2px;
+}
+
 /* --- Guide ---------------------------------------------------------------- */
 
 .page--guide {
@@ -3484,6 +3555,10 @@ body[data-exercise="hidden"] .tree-row.is-active .tree-mark {
 
 /* Narrow: the panes stack and scroll as one page; the rail becomes a bar. */
 @media (max-width: 760px) {
+  .registry-row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
   .pack-dialog-actions wa-button {
     flex: 1 1 0;
   }

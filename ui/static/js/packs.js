@@ -230,6 +230,7 @@ export function buildPack(manifest, files, verdicts) {
 
 export const model = {
   catalog: [], // bundled packs, from /api/library
+  registry: [], // stubs of what the pack registry offers (js/registry.js), not yet fetched
   records: new Map(), // name -> {name, version, origin, installed, pack}
 };
 
@@ -243,7 +244,7 @@ export function installedPacks() {
 export const installedRecords = () => [...model.records.values()];
 
 export function findPack(name) {
-  return model.records.get(name)?.pack ?? model.catalog.find((p) => p.name === name) ?? null;
+  return model.records.get(name)?.pack ?? model.catalog.find((p) => p.name === name) ?? model.registry.find((p) => p.name === name) ?? null;
 }
 
 /** Find an installed entry by `name/entry` key. */
@@ -302,5 +303,32 @@ export async function uninstall(name) {
   return previous;
 }
 
-export const updates = () => updatesFor(model.catalog, installedRecords());
-export const available = () => browsable(model.catalog, installedRecords());
+/**
+ * Updates: a bundled pack that differs from the installed copy, or a registry
+ * pack with a newer version.  A registry update is a stub until it is
+ * fetched, so its `diff` is null and the update says what changed afterwards.
+ */
+export function updates() {
+  const records = installedRecords();
+  const out = updatesFor(model.catalog, records);
+  const listed = new Set(out.map((u) => u.pack.name));
+  const installed = new Map(records.map((r) => [r.name, r]));
+  for (const stub of model.registry) {
+    const record = installed.get(stub.name);
+    if (!record || compareVersions(stub.version, record.version) <= 0) continue;
+    const bundled = out.findIndex((u) => u.pack.name === stub.name);
+    // The registry's version wins over an older bundled one.
+    if (bundled >= 0 && compareVersions(stub.version, out[bundled].pack.version) > 0) out.splice(bundled, 1);
+    else if (listed.has(stub.name)) continue;
+    out.push({ pack: stub, record, diff: null });
+  }
+  return out;
+}
+
+/** Packs to install: bundled ones not installed, then registry ones neither installed nor bundled. */
+export function available() {
+  const records = installedRecords();
+  const bundled = browsable(model.catalog, records);
+  const known = new Set([...records.map((r) => r.name), ...model.catalog.map((p) => p.name)]);
+  return [...bundled, ...model.registry.filter((s) => !known.has(s.name))];
+}

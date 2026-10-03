@@ -642,6 +642,46 @@ check(/could not be checked/.test(asProblems([["a", "TIMEOUT"], ["b", "INVALID"]
 check(/core\/ scope/.test(asProblems([["a", "VALID"], ["b", "INVALID"]], { name: "core/mine" })), "buildPack lets a pack claim the core/ scope");
 console.log("packs checked");
 
+// --- registry.js: the index, search, and checking a download -----------------
+const registry = await moduleAt("js/registry.js");
+const sha = "a".repeat(64);
+const doc = {
+  format: 1,
+  engine: "0.1.0",
+  contribute: "https://github.com/x/y",
+  packs: [
+    { name: "core/mth2008", version: "1.1.0", title: "Real Analysis", courses: ["MTH2008"], summary: "Analysis.", authors: ["A"], license: "CC-BY-SA-4.0", entries: 67, traps: 10, chapters: ["The Real Numbers"], search: "Example 2.18 limits", url: "packs/core/mth2008.pack.json", sha256: sha },
+    { name: "someone/groups", version: "1.0.0", title: "Group basics", courses: [], summary: "Real numbers do not appear.", authors: ["B"], license: "CC-BY-SA-4.0", entries: 2, traps: 1, chapters: ["Groups"], search: "Lemma 1 Lagrange", url: "packs/someone/groups.pack.json", sha256: sha },
+    { name: "Bad Name", version: "1.0.0", url: "x", sha256: sha },
+    { name: "someone/nosha", version: "1.0.0", url: "x" },
+  ],
+};
+const stubs = registry.indexStubs(doc);
+check(stubs.length === 2, `indexStubs keeps malformed rows (${stubs.length})`);
+check(registry.indexStubs({ ...doc, format: 2 }).length === 0, "indexStubs reads an index format it does not know");
+check(stubs[0].remote.count === 67 && stubs[0].entries.length === 0 && stubs[0].remote.engine === "0.1.0", "a stub does not carry its index row");
+check(registry.searchStubs(stubs, "MTH2008 real analysis")[0]?.name === "core/mth2008", "search does not find a pack by course and title");
+check(registry.searchStubs(stubs, "real")[0]?.name === "core/mth2008", "a title match does not outrank a summary match");
+check(registry.searchStubs(stubs, "lagrange")[0]?.name === "someone/groups", "search does not reach the theorems inside a pack");
+check(registry.searchStubs(stubs, "lagrange analysis").length === 0, "search matches a pack missing one of the words");
+check(registry.searchStubs(stubs, "").length === 0, "an empty search lists packs");
+const bundledPack = { name: "core/mth2008", version: "1.0.0" };
+check(registry.offered(stubs, [bundledPack]).map((s) => s.name).join() === "core/mth2008,someone/groups", "offered drops a newer registry copy of a bundled pack");
+check(registry.offered(stubs, [{ name: "core/mth2008", version: "1.1.0" }]).map((s) => s.name).join() === "someone/groups", "offered lists a registry copy no newer than the bundled one");
+const bytes = new TextEncoder().encode('{"x":1}');
+const good = await registry.sha256Hex(bytes);
+const { createHash } = await import("node:crypto");
+check(good === createHash("sha256").update(bytes).digest("hex"), "sha256Hex disagrees with Node's sha256");
+check((await registry.verifiedText(bytes, good)) === '{"x":1}', "verifiedText refuses bytes that match");
+let refused = false;
+try {
+  await registry.verifiedText(bytes, sha);
+} catch (error) {
+  refused = /checksum/.test(error.message);
+}
+check(refused, "verifiedText accepts bytes the index does not vouch for");
+console.log("registry checked");
+
 console.log();
 if (failures.length) {
   console.log(`${failures.length} check(s) failed:`);

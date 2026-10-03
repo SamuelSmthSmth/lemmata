@@ -72,6 +72,7 @@ Open your browser at `http://127.0.0.1:8000`.
 
 - **Proofs** — a workspace of many proofs in folders and tabs, kept in your browser (IndexedDB), with `import` between them. A CodeMirror 6 editor with completion, proof templates, a symbol strip, and failing steps marked in the gutter; the step auditor and the context inspector beside it.
 - **Library** — a pack manager for course packs: MTH2008 (Real Analysis) and MTH2010 (Algebra) transcribed from the lecture notes and keyed to their own numbering, the notes' notation and its traps, and the worked examples. Install, uninstall, update and export packs, install one from a `.pack.json`, or make a folder of your own proofs into a pack. Open an entry beside your own copy of its proof, open a trap as an exercise, or import a proved theorem into your own proof.
+- **Packs from the registry** — search the public [pack registry](https://github.com/SamuelSmthSmth/lemmata-packs) from the Library and install what others have published; every entry there is checked before it is listed.
 - **Guide** — the handbook in the app, with a *Try it* button on every example and the live capability matrix.
 - **Settings**, a command palette (`Ctrl/Cmd+K`), LaTeX/PDF export, and a `.zip` backup of the whole workspace.
 
