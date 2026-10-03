@@ -22,3 +22,7 @@ Lecture notes/
 ui/static/vendor/pyodide/
 # The static build (ui/build_static.py)
 dist/
+
+# Vercel CLI project links
+.vercel
+.env*
