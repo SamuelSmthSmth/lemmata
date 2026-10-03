@@ -648,6 +648,7 @@ Every field is optional:
 - **`accent`** is the one brandable colour. It must reach 4.5:1 on its theme's paper, or the default is used and a warning is printed.
 - **`registry`** can point at your own copy of the registry repository, so a department curates its own packs. `""` means no registry.
 - **`preinstall`** lists the bundled packs a first visit installs.
+- **`home`** is where the app's mark (the italic 𝐿 at the top of the rail) leads: the site the app belongs to.
 
 The name also reaches the page title, the PDF report and the engine archive.
 The same file builds an institution's desktop app (`desktop/build.py`, with

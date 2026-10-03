@@ -27,6 +27,10 @@ written in, U+2100-214F, U+2190-21FF and U+2200-22FF.  Without it those fall
 back to whatever system font has them, which shows at the landing page's
 display sizes and in the editor alike.  The source file is pinned by sha256.
 
+The name, set as LaTeX sets $L\\text{emma}t\\alpha$, is the fourth file: the
+handful of glyphs it uses (upright e m a, math-italic 𝐿 𝑡 𝛼) cut from Latin
+Modern Math, LaTeX's own face (GUST Font License), pinned by sha256.
+
 No npm is involved: the tarball comes straight from the npm registry and is read
 with the standard library.  Cutting the math subset needs fontTools:
 
@@ -59,6 +63,42 @@ MATH_URL = "https://github.com/JetBrains/JetBrainsMono/raw/v2.304/fonts/variable
 MATH_SHA256 = "662a196d58f1183bf2d77428b6d5283fe3f45161ab021bea4036bc98e5cac016"
 MATH_RANGES = "U+2100-214F,U+2190-21FF,U+2200-22FF"
 MATH_FILE = "jetbrains-mono-math-wght-normal.woff2"
+
+
+WORDMARK_URL = "https://mirrors.ctan.org/fonts/lm-math/opentype/latinmodern-math.otf"
+WORDMARK_SHA256 = "6075562b771f8b82f0c179e363389684f2dd09de30038269e2628e504bd7be0f"
+WORDMARK_TEXT = "Lemmatα𝐿𝑡𝛼"
+WORDMARK_FILE = "latinmodern-wordmark.woff2"
+WORDMARK_LICENSE = "https://mirrors.ctan.org/fonts/lm-math/doc/GUST-FONT-LICENSE.txt"
+
+
+def vendor_wordmark() -> int:
+    import hashlib
+
+    from fontTools import subset
+
+    with urllib.request.urlopen(WORDMARK_URL, timeout=180) as resp:  # noqa: S310 - fixed host
+        blob = resp.read()
+    if hashlib.sha256(blob).hexdigest() != WORDMARK_SHA256:
+        print("ERROR: Latin Modern Math does not match its pinned sha256", file=sys.stderr)
+        return 0
+    source = DEST / "upstream.otf"
+    source.write_bytes(blob)
+    options = subset.Options()
+    options.flavor = "woff2"
+    options.layout_features = []
+    options.name_IDs = ["*"]
+    font = subset.load_font(str(source), options)
+    subsetter = subset.Subsetter(options)
+    subsetter.populate(text=WORDMARK_TEXT)
+    subsetter.subset(font)
+    subset.save_font(font, str(DEST / WORDMARK_FILE), options)
+    source.unlink()
+    with urllib.request.urlopen(WORDMARK_LICENSE, timeout=60) as resp:  # noqa: S310 - fixed host
+        (DEST / "LICENSE-latinmodern.txt").write_bytes(resp.read())
+    size = (DEST / WORDMARK_FILE).stat().st_size
+    print(f"  {WORDMARK_FILE} ({size / 1024:.1f} KB, the wordmark's glyphs from Latin Modern Math)")
+    return size
 
 
 def vendor_math() -> int:
@@ -117,6 +157,10 @@ def main() -> int:
     if not math:
         return 1
     total += math
+    wordmark = vendor_wordmark()
+    if not wordmark:
+        return 1
+    total += wordmark
 
     # OFL requires the licence to travel with the font.
     licence = members.get(f"{PREFIX}LICENSE")

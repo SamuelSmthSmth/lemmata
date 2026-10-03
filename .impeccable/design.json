@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-10-03T21:00:00+00:00",
+  "generatedAt": "2026-10-03T23:00:00+00:00",
   "title": "Design System: Lemmata",
   "extensions": {
     "colorMeta": {
@@ -215,6 +215,10 @@
       "registry-body": {
         "displayName": "Registry Body",
         "purpose": "Pack registry site: sans reading text; ledes and summaries in Ink Quiet to 64ch."
+      },
+      "wordmark": {
+        "displayName": "Wordmark",
+        "purpose": "The name as LaTeX sets it, 𝐿emma𝑡𝛼 ($L\\text{emma}t\\alpha$): a 2.3 KB Latin Modern Math subset (GUST Font License; ui/vendor_fonts.py) at 1.5em of its context. Sets the name only; the one sanctioned italic and second face. A non-Lemmata site name is set plainly in mono."
       }
     },
     "shadows": [
@@ -249,6 +253,11 @@
         "name": "registry-chevron",
         "value": "transform 0.15s ease",
         "purpose": "Pack registry site: an opened entry's chevron turns 90 degrees; removed under prefers-reduced-motion. Nothing else moves."
+      },
+      {
+        "name": "site-wordmark",
+        "value": "opacity and filter 0.45s, transform and slot width 0.55s, cubic-bezier(0.16, 1, 0.3, 1), staggered 55ms per letter",
+        "purpose": "Public site nav: the name trades its plain mono form and its typeset form, each letter cross-fading through a 4px blur. First flip after the scrub stops ('scrub:stopped', or at once without the hero) plus 1.8-3.6s, then every 5-11s at random, only while scrollY < 240 and the tab is visible. Reduced motion: the typeset form, still."
       }
     ],
     "breakpoints": [
@@ -369,7 +378,8 @@
       "docColumn": "760px",
       "themeKey": "aether-theme (shared with the app, resolved before first paint)",
       "fonts": "the app's own fonts.css, including the JetBrains Mono math subset (U+2100-214F, U+2190-21FF, U+2200-22FF; ui/vendor_fonts.py, sha256-pinned)",
-      "finishReview": "ship, after one fix batch; screenshots in .impeccable/review/"
+      "finishReview": "ship, after one fix batch; screenshots in .impeccable/review/",
+      "wordmark": "nav: animated wordmark (web/partials/nav.html, ui/build_site.py wordmark(), site.css .wm*, site.js); footer: static wordmark; no logo on any page"
     },
     "registry": {
       "source": "lemmata-packs: tools/pages.py, web/shell.html, web/publish.html, web/assets/site.css, web/assets/site.js, web/assets/fonts/",
@@ -381,7 +391,13 @@
       "themeKey": "aether-theme (shared with the app and the public site, resolved before first paint)",
       "fonts": "the app's JetBrains Mono latin, greek and math subsets, self-hosted",
       "finishReview": "ship, after two fix rounds; screenshots in .impeccable/review/packs/",
-      "deferred": "Formulas inside trap explanations are set in the sans: the explanation is pack data shared with the app, and inline code needs a pack-format change."
+      "deferred": "Formulas inside trap explanations are set in the sans: the explanation is pack data shared with the app, and inline code needs a pack-format change.",
+      "wordmark": "top bar: static wordmark with 'packs' in Ink Quiet; favicon is ui/static/icon.svg"
+    },
+    "brand": {
+      "mark": "No logo: the name is the mark (Wordmark).",
+      "appRailMark": "32px link to site.json `home` (default https://lemmata.sous.systems/) showing the italic 𝐿 at 24px; Paper Lowered on hover; 2px Proof Blue focus ring; aria-label '<name> home page'; hidden on phones.",
+      "icon": "The open tombstone: a white hollow square on a Proof Blue tile. desktop/icon.svg on a 1024 grid with the macOS margin; ui/static/icon.svg hinted on the 16px grid (tile rx 3; square x4 y4 w8 h8, stroke 2, crispEdges)."
     }
   },
   "components": [
@@ -445,9 +461,9 @@
       "name": "View Rail",
       "kind": "nav",
       "refersTo": "app-rail",
-      "description": "44px rail of views; the current view is the accent icon on a 28px lowered square, never a margin rule.",
-      "html": "<nav class=\"ds-rail\"><span class=\"ds-rail-mark\">Æ</span><button class=\"ds-rail-btn\" aria-current=\"page\" aria-label=\"Workspace\"><svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.75\"><path d=\"M4 5h16M4 12h16M4 19h10\"/></svg></button><button class=\"ds-rail-btn\" aria-label=\"Library\"><svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.75\"><path d=\"M5 4v16M10 4v16M15 5l4 15\"/></svg></button></nav>",
-      "css": ".ds-rail{display:flex;flex-direction:column;gap:2px;width:44px;padding:8px 0;background:#f7f8f9;border-right:1px solid #dde1e6;font-family:'JetBrains Mono',monospace}.ds-rail-mark{display:grid;place-items:center;height:28px;margin-bottom:8px;font-size:15px;font-weight:700;color:#16181d}.ds-rail-btn{position:relative;display:grid;place-items:center;height:40px;margin:0 4px;border:0;border-radius:2px;background:none;color:#555b6a;cursor:pointer}.ds-rail-btn svg{position:relative;width:18px;height:18px}.ds-rail-btn:hover{color:#16181d;background:#eff1f4}.ds-rail-btn:focus-visible{outline:2px solid #0a5fbf;outline-offset:-2px}.ds-rail-btn[aria-current=page]{color:#0a5fbf}.ds-rail-btn[aria-current=page]::before{content:'';position:absolute;left:50%;top:50%;width:28px;height:28px;transform:translate(-50%,-50%);border-radius:2px;background:#eff1f4}"
+      "description": "44px rail of views under a 32px home link showing the wordmark's 𝐿; the current view is the accent icon on a 28px lowered square, never a margin rule.",
+      "html": "<nav class=\"ds-rail\"><a class=\"ds-rail-mark\" href=\"#\" aria-label=\"Lemmata home page\"><span aria-hidden=\"true\">𝐿</span></a><button class=\"ds-rail-btn\" aria-current=\"page\" aria-label=\"Workspace\"><svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.75\"><path d=\"M4 5h16M4 12h16M4 19h10\"/></svg></button><button class=\"ds-rail-btn\" aria-label=\"Library\"><svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.75\"><path d=\"M5 4v16M10 4v16M15 5l4 15\"/></svg></button></nav>",
+      "css": ".ds-rail{display:flex;flex-direction:column;gap:2px;width:44px;padding:8px 0;background:#f7f8f9;border-right:1px solid #dde1e6;font-family:'JetBrains Mono',monospace}.ds-rail-mark{display:grid;place-items:center;width:32px;height:32px;margin:0 auto 8px;border-radius:2px;font-family:'Lemmata Wordmark','Latin Modern Math','Cambria Math',serif;font-size:24px;line-height:1;color:#16181d;text-decoration:none}.ds-rail-mark:hover{background:#eff1f4}.ds-rail-mark:focus-visible{outline:2px solid #0a5fbf;outline-offset:-2px}.ds-rail-btn{position:relative;display:grid;place-items:center;height:40px;margin:0 4px;border:0;border-radius:2px;background:none;color:#555b6a;cursor:pointer}.ds-rail-btn svg{position:relative;width:18px;height:18px}.ds-rail-btn:hover{color:#16181d;background:#eff1f4}.ds-rail-btn:focus-visible{outline:2px solid #0a5fbf;outline-offset:-2px}.ds-rail-btn[aria-current=page]{color:#0a5fbf}.ds-rail-btn[aria-current=page]::before{content:'';position:absolute;left:50%;top:50%;width:28px;height:28px;transform:translate(-50%,-50%);border-radius:2px;background:#eff1f4}"
     },
     {
       "name": "Reading Pane Tabs",
@@ -544,6 +560,22 @@
       "description": "Pack registry site: course code inline in Proof Blue, mono meta, summary, the Verified line (the only green), and the two actions.",
       "html": "<header class=\"ds-phead\"><h1><span class=\"ds-code\">MTH2008</span>Real Analysis</h1><p class=\"ds-pmeta\"><span>v1.0.0</span> <span>Samuel Okwuonu</span> <span>CC BY-SA 4.0</span> <span>core/mth2008</span></p><p class=\"ds-psum\">Results from the MTH2008 lecture notes, restated and proved in the checker's notation.</p><p class=\"ds-pver\"><b>Verified</b> every entry gives its recorded verdict under engine 0.1.0, checked 3 October 2026.</p><div class=\"ds-pact\"><a class=\"ds-rbtn ds-rbtn--primary\" href=\"#\">Open in Lemmata</a><a class=\"ds-rbtn ds-rbtn--outline\" href=\"#\">Download .pack.json</a></div></header>",
       "css": ".ds-phead h1{margin:0;font:600 clamp(1.75rem,3vw,2.25rem)/1.15 'JetBrains Mono',ui-monospace,monospace;letter-spacing:-.02em;color:#16181d}.ds-code{margin-right:.5em;color:#0a5fbf}.ds-pmeta{margin:8px 0 0;font:12px 'JetBrains Mono',ui-monospace,monospace;color:#666c7a}.ds-pmeta span{white-space:nowrap}.ds-pmeta span:not(:last-child)::after{content:' ·'}.ds-psum{margin:10px 0 0;max-width:64ch;font:15px/1.6 -apple-system,'Segoe UI',Roboto,sans-serif;color:#555b6a}.ds-pver{margin:14px 0 0;font:12px 'JetBrains Mono',ui-monospace,monospace;color:#555b6a}.ds-pver b{color:#157333}.ds-pact{display:flex;flex-wrap:wrap;gap:10px;margin-top:20px}.ds-rbtn{display:inline-flex;align-items:center;min-height:34px;padding:0 14px;border:1px solid transparent;border-radius:2px;font:600 13px 'JetBrains Mono',ui-monospace,monospace;text-decoration:none;white-space:nowrap}.ds-rbtn--primary{background:#0a5fbf;color:#fff}.ds-rbtn--primary:hover{background:color-mix(in oklab,#0a5fbf 86%,#16181d)}.ds-rbtn--outline{border-color:#8a909c;color:#16181d}.ds-rbtn--outline:hover{background:#eff1f4}.ds-rbtn:focus-visible{outline:2px solid #0a5fbf;outline-offset:2px}"
+    },
+    {
+      "name": "Wordmark",
+      "kind": "custom",
+      "refersTo": "site-wordmark",
+      "description": "The name is the mark: 𝐿emma𝑡𝛼 in the Lemmata Wordmark face. Static in footers and the registry; in the site nav each letter trades its mono and typeset forms.",
+      "html": "<a class=\"ds-wm-link\" href=\"#\" aria-label=\"Lemmata, home\"><span class=\"ds-wm\" aria-hidden=\"true\">𝐿emma𝑡𝛼</span></a>",
+      "css": ".ds-wm-link{color:#16181d;font-family:'JetBrains Mono',monospace;font-weight:700;font-size:15px;text-decoration:none}.ds-wm-link:focus-visible{outline:2px solid #0a5fbf;outline-offset:2px}.ds-wm{display:inline-flex;align-items:baseline;line-height:1;font-family:'Lemmata Wordmark','Latin Modern Math','Cambria Math',serif;font-weight:400;font-size:1.5em;letter-spacing:0}"
+    },
+    {
+      "name": "App Icon",
+      "kind": "custom",
+      "refersTo": "app-icon",
+      "description": "The open tombstone: a white hollow square on a Proof Blue tile; the favicon, hinted on the 16px grid. Never shown on a page.",
+      "html": "<svg class=\"ds-app-icon\" viewBox=\"0 0 16 16\" aria-hidden=\"true\"><rect width=\"16\" height=\"16\" rx=\"3\" fill=\"#0a5fbf\"/><rect x=\"4\" y=\"4\" width=\"8\" height=\"8\" fill=\"none\" stroke=\"#ffffff\" stroke-width=\"2\" shape-rendering=\"crispEdges\"/></svg>",
+      "css": ".ds-app-icon{width:64px;height:64px;display:block}"
     }
   ],
   "narrative": {
@@ -555,7 +587,8 @@
       "Status lives in 2px rails and coloured words, never in filled pills or cards.",
       "The left margin belongs to the failure rail; current-item marks use ink, weight and a lowered fill instead.",
       "Green appears only in verdicts, so red lands when it does.",
-      "Light and dark are equal citizens, each with its own picked palette."
+      "Light and dark are equal citizens, each with its own picked palette.",
+      "No logo: the name, typeset as LaTeX sets it ($L\\text{emma}t\\alpha$), is the mark."
     ],
     "rules": [
       {
@@ -575,7 +608,12 @@
       },
       {
         "name": "The Formal-Mono Rule",
-        "body": "Anything the engine checks, and every piece of chrome, is set in the monospace; only sentences use the sans. No italics.",
+        "body": "Anything the engine checks, and every piece of chrome, is set in the monospace; only sentences use the sans. No italics: the subsets ship none, and a synthesised slant on a mono face reads as a rendering fault. The wordmark's math italics are the one sanctioned exception, scoped to the name.",
+        "section": "typography"
+      },
+      {
+        "name": "The Name Is The Mark Rule",
+        "body": "There is no logo. The name is set in the Wordmark face (𝐿emma𝑡𝛼) wherever the brand stands: the site's nav and footer, the registry's top bar, and, as its 𝐿 alone, the app rail's top. The face never sets any other text, and its italics never spread to it.",
         "section": "typography"
       },
       {
@@ -624,6 +662,7 @@
       "Do use the segmented control for a choice among a few options, and the native text and icon buttons for actions.",
       "Do give every form control the one Control Border, and give a flag the accent only when it is news.",
       "Do set the public site's display specimen in JetBrains Mono, wrapping only between clauses, and let red appear once per demonstration, at its failing step.",
+      "Do let the name stand as the mark: 𝐿emma𝑡𝛼 in the Wordmark face at 1.5em, static everywhere but the site nav, and no logo on any page.",
       "Do keep the registry's entry keys in quiet ink until a search, the URL or the pointer lights them, and set every proof it shows as the app's editor sets it in the mono scheme."
     ],
     "donts": [
@@ -631,7 +670,7 @@
       "Don't use red for anything that has not actually failed or will not actually destroy.",
       "Don't draw a vertical coloured rule at the left of a row for anything but failure or caveat.",
       "Don't wrap rows in cards, give passing steps badges, or use filled status pills.",
-      "Don't introduce a display face, italics, a second sans, or text below 11px.",
+      "Don't introduce a display face, italics, a second sans, or text below 11px; the Wordmark face and its italics set the name and nothing else.",
       "Don't add drop shadows; floating layers separate by surface and border, and the selected-row inset ring is the only shadow.",
       "Don't fetch anything cross-origin (icons, fonts, scripts): the app makes no runtime network requests."
     ]

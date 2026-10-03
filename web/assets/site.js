@@ -70,6 +70,62 @@ if (menu) {
   });
 }
 
+// --- The wordmark ----------------------------------------------------------------
+//
+// Now and then the name in the nav re-sets itself as LaTeX would set it, and
+// back.  Each slot's width is measured in both forms so the letters glide
+// into place rather than jump.  Reduced motion: the typeset form, still.
+
+const wordmark = document.querySelector("[data-wordmark]");
+if (wordmark) {
+  const still = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const measure = () => {
+    for (const slot of wordmark.querySelectorAll(".wm-slot")) {
+      const [plain, tex] = slot.children;
+      slot.style.setProperty("--wp", `${plain.getBoundingClientRect().width}px`);
+      slot.style.setProperty("--wt", `${tex.getBoundingClientRect().width}px`);
+    }
+  };
+  if (still) {
+    wordmark.dataset.form = "tex";
+  } else {
+    const between = (lo, hi) => lo + Math.random() * (hi - lo);
+    let timer = null;
+    const flip = () => {
+      wordmark.dataset.form = wordmark.dataset.form === "tex" ? "plain" : "tex";
+      schedule();
+    };
+    // Only while the top of the page is on screen: never at the edge of vision
+    // while someone reads further down, and never over the hidden tab.
+    const atTop = () => !document.hidden && window.scrollY < 240;
+    const schedule = (first = false) => {
+      clearTimeout(timer);
+      timer = setTimeout(() => (atTop() ? flip() : schedule()), first ? between(1800, 3600) : between(5000, 11000));
+    };
+    // The hero's audit has the first viewport to itself: the name waits until
+    // the scrub has stopped on its failing step (or starts now, on a page
+    // without one).
+    // Listen at once, so a scrub that stops before the fonts arrive still counts.
+    let scrubDone = !document.querySelector(".run");
+    let ready = false;
+    const begin = () => {
+      if (scrubDone && ready) schedule(true);
+    };
+    document.addEventListener("scrub:stopped", () => {
+      if (!scrubDone) {
+        scrubDone = true;
+        begin();
+      }
+    });
+    document.fonts.ready.then(() => {
+      wordmark.dataset.form = "plain";
+      measure();
+      ready = true;
+      begin();
+    });
+  }
+}
+
 // --- Storage notice -----------------------------------------------------------
 
 // On the landing page it waits until the hero is scrolled away, so it never
@@ -181,6 +237,7 @@ if (run) {
         timer = setTimeout(step, i === fail ? 900 : 520);
       } else {
         timer = null;
+        document.dispatchEvent(new Event("scrub:stopped"));
       }
     };
     step();
@@ -189,6 +246,7 @@ if (run) {
   scrub.addEventListener("input", () => {
     stop();
     show(Number(scrub.value));
+    document.dispatchEvent(new Event("scrub:stopped"));
   });
   replay.addEventListener("click", play);
 

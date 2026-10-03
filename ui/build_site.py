@@ -79,6 +79,21 @@ def fill(text: str, values: dict[str, str], where: str) -> str:
     return PLACEHOLDER.sub(one, text)
 
 
+def versioned(html: str) -> str:
+    """Tag every link to web/assets/ with a hash of the file, so a changed
+    stylesheet, script or screenshot is never served from a stale cache."""
+    import hashlib
+
+    def tag(match: re.Match) -> str:
+        path = WEB / "assets" / match.group(2)
+        if not path.is_file():
+            return match.group(0)
+        digest = hashlib.sha256(path.read_bytes()).hexdigest()[:10]
+        return f"{match.group(1)}assets/{match.group(2)}?v={digest}"
+
+    return re.sub(r'((?:\.\./)*|\./)assets/([\w./-]+\.(?:css|js|webp|png|svg))', tag, html)
+
+
 def pages() -> list[Path]:
     return sorted(
         p for p in WEB.rglob("*.html") if not (set(p.relative_to(WEB).parts) & NOT_PAGES)
@@ -107,7 +122,7 @@ def render(out: Path, computed: dict[str, str]) -> list[str]:
         values.update({f"partial_{k}": fill(v, values, f"partials/{k}.html") for k, v in partials.items()})
         target = out / rel
         target.parent.mkdir(parents=True, exist_ok=True)
-        html = fill(page.read_text(encoding="utf-8"), values, str(rel))
+        html = versioned(fill(page.read_text(encoding="utf-8"), values, str(rel)))
         if "{{" in html:
             raise ValueError(f"{rel}: a placeholder was left unfilled near {html[html.index('{{'):][:40]!r}")
         target.write_text(html, encoding="utf-8")
@@ -127,6 +142,24 @@ def render(out: Path, computed: dict[str, str]) -> list[str]:
     return written
 
 
+# The name as LaTeX sets it, $L\\text{emma}t\\alpha$: one slot per letter, the
+# plain letter and its typeset form stacked, so the two can trade places.
+WORDMARK = list(zip("Lemmata", ["𝐿", "e", "m", "m", "a", "𝑡", "𝛼"]))
+
+
+def wordmark(name: str, *, animate: bool) -> str:
+    """The site's name as a wordmark: typeset (static), or trading forms (the nav)."""
+    if name != "Lemmata":  # an institution's own name is set plainly
+        return f'<span class="wm-name">{escape(name)}</span>'
+    if not animate:
+        return '<span class="wm wm--static" aria-hidden="true">' + "".join(t for _, t in WORDMARK) + "</span>"
+    slots = "".join(
+        f'<span class="wm-slot" style="--i: {i}"><span class="wm-plain">{p}</span><span class="wm-tex">{t}</span></span>'
+        for i, (p, t) in enumerate(WORDMARK)
+    )
+    return f'<span class="wm" data-wordmark aria-hidden="true">{slots}</span>'
+
+
 def computed_content() -> dict[str, str]:
     """Content the pages show that the engine itself produces (see web/content.py)."""
     sys.path.insert(0, str(WEB))
@@ -134,7 +167,13 @@ def computed_content() -> dict[str, str]:
         import content  # web/content.py
     finally:
         sys.path.pop(0)
-    return content.build()
+    from ui.site import NAME
+
+    return {
+        **content.build(),
+        "wordmark_nav": wordmark(NAME, animate=True),
+        "wordmark_static": wordmark(NAME, animate=False),
+    }
 
 
 def main(argv: list[str]) -> int:

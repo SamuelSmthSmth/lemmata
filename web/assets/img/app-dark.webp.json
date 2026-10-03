@@ -1,4 +1,4 @@
 {
-  "prompt": "Origin: screenshot of the real Lemmata app (static build, /app/), 1440x900, dark theme, captured with agent-browser on 2026-10-03 with web/content.py HERO_PROOF loaded by permalink and the failing Subproof step selected; converted to WebP (quality 86) with ImageMagick. Not generated.",
-  "createdAt": "2026-10-03T17:40:31.787Z"
+  "prompt": "Origin: screenshot of the real Lemmata app (static build, /app/) at 1440x900, dark theme, captured with agent-browser on 2026-10-03: a fresh profile (welcome dismissed), the Guide's Real analysis page pinned beside the proof, web/content.py HERO_PROOF (the delta = eps/2 slip) loaded by permalink as 'Shared proof', other tabs closed, the failing Subproof step selected; the rail shows the italic L. Converted to WebP (quality 86) with ImageMagick. Not generated.",
+  "createdAt": "2026-10-03T20:18:01.896Z"
 }

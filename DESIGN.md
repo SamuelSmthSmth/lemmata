@@ -128,6 +128,12 @@ typography:
     fontSize: "15px"
     fontWeight: 400
     lineHeight: 1.6
+  wordmark:
+    fontFamily: "Lemmata Wordmark, Latin Modern Math, Cambria Math, serif"
+    fontSize: "1.5em"
+    fontWeight: 400
+    lineHeight: 1
+    letterSpacing: "0"
 rounded:
   sm: "2px"
   md: "2px"
@@ -171,6 +177,19 @@ components:
     backgroundColor: "{colors.paper-raised}"
     textColor: "{colors.ink-quiet}"
     width: "44px"
+  app-rail-mark:
+    textColor: "{colors.ink}"
+    typography: "{typography.wordmark}"
+    rounded: "{rounded.sm}"
+    size: "32px"
+  app-rail-mark-hover:
+    backgroundColor: "{colors.paper-lowered}"
+    textColor: "{colors.ink}"
+    rounded: "{rounded.sm}"
+    size: "32px"
+  app-icon:
+    backgroundColor: "{colors.proof-blue}"
+    textColor: "{colors.paper}"
   app-rail-current:
     backgroundColor: "{colors.paper-lowered}"
     textColor: "{colors.proof-blue}"
@@ -255,6 +274,9 @@ components:
     backgroundColor: "{colors.paper}"
     textColor: "{colors.ink-quiet}"
     height: "60px"
+  site-wordmark:
+    textColor: "{colors.ink}"
+    typography: "{typography.wordmark}"
   site-specimen:
     textColor: "{colors.ink}"
     typography: "{typography.specimen}"
@@ -362,6 +384,8 @@ components:
 <!-- Public site recorded from the shipped build in web/ (assets/site.css, assets/site.js, index.html, partials/, download/, privacy/, terms/, cookies/; screenshots in .impeccable/review/), after the impeccable finish review returned "ship" following one fix batch. An extension of this world, not a new one: every site colour is one of the app's tokens with the same light/dark pairs. Site entries are marked "Public site" below; the app's sections are unchanged. Also recorded: the JetBrains Mono math subset (ui/vendor_fonts.py, ui/static/fonts.css). -->
 <!-- Pack registry site recorded from the shipped build in the sibling repo lemmata-packs (tools/pages.py, web/shell.html, web/publish.html, web/assets/site.css, web/assets/site.js, web/assets/fonts/; screenshots in .impeccable/review/packs/), after the impeccable finish review returned "ship" following two fix rounds. Direction: .impeccable/surfaces/registry-index-html.md ("The Library, Online"), with one accepted amendment: entry keys are quiet ink at rest and take Proof Blue only when lit. An extension of this world: every colour is one of the app's tokens with the same light/dark pairs, and the fonts are the app's own subsets. Registry entries are marked "Pack registry site" below; nothing above them changed. -->
 
+<!-- Wordmark and icon recorded from the shipped build (ui/static/fonts.css, ui/vendor_fonts.py, vendor/fonts/latinmodern-wordmark.woff2; ui/build_site.py wordmark(); web/partials/nav.html and footer.html; web/assets/site.css .wm*, site.js; ui/static/index.html, styles.css .rail-mark, js/site.js; ui/static/icon.svg, desktop/icon.svg; lemmata-packs web/shell.html; screenshots in .impeccable/review/wordmark/). An approved brand change requested by the user: there is no logo; the name, typeset as LaTeX sets it, is the mark. The icon is the open tombstone. -->
+
 # Design System: Lemmata
 
 ## Overview
@@ -381,6 +405,7 @@ The app is a study desk, not an IDE: a narrow view rail, a reading pane where th
 - The left margin belongs to the failure rail; current-item marks use ink, weight and a lowered fill instead.
 - Green appears only in verdicts, so red lands when it does.
 - Light and dark are equal citizens, each with its own picked palette.
+- No logo: the name, typeset as LaTeX sets it ($L\text{emma}t\alpha$), is the mark.
 
 ## Colors
 
@@ -427,9 +452,11 @@ The registry (the packs catalogue, a page per pack, the publishing guide) uses t
 **Formal Font:** JetBrains Mono (self-hosted subsets; ui-monospace fallback)
 **Prose Font:** the system UI sans stack (-apple-system, Segoe UI, Roboto, …)
 
-**Character:** One working monospace carries every formal mark and every piece of chrome; the sans appears only where something speaks in sentences. There is no display face and no second family to pair.
+**Character:** One working monospace carries every formal mark and every piece of chrome; the sans appears only where something speaks in sentences. There is no display face and no second family to pair; the one exception is the name itself (see Wordmark), which is the brand mark rather than text.
 
 **Math subset.** JetBrains Mono ships a third self-hosted subset, cut from the upstream variable font (pinned by sha256) for U+2100–214F, U+2190–21FF and U+2200–22FF, so the notes' symbols (∀ ∃ ∈ ⇒ ≤ ℝ ℤ ℕ) are set in the same face, at every weight on the 100–800 axis, in the editor and on the site alike, instead of falling back to a system font.
+
+**Wordmark.** "Lemmata Wordmark" is a 2.3 KB subset of Latin Modern Math (LaTeX's own face; GUST Font License), vendored by ui/vendor_fonts.py and declared in fonts.css, that holds only the glyphs of 𝐿emma𝑡𝛼: math-italic 𝐿, upright "emma", math-italic 𝑡 and 𝛼, as $L\text{emma}t\alpha$ sets them. It is set at 1.5em of its context, weight 400, no tracking, in ink. It sets the name and nothing else; a site.json name other than Lemmata is set plainly in the mono.
 
 ### Hierarchy
 - **Title** (600, 20px, 1.25, mono, no uppercase): page titles in the Library, Guide and Settings. A title, not a label: it outranks the uppercase section labels beneath it.
@@ -462,19 +489,21 @@ The registry is a reading surface a step quieter than the landing site: sans bod
 - Opened source is 13px mono at 1.6 with tab size 4 and ligatures off.
 
 ### Named Rules
-**The Formal-Mono Rule.** Anything the engine checks, and every piece of chrome, is set in the monospace; only sentences use the sans. No italics: the subsets ship none, and a synthesised slant on a mono face reads as a rendering fault.
+**The Formal-Mono Rule.** Anything the engine checks, and every piece of chrome, is set in the monospace; only sentences use the sans. No italics: the subsets ship none, and a synthesised slant on a mono face reads as a rendering fault. The wordmark's math italics are the one sanctioned exception, scoped to the name.
+
+**The Name Is The Mark Rule.** There is no logo. The name is set in the Wordmark face (𝐿emma𝑡𝛼) wherever the brand stands: the site's nav and footer, the registry's top bar, and, as its 𝐿 alone, the app rail's top. The face never sets any other text, and its italics never spread to it.
 
 **The Labels Are Not Titles Rule.** Uppercase tracking belongs to 11px section labels only. Page and entry titles are mixed-case mono at weight 600.
 
 ## Layout
 
-A full-viewport application shell: a 44px view rail on the left (brand mark on top; Workspace, Library, Guide, Settings; the command palette and theme toggle at the foot), the current view beside it, and a 24px status bar across the foot carrying the verdict rail-and-word, the problem button, caret position, file path and storage state. Only one view occupies the grid at a time.
+A full-viewport application shell: a 44px view rail on the left (the wordmark's 𝐿 on top, a link to the public site; Workspace, Library, Guide, Settings; the command palette and theme toggle at the foot), the current view beside it, and a 24px status bar across the foot carrying the verdict rail-and-word, the problem button, caret position, file path and storage state. Only one view occupies the grid at a time.
 
 The Workspace is the study desk: a 320px reading pane (Files, Notes, History) beside the work, collapsible to zero. The work column is an open-proof tab strip, a tool strip (symbols, templates, export), then a CSS grid of panes separated by 1px gaps that show the Rule colour through, so pane boundaries are drawn by the grid itself. Panes are placed by slot (`a`, `b`, `c`), and the arrangements rearrange slots without any rule knowing which pane is which; DOM order follows visual order so keyboard and screen-reader order match. Inside a pane: a 30px head (label and rule), then a scroll region. Rows are flush with 8px vertical / 12px horizontal padding and a 22px line-number column.
 
 Library, Guide and Settings are pages: a centred column (1080px max; 720px for narrow pages) with 28px/32px padding, a title and lede, then content. The Library and the Guide each put a sticky list (packs, contents) beside the body.
 
-**Responsive.** Below 1100px the reading pane overlays the work (min(320px, 86vw)) rather than squeezing it, never opens by itself, and a tap on the work puts it away; the Library and Guide side lists fold above the body; the Library's pack rail becomes an auto-fill grid of even columns (minimum 200px) with its group labels and actions spanning every column. Below 760px the rail becomes a 44px bottom bar with labels under each icon (the current view's label in bold), the panes stack and scroll as one page, the symbol strip is hidden, and the status bar keeps only the verdict and the problem button.
+**Responsive.** Below 1100px the reading pane overlays the work (min(320px, 86vw)) rather than squeezing it, never opens by itself, and a tap on the work puts it away; the Library and Guide side lists fold above the body; the Library's pack rail becomes an auto-fill grid of even columns (minimum 200px) with its group labels and actions spanning every column. Below 760px the rail becomes a 44px bottom bar (the 𝐿 is hidden with the rest of the rail's top) with labels under each icon (the current view's label in bold), the panes stack and scroll as one page, the symbol strip is hidden, and the status bar keeps only the verdict and the problem button.
 
 **Motion.** Two transitions only: the reading pane collapses by animating the column width (180ms ease), disabled under prefers-reduced-motion; and step rows fade their hover background (0.1s). Nothing animates on load.
 
@@ -484,7 +513,7 @@ Library, Guide and Settings are pages: a centred column (1080px max; 720px for n
 
 **Pack registry site motion.** The opened entry's chevron turns 90° (0.15s ease); nothing else moves, and reduced motion removes that too.
 
-**Public site motion.** The site's one choreography is the scrub: it plays once to the failing step (520ms per step, 900ms onto the failure) the first time the audit is a third on screen, and stops there; under reduced motion it starts on the failure and nothing transitions. Otherwise only state changes ease (colour and background, 0.15–0.4s, cubic-bezier(0.16, 1, 0.3, 1)).
+**Public site motion.** The site has two choreographies, and the scrub comes first: it plays once to the failing step (520ms per step, 900ms onto the failure) the first time the audit is a third on screen, and stops there; under reduced motion it starts on the failure and nothing transitions. The second is the nav's wordmark trading its plain and typeset forms (see Components), which waits for the scrub to stop and runs only near the top of the page; under reduced motion it stands still in the typeset form. Otherwise only state changes ease (colour and background, 0.15–0.4s, cubic-bezier(0.16, 1, 0.3, 1)).
 
 ## Elevation & Depth
 
@@ -523,7 +552,7 @@ Diagnostics wear the auditor's rail: the lint gutter is 8px wide and each marker
 A label and a rule, with no fill: an uppercase tracked label in quiet ink, optional note in dim ink, tools aligned right, and a 1px Rule underline. A six-dot grip at the left drags the pane to swap slots.
 
 ### View Rail
-A column of 18px line icons in quiet ink on Paper Raised, 40px targets. The current view is the icon in Proof Blue on a 28px Paper Lowered square. On phones it becomes a bottom bar with an 11px label under each icon; the current label turns bold and the square is dropped.
+At the top, the rail mark: a 32px link to site.json's `home` (the public site) holding the wordmark's italic 𝐿 at 24px in ink, a Paper Lowered fill on hover and the 2px Proof Blue focus ring inset, labelled "<name> home page". An institution's own name shows its first letter in mono 700 at 15px instead. Beneath it, a column of 18px line icons in quiet ink on Paper Raised, 40px targets. The current view is the icon in Proof Blue on a 28px Paper Lowered square. On phones it becomes a bottom bar with an 11px label under each icon; the current label turns bold and the square is dropped.
 
 ### Tabs
 Two kinds, both without boxes. Reading-pane tabs are 11px uppercase labels; the selected one turns ink and gets a 2px Proof Blue underline. Open-proof tabs are 12px mono names divided by hairlines; the active tab takes the page's paper so it joins the editor below, with a 2px Proof Blue rule along its top, and a status dot when its last check failed or warned.
@@ -540,6 +569,12 @@ The native family, used wherever a Web Awesome button would be heavier than the 
 
 ### Segmented Control
 One outlined strip of 24px segments divided by Rule lines; 12px mono, quiet ink. The checked segment is Proof Blue text on the quiet blue fill. Used for the Library filters and every choice in Settings.
+
+### Wordmark (signature)
+The name as the mark: 𝐿emma𝑡𝛼 in the Wordmark face. Static wherever it stands except the public site's nav, where it is seven slots, each holding the plain letter (mono 700) and its typeset form stacked; JS measures both widths and flips the form. Each letter cross-fades with a 4px blur and a small vertical shift (the plain letter rises 0.25em out, the typeset one settles from 0.18em below), staggered 55ms left to right, the slot widths gliding 0.55s on the site's ease-out. The first flip waits for the scrub to stop on its failing step (at once on pages without the hero), then 1.8–3.6s; after that every 5–11s at random, only while the page is within 240px of the top and the tab is visible. Under reduced motion the typeset form stands still. The wordmark is aria-hidden inside a link that carries the name.
+
+### App Icon
+The open tombstone, the box that ends a proof: a white hollow square on a Proof Blue tile. The desktop icon is drawn on a 1024 grid inside the macOS margin (an 824px tile, rx 184; a 350px square, 76px stroke). The favicon is hinted separately on the 16px grid (a full-bleed tile at rx 3; an 8px square at 4,4 with a 2px stroke, crisp edges) and is shared by the pack registry site. It is the only drawn brand mark, and it lives outside the pages: no page shows it.
 
 ### Toggles and Web Awesome
 Switches are reduced to ink toggles (square track, no hue) so they never outshout the verdict. Web Awesome supplies the switch, dropdown, input, dialog, tooltip, popup and toast, styled only through the token layer and exported parts; the app's own icons are inline SVG.
@@ -571,18 +606,18 @@ The public site (`web/`) is the same world at the scale of a page. It shares the
 - **Pack Table.** A full-width hairline table: 11px uppercase heads, each pack's code in Proof Blue mono, its title in ink, tabular counts in Ink Quiet, rows divided by Rule lines.
 - **Points and Ways.** A 2×2 definition list and a 4-column list, both divided only by Rule lines (the ways list adds vertical Rule lines between columns); a mono 600 term, a quiet sans sentence, and a mono text link.
 - **Close.** A band between two Rule lines: "QED" in mono 600 at clamp(3rem, 9vw, 6rem) beside a Site Headline, a lede and the primary action.
-- **Nav.** The app icon and name in mono 700 at 15px; 13px mono links in Ink Quiet, ink on hover; a 32px theme toggle (line sun and moon); the primary button. Below 720px the links become a disclosure under a 32px menu button (Paper Lowered while open): a paper panel of 15px ink links divided by hairlines, over the modal scrim.
+- **Nav.** The animated Wordmark (in a 15px context, so 22.5px), with no icon; 13px mono links in Ink Quiet, ink on hover; a 32px theme toggle (line sun and moon); the primary button. Below 720px the links become a disclosure under a 32px menu button (Paper Lowered while open): a paper panel of 15px ink links divided by hairlines, over the modal scrim.
 - **Site Buttons.** Mono 600, 2px corners, 32px (44px large). **Primary** is a Proof Blue Fill with paper text, darkened 14% toward ink on hover; **Outline** draws the Control Border around ink text, Paper Lowered on hover; **Quiet** sits on Paper Lowered (28px, weight 500) for Dismiss and Copy.
 - **Storage Notice.** A non-blocking strip fixed 16px above the foot, up to 640px wide, on Paper Raised with a Rule border: one quiet sentence with a link, and a quiet Dismiss. On the landing page it waits until the hero has scrolled away, so it never covers the first view; dismissal is remembered.
 - **Download Platforms.** A hairline list of rows (platform name, a prose sentence, its files as outline buttons). The visitor's own platform adds "your system" in 11px Proof Blue under its name: news, so it takes the accent. A platform with no release says so in 12px dim mono.
 - **Command Block.** A copyable one-line command: Paper Raised with a 1px Rule border at 2px, the command in 14px ink mono scrolling sideways, and a quiet Copy button that reports failure in its own label. It behaves as a read-only field, not a container.
 - **Reading Pages (Download, Privacy, Terms, Cookies).** A 760px column: Site Page Title, a lede, a dim mono date line, then mono 600 section heads with 56px above, sans paragraphs at 16px/1.7, and hairline tables with 12px uppercase mono heads.
-- **Footer.** A brand column (icon, name, one quiet sentence) and three link columns under 11px uppercase heads, then a dim 12px mono meta line (engine version, licences, the Lean notice) above a Rule line.
+- **Footer.** A brand column (the static Wordmark, one quiet sentence) and three link columns under 11px uppercase heads, then a dim 12px mono meta line (engine version, licences, the Lean notice) above a Rule line.
 
 ### Pack Registry Site
 The registry (repo lemmata-packs, rendered by tools/pages.py) is the app's Library opened to the public. It shares the theme storage key and the app's font files, resolved before first paint.
 
-- **Top Bar.** 56px on Paper Raised with a Rule underline: the icon and "Lemmata" in mono 700 at 15px with "packs" in 400 Ink Quiet; 13px mono links in Ink Quiet (Browse, Publish a pack, GitHub, About Lemmata), ink on hover and for the current page (Browse on the catalogue); the 32px theme toggle; Open Lemmata as the primary button.
+- **Top Bar.** 56px on Paper Raised with a Rule underline: the static Wordmark 𝐿emma𝑡𝛼 with "packs" in 400 Ink Quiet, no icon; 13px mono links in Ink Quiet (Browse, Publish a pack, GitHub, About Lemmata), ink on hover and for the current page (Browse on the catalogue); the 32px theme toggle; Open Lemmata as the primary button.
 - **Pack Rail (signature).** Groups under 11px uppercase labels; each pack is its title in 13px mono 600 over its counts in 12px dim mono, 8px × 16px, Paper Lowered on hover. The current pack takes the Paper Lowered fill and a bold Proof Blue title, never a left rule. The search field above draws the Control Border on paper (34px, 13px mono, dim placeholder) and focus replaces the border with the Proof Blue outline. "No pack matches." replaces the list when the search empties it.
 - **Pack Head.** The course code in Proof Blue inline before the title in Registry Page Title type; a 12px dim mono meta line (version · authors · licence · the pack's name as code) whose separators attach to the item before them, so a wrapped line never starts with one; the summary in Ink Quiet; the verification line in 12px quiet mono where the bold green "Verified" is the only green; then Open in Lemmata (primary) and Download .pack.json (outline). On the catalogue each pack is a brief: the same head at 1.25rem with its title linked, counts and chapters beneath, briefs divided by Rule lines.
 - **Registry Buttons.** Mono 600 at 13px, 34px tall, 14px padding, 2px corners. **Primary** is Proof Blue Fill with paper text, darkened 14% toward ink on hover; **Outline** draws the Control Border around ink, Paper Lowered on hover. Text links ("How to publish", "Publish a pack") are 13px mono 600 in Proof Blue, underlined.
@@ -604,6 +639,7 @@ The registry (repo lemmata-packs, rendered by tools/pages.py) is the app's Libra
 - **Do** use the segmented control for a choice among a few options, and the native text and icon buttons for actions.
 - **Do** give every form control the one Control Border, and give a flag the accent only when it is news.
 - **Do** set the public site's display specimen in JetBrains Mono, wrapping only between clauses, and let red appear once per demonstration, at its failing step.
+- **Do** let the name stand as the mark: 𝐿emma𝑡𝛼 in the Wordmark face at 1.5em, static everywhere but the site nav, and no logo on any page.
 - **Do** keep the registry's entry keys in quiet ink until a search, the URL or the pointer lights them, and set every proof it shows as the app's editor sets it in the mono scheme.
 
 ### Don't:
@@ -611,6 +647,6 @@ The registry (repo lemmata-packs, rendered by tools/pages.py) is the app's Libra
 - **Don't** use red for anything that has not actually failed or will not actually destroy.
 - **Don't** draw a vertical coloured rule at the left of a row for anything but failure or caveat.
 - **Don't** wrap rows in cards, give passing steps badges, or use filled status pills.
-- **Don't** introduce a display face, italics, a second sans, or text below 11px.
+- **Don't** introduce a display face, italics, a second sans, or text below 11px; the Wordmark face and its italics set the name and nothing else.
 - **Don't** add drop shadows; floating layers separate by surface and border, and the selected-row inset ring is the only shadow.
 - **Don't** fetch anything cross-origin (icons, fonts, scripts): the app makes no runtime network requests.

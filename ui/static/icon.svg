@@ -1,7 +1,6 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
-  <!-- Lemmata: an L whose foot ends in the tombstone, the mark that closes a proof. -->
-  <rect x="100" y="100" width="824" height="824" rx="184" fill="#0a5fbf"/>
-  <rect x="289" y="262" width="108" height="500" rx="6" fill="#ffffff"/>
-  <rect x="289" y="654" width="300" height="108" rx="6" fill="#ffffff"/>
-  <rect x="629" y="654" width="108" height="108" rx="6" fill="#ffffff"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16">
+  <!-- The favicon: the open tombstone, drawn on the 16px grid so every edge
+       lands on a whole pixel (desktop/icon.svg is the large, padded app icon). -->
+  <rect width="16" height="16" rx="3" fill="#0a5fbf"/>
+  <rect x="4" y="4" width="8" height="8" fill="none" stroke="#ffffff" stroke-width="2" shape-rendering="crispEdges"/>
 </svg>

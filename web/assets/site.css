@@ -284,6 +284,68 @@ p {
   text-decoration: none;
 }
 
+/* The wordmark: Lemmata, and Lemmata as LaTeX sets it, L\text{emma}t\alpha.
+   In the nav the two trade places now and then, letter by letter, the slot
+   widths gliding between the mono and the typeset forms; everywhere else
+   the typeset form stands alone. */
+.wm,
+.wm--static {
+  display: inline-flex;
+  align-items: baseline;
+  line-height: 1;
+}
+
+.wm--static,
+.wm-tex {
+  font-family: "Lemmata Wordmark", "Latin Modern Math", "Cambria Math", serif;
+  font-weight: 400;
+  font-size: 1.5em;
+  letter-spacing: 0;
+}
+
+.wm-slot {
+  display: inline-grid;
+  align-items: baseline;
+  justify-items: start;
+  width: var(--wp, auto);
+  transition: width 0.55s var(--ease-out) calc(var(--i) * 55ms);
+}
+
+.wm-slot > span {
+  grid-area: 1 / 1;
+  transition:
+    opacity 0.45s var(--ease-out) calc(var(--i) * 55ms),
+    filter 0.45s var(--ease-out) calc(var(--i) * 55ms),
+    transform 0.55s var(--ease-out) calc(var(--i) * 55ms);
+}
+
+.wm-plain {
+  font-family: var(--font-mono);
+  font-weight: 700;
+}
+
+.wm-tex {
+  opacity: 0;
+  filter: blur(4px);
+  transform: translateY(0.18em);
+}
+
+.wm[data-form="tex"] .wm-slot {
+  width: var(--wt, auto);
+}
+
+.wm[data-form="tex"] .wm-plain {
+  opacity: 0;
+  filter: blur(4px);
+  transform: translateY(-0.25em);
+}
+
+.wm[data-form="tex"] .wm-tex {
+  opacity: 1;
+  filter: none;
+  transform: none;
+}
+
 .nav-links {
   display: flex;
   gap: 22px;

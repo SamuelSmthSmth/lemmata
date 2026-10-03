@@ -46,3 +46,13 @@
   src: url("vendor/fonts/jetbrains-mono-math-wght-normal.woff2") format("woff2-variations");
   unicode-range: U+2100-214F, U+2190-21FF, U+2200-22FF;
 }
+
+/* The name as LaTeX sets it, L\text{emma}t\alpha: a few glyphs of Latin
+ * Modern Math (ui/vendor_fonts.py), used only by the wordmark. */
+@font-face {
+  font-family: "Lemmata Wordmark";
+  font-style: normal;
+  font-weight: 400;
+  font-display: block;
+  src: url("vendor/fonts/latinmodern-wordmark.woff2") format("woff2");
+}

@@ -43,6 +43,7 @@ A "proof intern": it reads proofs written the way the notes write them, `∀ ε 
 - The working name is **Lemmata**, with the tagline "Proof intern". The preferred name, **Leaner**, waits on written permission from the Lean FRO (its trademark policy covers marks containing "Lean"); until then nothing ships under it.
 - The name lives in one place, `ui/site.json`, so a rename (or an institution's own branding) is a config change. The engine package, the CLI, the `.aether` file extension and storage keys keep the old `aether` identifier for compatibility; they are not the brand.
 - The existing visual identity is kept and refined, not replaced: the user chose refinement.
+- **The name is the mark.** There is no logo on the page: the name is set as LaTeX sets $L\text{emma}t\alpha$ (Latin Modern glyphs). On the landing page it re-sets itself from plain mono to the typeset form now and then; elsewhere it is typeset and still; the app's rail carries its first letter, the italic 𝐿, linking home. The square icon (favicon, desktop app) is the open tombstone: a white hollow square on Proof Blue.
 
 ## Evidence on Hand
 

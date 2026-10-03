@@ -21,6 +21,7 @@ export const site = {
   version: "",
   accent: { light: "#0a5fbf", dark: "#6cb0ff" },
   registry: "",
+  home: "https://lemmata.sous.systems/",
   preinstall: null,
 };
 
@@ -64,4 +65,14 @@ export function applyAccent(accent) {
 export function applySiteName(root) {
   for (const node of root.querySelectorAll("[data-site-name]")) node.textContent = site.name;
   for (const node of root.querySelectorAll("[data-site-kept]")) node.textContent = kept;
+  // The rail's mark: the name's first letter, typeset for Lemmata itself; an
+  // institution's own name is set plainly.  It leads to the site's home.
+  for (const node of root.querySelectorAll("[data-site-home]")) {
+    node.href = site.home || node.href;
+    node.setAttribute("aria-label", `${site.name} home page`);
+    if (site.name !== "Lemmata") {
+      node.classList.add("is-plain");
+      node.firstElementChild.textContent = site.name.slice(0, 1);
+    }
+  }
 }

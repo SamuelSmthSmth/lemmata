@@ -35,6 +35,8 @@ _DEFAULTS: dict[str, Any] = {
     "tagline": "Proof intern",
     "accent": {"light": "#0a5fbf", "dark": "#6cb0ff"},
     "registry": "https://samuelsmthsmth.github.io/lemmata-packs/",
+    # Where the app's name in the rail leads: the site the app belongs to.
+    "home": "https://lemmata.sous.systems/",
     "preinstall": ["core/examples", "core/mth2008", "core/mth2010", "core/notation"],
 }
 
@@ -80,7 +82,7 @@ def _load() -> dict[str, Any]:
     if not isinstance(data, dict):
         data = {}
     site: dict[str, Any] = {}
-    for key in ("name", "tagline"):
+    for key in ("name", "tagline", "home"):
         site[key] = str(data.get(key) or _DEFAULTS[key])
     accent = data.get("accent") if isinstance(data.get("accent"), dict) else {}
     site["accent"] = {theme: _accent(theme, accent.get(theme)) for theme in _DEFAULTS["accent"]}
