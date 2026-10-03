@@ -361,6 +361,7 @@ wa-switch:state(checked)::part(thumb) {
 /* A tighter label than the dialog switches need, since this one sits in the
    tool strip above the proof. */
 .strict-switch {
+  flex: none;
   font-size: 12px;
   margin-left: 4px;
 }
@@ -368,6 +369,7 @@ wa-switch:state(checked)::part(thumb) {
 .strict-switch::part(label) {
   font-size: 12px;
   font-weight: 600;
+  white-space: nowrap;
 }
 
 .strict-switch::part(hint) {
@@ -440,6 +442,9 @@ wa-spinner {
   color: var(--muted-dim);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* =========================================================================
@@ -1199,9 +1204,8 @@ kbd {
   width: 268px;
   max-width: calc(100vw - 28px);
   padding: 10px;
-  background: var(--bg);
+  background: var(--panel);
   border: 1px solid var(--border);
-  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.2);
 }
 
 .layout-panel h2 {
@@ -1378,14 +1382,22 @@ kbd {
   color: var(--accent);
 }
 
+/* The current view: the icon in the accent on a lowered square.  The left
+   margin belongs to the failure rail, so nothing else draws a rule there. */
 .rail-button[aria-current="page"]::before {
   content: "";
   position: absolute;
-  left: -4px;
-  top: 8px;
-  bottom: 8px;
-  width: 2px;
-  background: var(--accent);
+  left: 50%;
+  top: 50%;
+  width: 28px;
+  height: 28px;
+  transform: translate(-50%, -50%);
+  border-radius: var(--radius);
+  background: var(--panel-2);
+}
+
+.rail-button .icon {
+  position: relative;
 }
 
 /* The labels are for the narrow layout, where the rail turns into a bar
@@ -2033,8 +2045,9 @@ html[data-desk="closed"] .desk {
 
 .note-title {
   margin: 2px 0 10px;
-  font-family: var(--font-prose);
-  font-size: 15px;
+  font-family: var(--font-mono);
+  font-size: 14px;
+  font-weight: 600;
   line-height: 1.35;
   color: var(--text);
 }
@@ -2201,12 +2214,14 @@ body[data-exercise="hidden"] .step::before {
   margin-bottom: 20px;
 }
 
+/* A page title, not a label: it has to outrank the uppercase section labels
+   beneath it. */
 .page-head h1 {
-  margin: 0 0 6px;
-  font-size: 13px;
-  font-weight: 700;
-  letter-spacing: 0.09em;
-  text-transform: uppercase;
+  margin: 0 0 8px;
+  font-family: var(--font-mono);
+  font-size: 20px;
+  font-weight: 600;
+  line-height: 1.25;
   color: var(--text);
 }
 
@@ -2313,17 +2328,7 @@ body[data-exercise="hidden"] .step::before {
 }
 
 .pack-button[aria-current="true"] {
-  background: var(--accent-bg);
-}
-
-.pack-button[aria-current="true"]::before {
-  content: "";
-  position: absolute;
-  left: 0;
-  top: 6px;
-  bottom: 6px;
-  width: 2px;
-  background: var(--accent);
+  background: var(--panel-2);
 }
 
 .pack-code {
@@ -2442,8 +2447,16 @@ body[data-exercise="hidden"] .step::before {
   white-space: nowrap;
 }
 
+/* A trap is a kind of entry, like a theorem; red is kept for a copy that
+   actually fails. */
 .entry-tag--trap {
-  color: var(--invalid);
+  color: var(--muted);
+}
+
+.entry-tag + .entry-tag::before {
+  content: "·";
+  margin-right: 6px;
+  color: var(--muted-dim);
 }
 
 .entry-tag--copy.is-valid {
@@ -2538,17 +2551,8 @@ body[data-exercise="hidden"] .step::before {
 }
 
 .guide-toc-link[aria-current="page"] {
-  color: var(--accent);
-}
-
-.guide-toc-link[aria-current="page"]::before {
-  content: "";
-  position: absolute;
-  left: 0;
-  top: 5px;
-  bottom: 5px;
-  width: 2px;
-  background: var(--accent);
+  color: var(--text);
+  font-weight: 700;
 }
 
 .guide-toc-link:focus-visible {
@@ -2576,12 +2580,11 @@ body[data-exercise="hidden"] .step::before {
 }
 
 .guide-body h1 {
-  margin: 0 0 10px;
+  margin: 0 0 12px;
   font-family: var(--font-mono);
-  font-size: 13px;
-  font-weight: 700;
-  letter-spacing: 0.09em;
-  text-transform: uppercase;
+  font-size: 20px;
+  font-weight: 600;
+  line-height: 1.25;
 }
 
 .guide-body h2 {
@@ -2850,7 +2853,6 @@ body[data-exercise="hidden"] .step::before {
   border-radius: var(--radius);
   background: var(--bg);
   color: var(--text);
-  box-shadow: 0 14px 40px rgba(0, 0, 0, 0.22);
   overflow: hidden;
 }
 
@@ -3147,7 +3149,7 @@ body[data-exercise="hidden"] .tree-row.is-active .tree-mark {
     inset: 0 auto 0 0;
     z-index: 20;
     width: min(320px, 86vw);
-    box-shadow: 0 10px 28px rgba(0, 0, 0, 0.2);
+    border-right: 1px solid var(--border);
   }
 
   .work {
@@ -3216,12 +3218,11 @@ body[data-exercise="hidden"] .tree-row.is-active .tree-mark {
   }
 
   .rail-button[aria-current="page"]::before {
-    left: 20%;
-    right: 20%;
-    top: -1px;
-    bottom: auto;
-    width: auto;
-    height: 2px;
+    display: none;
+  }
+
+  .rail-button[aria-current="page"] .rail-label {
+    font-weight: 700;
   }
 
   .rail-end {
@@ -3318,8 +3319,12 @@ body[data-exercise="hidden"] .tree-row.is-active .tree-mark {
     gap: 8px;
   }
 
+  /* A phone has room for the verdict and the way to the problem; the counts,
+     the caret position and the path wait for a wider screen. */
   #status-file,
-  #status-storage {
+  #status-storage,
+  #status-pos,
+  .statusbar .verdict-meta {
     display: none;
   }
 
