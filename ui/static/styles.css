@@ -2548,7 +2548,7 @@ body[data-exercise="hidden"] .step::before {
   font-variant-numeric: tabular-nums;
 }
 
-/* "update" / "not installed": a word under the count, not a badge. */
+/* "update": a word under the count, not a badge. */
 .pack-flag {
   grid-column: 1 / -1;
   font-size: 11px;

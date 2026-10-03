@@ -6,6 +6,7 @@ colors:
   paper-raised: "#f7f8f9"
   paper-lowered: "#eff1f4"
   rule: "#dde1e6"
+  control-border: "#8a909c"
   ink: "#16181d"
   ink-quiet: "#555b6a"
   ink-dim: "#666c7a"
@@ -17,6 +18,7 @@ colors:
   night-paper-raised: "#15181c"
   night-paper-lowered: "#1a1e23"
   night-rule: "#262b32"
+  night-control-border: "#646b77"
   night-ink: "#e6e8ec"
   night-ink-quiet: "#9ba3b0"
   night-ink-dim: "#7f8795"
@@ -166,9 +168,31 @@ components:
   page-title:
     textColor: "{colors.ink}"
     typography: "{typography.title}"
+  button-secondary:
+    backgroundColor: "{colors.paper-lowered}"
+    textColor: "{colors.ink}"
+    rounded: "{rounded.sm}"
+  form-control:
+    backgroundColor: "{colors.paper}"
+    textColor: "{colors.ink}"
+    rounded: "{rounded.sm}"
+    padding: "4px 8px"
+    height: "28px"
+  packs-group-label:
+    textColor: "{colors.ink-quiet}"
+    typography: "{typography.label}"
+  pack-flag:
+    textColor: "{colors.proof-blue}"
+  pack-title:
+    textColor: "{colors.ink}"
+    typography: "{typography.entry-title}"
+  pack-dialog:
+    backgroundColor: "{colors.paper}"
+    width: "760px"
 ---
 
 <!-- Recorded from the shipped build at commit cdd8ca2 (ui/static/styles.css, index.html, js/). Verification at that commit: axe-core reports zero violations on every view, in both themes and at phone width; the impeccable finish review returned "pass with fixes", and all fixes are applied in cdd8ca2. -->
+<!-- Pack-manager refinement recorded from the shipped build (606f4ed, fa70b9c) (styles.css, js/library.js, js/pack-author.js, js/explorer.js, index.html #pack-dialog): Library pack rail and pack head, the pack dialog, the control boundary and secondary-button tokens, toast rules, the explorer's pack folder. -->
 
 # Design System: Lemmata
 
@@ -195,13 +219,14 @@ The app is a study desk, not an IDE: a narrow view rail, a reading pane where th
 A restrained ink-and-paper system with one blue accent and three status hues used only for status.
 
 ### Primary
-- **Proof Blue** (proof-blue; night-proof-blue): the accent. The CNL keywords that form a proof's skeleton in the default "mono" syntax scheme, links, focus rings, the caret, selection tints, the current view's icon in the rail, the selected reading-pane tab and the active proof tab's top rule, a checked segment, the primary text button, and the pending or exercise verdict. Never decorative.
+- **Proof Blue** (proof-blue; night-proof-blue): the accent. The CNL keywords that form a proof's skeleton in the default "mono" syntax scheme, links, focus rings, the caret, selection tints, the current view's icon in the rail, the selected reading-pane tab and the active proof tab's top rule, a checked segment, the primary text button, the "update" flag on a pack with a newer version, and the pending or exercise verdict. Never decorative, and never a standing state: a flag takes the accent only when it is news (an update), so an available pack that is merely not installed carries no flag at all.
 
 ### Neutral
 - **Paper** (paper; night-paper): the page, the editor, the reading pane, the command palette.
 - **Paper Raised** (paper-raised; night-paper-raised): the view rail, the status bar, the arrangement popover, tooltips.
-- **Paper Lowered** (paper-lowered; night-paper-lowered): hover and selected rows, the current view's square in the rail, the current pack in the Library and current page in the Guide, switch tracks.
+- **Paper Lowered** (paper-lowered; night-paper-lowered): hover and selected rows, the current view's square in the rail, the current pack in the Library and current page in the Guide, switch tracks, and the fill of a secondary (Web Awesome neutral) button.
 - **Rule** (rule; night-rule): pane and shell boundaries (the 1px gaps of the layout grid, the rail's and status bar's edges), pane-head underlines, segmented-control dividers.
+- **Control Border** (control-border; night-control-border): the one boundary every form control draws, native or Web Awesome; it clears 3:1 on paper and night paper so an empty field is still findable. Never used for layout lines, which stay Rule.
 - **Hairline** (ink at 8% over paper): row separators inside panes; organises without drawing boxes.
 - **Ink** (ink; night-ink): statements, names, types (separated from keywords by weight, not hue), page titles.
 - **Ink Quiet** (ink-quiet; night-ink-quiet): prose explanations, section labels, operators, unselected tabs and controls, ledes.
@@ -213,7 +238,7 @@ A restrained ink-and-paper system with one blue accent and three status hues use
 - **Error Red** (error-red; night-error-red): invalid steps, counterexamples, parse errors, a copy that fails, destructive actions. Quiet fills use the same hue at 8–11% alpha.
 
 ### Named Rules
-**The Green Is Rare Rule.** Green marks a verdict on a whole proof (the status bar, a history bar, an exercise answer, a Library copy that checks, a Guide example's expected result) and nowhere else; a passing step's status is set in dim ink. Scarcity is what makes red legible.
+**The Green Is Rare Rule.** Green marks a verdict on a whole proof (the status bar, a history bar, an exercise answer, a Library copy that checks, a pack export whose every entry was just checked, a Guide example's expected result) and nowhere else; a passing step's status is set in dim ink. Scarcity is what makes red legible.
 
 **The Real Failure Rule.** Red means something actually failed. A category that merely describes a hazard, such as a Library entry tagged "Trap", is set in quiet ink; red is kept for the student's copy that fails, the step that fails, and the action that destroys.
 
@@ -251,13 +276,13 @@ The Workspace is the study desk: a 320px reading pane (Files, Notes, History) be
 
 Library, Guide and Settings are pages: a centred column (1080px max; 720px for narrow pages) with 28px/32px padding, a title and lede, then content. The Library and the Guide each put a sticky list (packs, contents) beside the body.
 
-**Responsive.** Below 1100px the reading pane overlays the work (min(320px, 86vw)) rather than squeezing it, never opens by itself, and a tap on the work puts it away; the Library and Guide side lists fold above the body. Below 760px the rail becomes a 44px bottom bar with labels under each icon (the current view's label in bold), the panes stack and scroll as one page, the symbol strip is hidden, and the status bar keeps only the verdict and the problem button.
+**Responsive.** Below 1100px the reading pane overlays the work (min(320px, 86vw)) rather than squeezing it, never opens by itself, and a tap on the work puts it away; the Library and Guide side lists fold above the body; the Library's pack rail becomes an auto-fill grid of even columns (minimum 200px) with its group labels and actions spanning every column. Below 760px the rail becomes a 44px bottom bar with labels under each icon (the current view's label in bold), the panes stack and scroll as one page, the symbol strip is hidden, and the status bar keeps only the verdict and the problem button.
 
 **Motion.** Two transitions only: the reading pane collapses by animating the column width (180ms ease), disabled under prefers-reduced-motion; and step rows fade their hover background (0.1s). Nothing animates on load.
 
 ## Elevation & Depth
 
-Flat by default. Depth is tonal: paper, raised and lowered surfaces, separated by 1px Rule borders and hairlines. The only shadow in the system is a 1px inset ring marking the selected step, so selection can never be mistaken for a status. Floating layers separate by surface and border alone: the command palette is a paper dialog on a 1px Rule border over a modal scrim (ink at 42%, black at 62% at night); the arrangement popover sits on Paper Raised with a Rule border; the overlaid reading pane keeps its paper and right border. Toasts are flat, with no countdown ring.
+Flat by default. Depth is tonal: paper, raised and lowered surfaces, separated by 1px Rule borders and hairlines. The only shadow in the system is a 1px inset ring marking the selected step, so selection can never be mistaken for a status. Floating layers separate by surface and border alone: the command palette is a paper dialog on a 1px Rule border over a modal scrim (ink at 42%, black at 62% at night); the arrangement popover sits on Paper Raised with a Rule border; the overlaid reading pane keeps its paper and right border. Toasts are flat, with no countdown ring; an info toast carries no edge rule, and only warning and danger toasts keep a 2px rule (the margin belongs to failure). Dialogs (export, pack) separate their footer from the form with a 1px Rule edge, not a fill.
 
 ### Named Rules
 **The No Boxes Rule.** Organise with hairlines and alignment; never wrap content in cards. A box is reserved for callouts that carry a failure (counterexample, domain warning).
@@ -270,6 +295,8 @@ Near-square everywhere (2px radius, Web Awesome's radius scale at 0.3). Rules ar
 
 ### Named Rules
 **The Margin Belongs To Failure Rule.** A vertical coloured rule at the left edge of a row means a failure (red) or a caveat (amber), and nothing else. Current items (the rail's view, the Library pack, the Guide page) are marked by ink, weight, accent text or a lowered fill, never by a left rule. Horizontal 2px accent rules mark selected tabs.
+
+**The One Boundary Rule.** Every form control (Web Awesome input, native input, select and textarea alike) draws the same 1px Control Border at 2px radius; focus replaces it with the 2px Proof Blue outline. A field never borrows the Rule colour, which is too faint to find an empty control by.
 
 ## Components
 
@@ -298,6 +325,7 @@ Two kinds, both without boxes. Reading-pane tabs are 11px uppercase labels; the 
 The native family, used wherever a Web Awesome button would be heavier than the job:
 - **Icon button:** 24px square, plain, quiet ink with a 14px inline SVG; ink on a lowered fill on hover.
 - **Text button:** 24px tall, 12px mono, ink on no fill, lowered fill on hover. **Primary** is Proof Blue text on a 45% Proof Blue outline. **Danger** is red text. **Armed** (the second click of a two-click confirm) fills solid red with paper text.
+- **Secondary (Web Awesome):** dialog actions that are not the primary one sit on Paper Lowered with ink text, not on a tinted chip.
 - **Focus:** a 2px Proof Blue outline inset by 2px on every native control.
 
 ### Segmented Control
@@ -305,6 +333,14 @@ One outlined strip of 24px segments divided by Rule lines; 12px mono, quiet ink.
 
 ### Toggles and Web Awesome
 Switches are reduced to ink toggles (square track, no hue) so they never outshout the verdict. Web Awesome supplies the switch, dropdown, input, dialog, tooltip, popup and toast, styled only through the token layer and exported parts; the app's own icons are inline SVG.
+
+### Pack Manager (Library)
+The Library's side list is a pack manager, still set as a list rather than cards. At its top, quiet text buttons ("Install from file…", "New pack…"); then two groups under 11px uppercase labels, Installed and Available, set apart by space alone. When updates exist, the Installed label carries a primary text button ("Update all N") on its right. Each pack row is its code, its title in prose and its entry count; a pack with a newer version adds the word "update" in Proof Blue beneath, never a badge.
+
+The open pack's head is its title in Entry Title type, a 12px mono meta line in quiet ink (version · authors · licence · entry count, tabular), the prose summary, then a row of text buttons pulled left by the buttons' own padding so the first word aligns with the title. "Check all entries" reports in one prose line, quiet while every entry still gives its recorded verdict and red only when one drifts; each entry then carries a word tag, "as recorded" in dim ink or "now X, pack says Y" in red.
+
+### Pack Dialog
+A pack's details open in a paper dialog up to 760px wide. Fields sit in a two-column grid (one column on phones) under 11px uppercase legends; each entry is a hairline-divided row of its file name and the cells it is listed under. All inputs share the One Boundary. The footer sits below a 1px Rule edge and holds a prose status line (quiet while checking, red for problems, green for an export whose entries all checked) above the secondary install and primary export buttons. In the explorer, a folder that is a pack shows the word "pack" in 11px dim ink after its name, and its row actions gain a "Pack details" box icon drawn in the same 16px stroke family as rename and delete.
 
 ### Notes Entry
 The reading pane's Notes tab: a dim source reference, the entry title in 14px mono 600, the statement in 13px prose, then the student's answer as a rail and a sentence (green when right, red when wrong).
@@ -325,6 +361,7 @@ The parts the page did not draw are themed too: text selection takes the Proof B
 - **Do** define colour once in the `--wa-*` token layer and alias it; light and dark each get picked values, and quiet text clears 4.5:1 on every surface.
 - **Do** keep corners at 2px and status rails at 2px.
 - **Do** use the segmented control for a choice among a few options, and the native text and icon buttons for actions.
+- **Do** give every form control the one Control Border, and give a flag the accent only when it is news.
 
 ### Don't:
 - **Don't** use green anywhere but a verdict.
