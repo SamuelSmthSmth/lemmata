@@ -27,7 +27,7 @@ async function boot() {
   const pyodide = await loadPyodide({ indexURL: VENDOR.href });
 
   progress("packages", "Loading SymPy and Z3");
-  const wheels = await (await fetch(new URL("wheels.json", VENDOR))).json();
+  const wheels = await (await fetch(new URL("../engine/wheels.json", import.meta.url))).json();
   await pyodide.loadPackage(
     wheels.map((name) => new URL(`wheels/${name}`, VENDOR).href),
     { messageCallback: () => {}, errorCallback: (message) => progress("packages", message) },

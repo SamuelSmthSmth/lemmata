@@ -554,6 +554,12 @@ python -m http.server --directory dist # or any web server
   overrides the budget.
 - **One difference.** PDF export needs a TeX installation, so the static build
   offers the `.tex` (and says why); everything else works as on the server.
+- **Deploying.** The site is the Vercel project `lemmata`
+  (`https://lemmata-six.vercel.app`; the custom domain is `lemmata.sous.systems`).
+  Rebuild and deploy with
+  `uv run python ui/build_static.py && (cd dist && vercel deploy --prod)`.
+  The build keeps `dist/.vercel`, the folder's link to that project, so a
+  rebuild updates the same site rather than creating a new one.
 - **Hosting.** `dist/vercel.json` sets long cache headers on `static/vendor/`.
   Paths are relative, so the folder also works under a sub-path. The app needs
   no network once loaded, apart from fetching more of itself.

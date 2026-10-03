@@ -11,6 +11,7 @@ development server computes on request is computed once, here:
                                  <meta name="lemmata-engine" content="browser">
       static/                    ui/static/, including vendor/pyodide/
       static/engine/engine.zip   the `aether` package and the UI's job modules
+      static/engine/wheels.json  the wheels the worker installs
       static/data/library.json   the bundled pack catalogue      (GET /api/library)
       static/data/capabilities.json  the capability matrix       (GET /api/capabilities)
       static/data/site.json      name, tagline, version          (GET /api/site)
@@ -81,12 +82,17 @@ def main(argv: list[str]) -> int:
     from ui.app import capabilities, library
     from ui.site import NAME, SITE, TAGLINE, VERSION
 
+    # dist/.vercel links the folder to its Vercel project; keep it across
+    # rebuilds so `vercel deploy` updates the same site.
+    link = None
+    if (out / ".vercel").exists():
+        link = out.parent / ".vercel-link.tmp"
+        shutil.rmtree(link, ignore_errors=True)
+        shutil.move(out / ".vercel", link)
     if out.exists():
         shutil.rmtree(out)
     shutil.copytree(UI / "static", out / "static", ignore=shutil.ignore_patterns("__pycache__"))
 
-    wheels = sorted(p.name for p in (vendor / "wheels").glob("*.whl"))
-    (out / "static" / "vendor" / "pyodide" / "wheels.json").write_text(json.dumps(wheels) + "\n")
 
     data = out / "static" / "data"
     data.mkdir()
@@ -96,6 +102,10 @@ def main(argv: list[str]) -> int:
 
     (out / "static" / "engine").mkdir()
     files = engine_zip(out / "static" / "engine" / "engine.zip")
+    # The wheel list changes when the vendored set does, so it lives beside the
+    # engine (revalidated) rather than under vendor/ (cached as immutable).
+    wheels = sorted(p.name for p in (vendor / "wheels").glob("*.whl"))
+    (out / "static" / "engine" / "wheels.json").write_text(json.dumps(wheels) + "\n")
 
     html = (UI / "static" / "index.html").read_text(encoding="utf-8")
     html = re.sub(r"<title>.*?</title>", f"<title>{escape(NAME)} · {escape(TAGLINE)}</title>", html, count=1)
@@ -106,6 +116,8 @@ def main(argv: list[str]) -> int:
         return 1
     (out / "index.html").write_text(html, encoding="utf-8")
     (out / "vercel.json").write_text(json.dumps(VERCEL, indent=2) + "\n")
+    if link is not None:
+        shutil.move(link, out / ".vercel")
 
     total = sum(p.stat().st_size for p in out.rglob("*") if p.is_file())
     print(f"built {out.relative_to(ROOT) if out.is_relative_to(ROOT) else out}: {total / 1e6:.1f} MB")
