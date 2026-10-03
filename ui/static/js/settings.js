@@ -60,7 +60,9 @@ function toggle({ name, label, hint, checked, onChange }) {
   const control = document.createElement("wa-switch");
   control.size = "s";
   control.checked = checked;
-  control.setAttribute("aria-labelledby", text.id);
+  // The label has to be slotted: aria-labelledby on the host cannot reach the
+  // input inside its shadow root.  The visible label beside it says the same.
+  control.append(el("span", "sr-only", label));
   control.id = `setting-${name}`;
   control.addEventListener("change", () => onChange(control.checked));
   field.append(text, control);

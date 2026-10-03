@@ -54,7 +54,7 @@
     <!-- The rail: the four views, and the two global controls. -->
     <nav class="rail" aria-label="Views">
       <span class="rail-mark" aria-hidden="true">Æ</span>
-      <div class="rail-views" role="list">
+      <div class="rail-views">
         <button class="rail-button" type="button" data-view="workspace" aria-label="Workspace" aria-current="page">
           <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" aria-hidden="true">
             <path d="M4 4h6l2 2h8v13a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1z"></path>
@@ -109,7 +109,8 @@
     <!-- ===================================================================
          Workspace: the reading pane (the desk) beside the working pane.
          =================================================================== -->
-    <section id="view-workspace" class="view view--workspace" aria-label="Workspace">
+    <main id="view-workspace" class="view view--workspace" aria-labelledby="workspace-title">
+      <h1 id="workspace-title" class="sr-only">Your proofs</h1>
       <aside id="desk" class="desk" aria-label="Reading pane">
         <div class="desk-head">
           <div class="desk-tabs" role="tablist" aria-label="Reading pane">
@@ -190,13 +191,13 @@
           <wa-switch id="strict" class="strict-switch" size="s">Strict domains</wa-switch>
           <wa-tooltip for="strict" placement="bottom">Unguarded divisions and square roots become hard errors</wa-tooltip>
           <span class="toolstrip-rule" aria-hidden="true"></span>
-          <wa-button id="layout-toggle" class="icon-button" size="s" appearance="plain" aria-label="Panel arrangement" aria-haspopup="menu" aria-expanded="false">
+          <button id="layout-toggle" class="icon-button-native" type="button" aria-label="Panel arrangement" aria-haspopup="menu" aria-expanded="false">
             <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true">
               <rect x="3" y="4" width="18" height="9"></rect>
               <rect x="3" y="15" width="8.5" height="5"></rect>
               <rect x="13.5" y="15" width="7.5" height="5"></rect>
             </svg>
-          </wa-button>
+          </button>
           <wa-tooltip for="layout-toggle" placement="bottom">Panel arrangement</wa-tooltip>
           <wa-popup id="layout-popup" anchor="layout-toggle" placement="bottom-end" distance="8">
             <div id="layout-panel" class="layout-panel">
@@ -205,7 +206,7 @@
               <p class="history-note">Drag a panel's grip to swap two panels, or focus a grip and press an arrow key.</p>
             </div>
           </wa-popup>
-          <wa-button id="syntax-toggle" class="icon-button" size="s" appearance="plain" aria-label="Toggle colourised syntax highlighting" aria-pressed="false">
+          <button id="syntax-toggle" class="icon-button-native" type="button" aria-label="Toggle colourised syntax highlighting" aria-pressed="false">
             <!-- One dot filled, two hollow: the same three tokens, one hue. -->
             <svg class="icon icon--mono" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
               <circle cx="4.5" cy="12" r="2.6"></circle>
@@ -218,27 +219,27 @@
               <circle cx="12" cy="12" r="2.7"></circle>
               <circle cx="19.5" cy="12" r="2.7"></circle>
             </svg>
-          </wa-button>
+          </button>
           <wa-tooltip for="syntax-toggle" placement="bottom">Syntax colours</wa-tooltip>
-          <wa-button id="download-proof" class="icon-button" size="s" appearance="plain" aria-label="Download this proof as a .aether file">
+          <button id="download-proof" class="icon-button-native" type="button" aria-label="Download this proof as a .aether file">
             <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
               <path d="M12 3v12m0 0l4-4m-4 4l-4-4"></path>
               <path d="M4 20h16"></path>
             </svg>
-          </wa-button>
+          </button>
           <wa-tooltip for="download-proof" placement="bottom">Download as .aether</wa-tooltip>
-          <wa-button id="export-latex" class="icon-button" size="s" appearance="plain" aria-label="Export proof to LaTeX / PDF">
+          <button id="export-latex" class="icon-button-native" type="button" aria-label="Export proof to LaTeX / PDF">
             <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
               <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
               <polyline points="14 2 14 8 20 8"></polyline>
               <line x1="16" y1="13" x2="8" y2="13"></line>
               <line x1="16" y1="17" x2="8" y2="17"></line>
             </svg>
-          </wa-button>
+          </button>
           <wa-tooltip for="export-latex" placement="bottom">Export to LaTeX / PDF</wa-tooltip>
         </div>
 
-        <main class="layout">
+        <div class="layout">
           <section class="pane pane--editor" aria-labelledby="editor-heading">
             <div class="pane-head">
               <h2 id="editor-heading">Proof</h2>
@@ -264,21 +265,21 @@
             </div>
             <div id="context" class="context scroll"></div>
           </section>
-        </main>
+        </div>
       </div>
-    </section>
+    </main>
 
     <!-- ===================================================================
          Library, Guide and Settings: full views beside the rail.
          =================================================================== -->
-    <section id="view-library" class="view view--page view--library" aria-labelledby="library-title" hidden>
+    <main id="view-library" class="view view--page view--library" aria-labelledby="library-title" hidden>
       <div class="page">
         <header class="page-head">
           <h1 id="library-title">Library</h1>
           <p class="page-lede">Proofs transcribed from lecture notes, keyed to the notes' own numbering, and worked examples of the language. Open one beside a copy of its proof; traps are mistakes to find.</p>
         </header>
         <div class="library-controls" role="search">
-          <wa-input id="library-search" class="library-search" size="s" placeholder="Search by reference or title — e.g. 2.18, Lagrange, limit" with-clear aria-label="Search the library"></wa-input>
+          <wa-input id="library-search" class="library-search" size="s" label="Search the library" placeholder="Search by reference or title — e.g. 2.18, Lagrange, limit" with-clear></wa-input>
           <div id="library-filters" class="filters" role="radiogroup" aria-label="Show">
             <button class="filter" type="button" role="radio" aria-checked="true" data-filter="all">All</button>
             <button class="filter" type="button" role="radio" aria-checked="false" data-filter="proof">Proofs</button>
@@ -290,16 +291,16 @@
           <div id="library-list" class="library-list" aria-live="polite"></div>
         </div>
       </div>
-    </section>
+    </main>
 
-    <section id="view-guide" class="view view--page view--guide" aria-labelledby="guide-title" hidden>
+    <main id="view-guide" class="view view--page view--guide" aria-label="Guide" hidden>
       <div class="page page--guide">
         <nav id="guide-toc" class="guide-toc" aria-label="Guide contents"></nav>
         <article id="guide-article" class="guide-article" aria-live="polite"></article>
       </div>
-    </section>
+    </main>
 
-    <section id="view-settings" class="view view--page view--settings" aria-labelledby="settings-title" hidden>
+    <main id="view-settings" class="view view--page view--settings" aria-labelledby="settings-title" hidden>
       <div class="page page--narrow">
         <header class="page-head">
           <h1 id="settings-title">Settings</h1>
@@ -307,7 +308,7 @@
         </header>
         <form id="settings-form" class="settings" onsubmit="return false"></form>
       </div>
-    </section>
+    </main>
 
     <!-- The status bar: the verdict, where you are, and whether work is kept. -->
     <footer class="statusbar">

@@ -56,10 +56,12 @@ export function renderTabs() {
     mark.setAttribute("aria-hidden", "true");
     tab.append(mark, el("span", "tab-label", basename(file.path).replace(/\.aether$/, "")));
 
-    const close = el("button", "tab-close");
-    close.type = "button";
-    close.tabIndex = -1;
-    close.setAttribute("aria-label", `Close ${basename(file.path)}`);
+    // A pointer target only: a tab cannot contain a second control, so from
+    // the keyboard a tab is closed with Delete, and by mouse also with a
+    // middle-click.
+    const close = el("span", "tab-close");
+    close.setAttribute("aria-hidden", "true");
+    close.title = `Close ${basename(file.path)}`;
     close.innerHTML =
       '<svg class="icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><path d="M4.5 4.5l7 7M11.5 4.5l-7 7"/></svg>';
     close.addEventListener("click", (event) => {
@@ -73,6 +75,9 @@ export function renderTabs() {
       if (event.key === "Enter" || event.key === " ") {
         event.preventDefault();
         handlers.onActivate?.(id);
+      } else if (event.key === "Delete") {
+        event.preventDefault();
+        handlers.onClose?.(id);
       }
     });
     // Middle-click closes, as in every browser tab strip.

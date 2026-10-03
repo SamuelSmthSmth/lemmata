@@ -466,18 +466,27 @@ window.addEventListener("popstate", () => {
   if (params.get("page")) openGuidePage(params.get("page"), { push: false });
 });
 
+// Below this width the reading pane floats over the work instead of sitting
+// beside it, so it never opens by itself: only the person opens it.
+const narrowScreen = window.matchMedia("(max-width: 1100px)");
+
 function showDesk(panel = null) {
-  setDeskOpen(true);
+  if (!narrowScreen.matches) setDeskOpen(true);
   if (panel) setDeskPanel(panel);
 }
 
-function setDeskOpen(open) {
+function setDeskOpen(open, { persist = true } = {}) {
   document.documentElement.dataset.desk = open ? "open" : "closed";
   dom.deskCollapse.setAttribute("aria-expanded", String(open));
   dom.deskOpen.hidden = open;
-  setPref("desk", open ? "open" : "closed");
+  if (persist) setPref("desk", open ? "open" : "closed");
   requestAnimationFrame(() => editor.view.requestMeasure());
 }
+
+// A tap on the work beside a floating reading pane puts the pane away.
+document.querySelector(".work").addEventListener("pointerdown", () => {
+  if (narrowScreen.matches && document.documentElement.dataset.desk === "open") setDeskOpen(false, { persist: false });
+});
 
 function setDeskPanel(name) {
   for (const tab of dom.deskTabs) {
@@ -973,7 +982,7 @@ document.addEventListener("visibilitychange", () => {
 
 async function init() {
   applySyntax(currentSyntax());
-  setDeskOpen(getPref("desk") === "open");
+  setDeskOpen(getPref("desk") === "open" && !narrowScreen.matches, { persist: false });
   setDeskPanel(getPref("deskPanel"));
 
   let packs = [];
@@ -1027,7 +1036,6 @@ async function init() {
 
   await showActive();
   if (origin === "link") showToast("Loaded the proof from this link");
-  else if (origin === "restored" && ws.model.files.size) showToast("Restored your workspace");
 }
 
 init();

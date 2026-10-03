@@ -212,6 +212,9 @@ export function createEditor({ parent, onDocChanged, onSelectionMoved, onCaret =
       basicSetup,
       lintExtensions(),
       placeholder("Write a proof here — start with Theorem, Let or Given, or insert a template above."),
+      // The editable surface is the textbox screen readers land on, so the
+      // name goes on it, not only on the wrapper.
+      EditorView.contentAttributes.of({ "aria-label": "Proof source", "aria-multiline": "true" }),
       EditorView.updateListener.of((update) => {
         if (update.docChanged || update.selectionSet) {
           const { state } = update;

@@ -588,7 +588,7 @@ def run_checks() -> None:
 
 PANEL_PROBE = """(() => {
   const name = (p) => p.className.split(' ').find(c => c.startsWith('pane--')).slice(6);
-  const grid = document.querySelector('main.layout');
+  const grid = document.querySelector('.layout');
   const panes = [...grid.querySelectorAll('.pane')];
   return JSON.stringify({
     layout: grid.dataset.layout,
@@ -815,6 +815,14 @@ def workspace_checks() -> None:
     time.sleep(0.4)
     check(len(workspace()["tabs"]) == 1, "closing a tab closes the tab, not the file")
     check("week1.aether" in workspace()["files"], "the file stays in the explorer")
+
+    # A tab holds no second control (it would be a nested interactive), so
+    # from the keyboard Delete closes the focused tab.
+    ab("focus", "#tabs .tab.is-active")
+    ab("press", "Delete")
+    time.sleep(0.4)
+    check(len(workspace()["tabs"]) == 0, "Delete on a focused tab closes it")
+    check(len(workspace()["files"]) == 2, "and keeps its file")
 
 
 def import_checks() -> None:

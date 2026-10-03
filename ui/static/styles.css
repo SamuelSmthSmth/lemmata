@@ -51,7 +51,10 @@
   --wa-color-surface-border: #dde1e6;
 
   --wa-color-text-normal: #16181d;
-  --wa-color-text-quiet: #646b78;
+  --wa-color-text-quiet: #555b6a;
+  /* The quietest text that is still text: line numbers, path, "VALID".
+     Both quiet steps clear 4.5:1 on every surface they sit on. */
+  --app-text-dim: #666c7a;
   --wa-color-text-link: #0a5fbf;
 
   --wa-color-focus: #0a5fbf;
@@ -75,7 +78,7 @@
   --wa-color-danger-fill-loud: #be1824;
 
   --wa-color-neutral-fill-quiet: rgba(22, 24, 29, 0.05);
-  --wa-color-neutral-on-quiet: #646b78;
+  --wa-color-neutral-on-quiet: #555b6a;
   --wa-color-neutral-border-normal: #dde1e6;
 }
 
@@ -88,7 +91,8 @@
   --wa-color-surface-border: #262b32;
 
   --wa-color-text-normal: #e6e8ec;
-  --wa-color-text-quiet: #868e9c;
+  --wa-color-text-quiet: #9ba3b0;
+  --app-text-dim: #7f8795;
   --wa-color-text-link: #6cb0ff;
 
   --wa-color-focus: #6cb0ff;
@@ -112,7 +116,7 @@
   --wa-color-danger-fill-loud: #da3633;
 
   --wa-color-neutral-fill-quiet: rgba(230, 232, 236, 0.06);
-  --wa-color-neutral-on-quiet: #868e9c;
+  --wa-color-neutral-on-quiet: #9ba3b0;
   --wa-color-neutral-border-normal: #262b32;
 }
 
@@ -130,7 +134,7 @@
   --cm-token-structure: #6d28d9; /* Theorem, Proof, QED, Case */
   --cm-token-intro: #0a5fbf; /* Let, Given, Assume, Obtain, Step */
   --cm-token-flow: #0d7a6b; /* Therefore, Hence, exists, forall */
-  --cm-token-join: #6b7280; /* such, that, from, by -- quiet */
+  --cm-token-join: #5f6672; /* such, that, from, by -- quiet */
   --cm-token-logic: #c2410c; /* and, or, not, in, mod */
   --cm-token-math-fn: #4338ca; /* sqrt, det, lim, integrate */
   --cm-token-macro: #0e7490; /* \\mathbb{N}, \\epsilon */
@@ -139,7 +143,7 @@
   --cm-token-number: #b45309;
   --cm-token-operator: #4b5563;
   --cm-token-string: #0a7a4a;
-  --cm-token-comment: #8b929c; /* quiet */
+  --cm-token-comment: #666c7a; /* quiet */
 }
 
 :root[data-theme="dark"][data-syntax="vivid"] {
@@ -155,7 +159,7 @@
   --cm-token-number: #f5c97b;
   --cm-token-operator: #9aa1ac;
   --cm-token-string: #7bd98f;
-  --cm-token-comment: #6e7681;
+  --cm-token-comment: #7f8795;
 }
 
 /* --- Type and the app's own vocabulary ------------------------------------ */
@@ -178,7 +182,7 @@
   --hairline: color-mix(in oklab, var(--wa-color-text-normal) 8%, var(--wa-color-surface-default));
   --text: var(--wa-color-text-normal);
   --muted: var(--wa-color-text-quiet);
-  --muted-dim: color-mix(in oklab, var(--wa-color-text-quiet) 62%, var(--wa-color-surface-default));
+  --muted-dim: var(--app-text-dim);
 
   --valid: var(--wa-color-success-on-quiet);
   --valid-bg: var(--wa-color-success-fill-quiet);
@@ -210,7 +214,7 @@
   --cm-active-line: color-mix(in oklab, var(--wa-color-text-normal) 3%, var(--wa-color-surface-default));
   --cm-selection: color-mix(in oklab, var(--accent) 20%, transparent);
   --cm-selection-focused: color-mix(in oklab, var(--accent) 32%, transparent);
-  --cm-placeholder: color-mix(in oklab, var(--wa-color-text-quiet) 55%, var(--wa-color-surface-default));
+  --cm-placeholder: var(--app-text-dim);
   --cm-tooltip-bg: var(--wa-color-surface-raised);
   --cm-tooltip-border: var(--wa-color-surface-border);
 
@@ -291,30 +295,6 @@ body {
    Component internals are unreachable, but the host element and any exported
    part belong to us.
    ========================================================================= */
-
-wa-button.icon-button {
-  width: 24px;
-  height: 24px;
-  font-size: 12px;
-  color: var(--muted);
-}
-
-wa-button.icon-button::part(button) {
-  padding: 0;
-  width: 100%;
-  height: 100%;
-  justify-content: center;
-}
-
-wa-button.icon-button:hover {
-  color: var(--text);
-}
-
-wa-button.icon-button--slim {
-  width: 20px;
-  height: 20px;
-  font-size: 11px;
-}
 
 /* Icons are inlined SVGs, not <wa-icon>.
    A slotted <svg> inside <wa-icon> is never painted: the component's shadow root
@@ -2035,12 +2015,11 @@ html[data-desk="closed"] .desk {
   border-bottom: 1px solid var(--hairline);
 }
 
+/* Where an entry comes from: a quiet line after its title, never a label
+   above it. */
 .note-source {
-  margin: 0 0 8px;
+  margin: -4px 0 12px;
   font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.09em;
-  text-transform: uppercase;
   color: var(--muted);
 }
 
@@ -2130,7 +2109,7 @@ html[data-desk="closed"] .desk {
   margin-bottom: 6px;
 }
 
-.note-pinned-head .note-source {
+.note-pinned-head .note-ref {
   margin: 0;
 }
 
@@ -2286,6 +2265,17 @@ body[data-exercise="hidden"] .step::before {
 .library-search {
   flex: 1 1 auto;
   max-width: 520px;
+}
+
+/* Labelled for assistive technology; the placeholder and the page heading
+   already say what the field is for on screen. */
+.library-search::part(form-control-label) {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
 }
 
 .library-body {
@@ -2880,6 +2870,7 @@ body[data-exercise="hidden"] .step::before {
 }
 
 .palette-input {
+  flex: none;
   width: 100%;
   height: 42px;
   padding: 0 14px;
@@ -2961,6 +2952,7 @@ body[data-exercise="hidden"] .step::before {
 }
 
 .palette-hint {
+  flex: none;
   margin: 0;
   padding: 6px 12px;
   border-top: 1px solid var(--hairline);
@@ -3037,9 +3029,40 @@ body[data-exercise="hidden"] .step::before {
   text-decoration: underline;
 }
 
-/* Toasts rise from just above the status bar, never over it. */
+/* Toasts rise from just above the status bar, never over it.  Flat, on a
+   hairline, with a plain close: the countdown ring is decoration here. */
 #toast {
   bottom: 26px;
+}
+
+wa-toast-item::part(toast-item) {
+  border-radius: var(--radius);
+  font-size: 12px;
+}
+
+wa-toast-item::part(progress-ring) {
+  display: none;
+}
+
+wa-toast-item::part(close-button) {
+  font-size: 11px;
+}
+
+/* --- Browser surfaces: the parts the page did not draw ------------------- */
+
+::selection {
+  background: var(--cm-selection-focused);
+}
+
+:root {
+  accent-color: var(--accent);
+  caret-color: var(--accent);
+  scrollbar-color: color-mix(in oklab, var(--wa-color-text-normal) 22%, transparent) transparent;
+}
+
+a {
+  text-underline-offset: 0.18em;
+  text-decoration-thickness: 1px;
 }
 
 /* -------------------------------------------------------------------------

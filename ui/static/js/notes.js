@@ -35,9 +35,10 @@ export function renderNotes({ found, file, pinned }) {
     const { pack, entry } = found;
     const chapter = pack.chapters.find((c) => c.id === entry.chapter);
     const card = el("article", "note-entry");
-    card.append(el("p", "note-source", `${pack.code} · ${pack.title}${chapter ? ` · ${chapter.title}` : ""}`));
+    // The notes' own numbering is the heading; where it comes from follows it.
     card.append(el("h2", "note-ref", entry.ref));
     card.append(el("p", "note-title", entry.title));
+    card.append(el("p", "note-source", `${pack.code} ${pack.title}${chapter ? ` · ${chapter.title}` : ""}`));
     if (entry.blurb) card.append(el("p", "note-text", entry.blurb));
 
     if (entry.kind === "trap") {
@@ -81,7 +82,7 @@ export function renderNotes({ found, file, pinned }) {
   if (pinned) {
     const page = el("article", "note-pinned");
     const head = el("div", "note-pinned-head");
-    head.append(el("p", "note-source", "Pinned from the Guide"), action("Unpin", () => handlers.onUnpin?.()));
+    head.append(el("h2", "note-ref", pinned.title), action("Unpin", () => handlers.onUnpin?.()));
     page.append(head, pinned.node);
     root.append(page);
   }

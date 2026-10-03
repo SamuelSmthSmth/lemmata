@@ -174,7 +174,7 @@ if (hasDom) boot();
 // usual registry: dom.js cannot be evaluated in Node, and this module has to be
 // importable there for its pure half to be testable.
 function boot() {
-  const grid = document.querySelector("main.layout");
+  const grid = document.querySelector(".layout");
   const toggle = document.getElementById("layout-toggle");
   const popup = document.getElementById("layout-popup");
   const options = document.getElementById("layout-options");
