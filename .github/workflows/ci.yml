@@ -19,6 +19,9 @@ jobs:
           enable-cache: true
       - run: uv sync --frozen
       - run: uv run pytest -q
+      # pytest shares one warm checker; students meet each proof cold. Every
+      # entry, in its own process, within the app's 20 s check budget.
+      - run: uv run python tests/lecture_notes/run_corpus.py --budget 20
 
   ui:
     name: UI contract checks

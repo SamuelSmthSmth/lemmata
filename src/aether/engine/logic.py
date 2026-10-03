@@ -746,16 +746,17 @@ def _populate_algebra_axioms(solver: z3.Solver, prop: ExprNode, ctx: ProofContex
             solver.add(z3.ForAll([x], z3.Implies(x != zero, z3.And(mul(x, inv(x)) == one, mul(inv(x), x) == one))))
 
 
-def _populate_solver_context(solver: z3.Solver, ctx: ProofContext) -> None:
-    """Add variable domain constraints (e.g. Nat >= 0), active hypotheses, and chain facts to *solver*."""
-    extra: list[z3.ExprRef] = []
-    active_vars = ctx.all_variables()
-    for vinfo in active_vars.values():
-        if vinfo.math_type == MathType.Nat:
-            z3_v = _make_z3_var(vinfo.name, MathType.Nat)
-            solver.add(z3_v >= 0)  # type: ignore[operator]
+# Membership, intersection, union and subset are uninterpreted functions over
+# the reals, pinned down by three quantified axioms.  Quantifiers are costly:
+# while they are present, showing a goal *satisfiable* sends Z3 into model-
+# based quantifier instantiation, work its resource limit does not meter, so
+# "is x = 1?" under the hypothesis x != 1 could run until the wall-clock
+# backstop.  Axioms about functions a problem never mentions cannot change its
+# answer, so they are added only to problems that use one of them.
+_SET_FUNCTIONS = ("in", "intersect", "union", "subset")
 
-    # Set theory axioms
+
+def _add_set_axioms(solver: z3.Solver) -> None:
     S = z3.RealSort()
     st_x, st_A, st_B = z3.Reals("_st_x _st_A _st_B")
     in_fn = z3.Function("in", S, S, z3.BoolSort())
@@ -765,6 +766,44 @@ def _populate_solver_context(solver: z3.Solver, ctx: ProofContext) -> None:
     solver.add(z3.ForAll([st_x, st_A, st_B], in_fn(st_x, inter_fn(st_A, st_B)) == z3.And(in_fn(st_x, st_A), in_fn(st_x, st_B))))
     solver.add(z3.ForAll([st_x, st_A, st_B], in_fn(st_x, union_fn(st_A, st_B)) == z3.Or(in_fn(st_x, st_A), in_fn(st_x, st_B))))
     solver.add(z3.ForAll([st_A, st_B], sub_fn(st_A, st_B) == z3.ForAll([st_x], z3.Implies(in_fn(st_x, st_A), in_fn(st_x, st_B)))))
+
+
+def _uses_set_functions(solver: z3.Solver) -> bool:
+    seen: set[int] = set()
+    stack = list(solver.assertions())
+    while stack:
+        node = stack.pop()
+        if node.get_id() in seen:
+            continue
+        seen.add(node.get_id())
+        if z3.is_app(node):
+            decl = node.decl()
+            if decl.kind() == z3.Z3_OP_UNINTERPRETED and decl.name() in _SET_FUNCTIONS:
+                return True
+            stack.extend(node.children())
+        elif z3.is_quantifier(node):
+            stack.append(node.body())
+    return False
+
+
+def check_solver(solver: z3.Solver) -> z3.CheckSatResult:
+    """``solver.check()``, with the set axioms added when the problem needs them."""
+    if _uses_set_functions(solver):
+        _add_set_axioms(solver)
+    return solver.check()
+
+
+def _populate_solver_context(solver: z3.Solver, ctx: ProofContext) -> None:
+    """Add variable domain constraints (e.g. Nat >= 0), active hypotheses, and chain facts to *solver*."""
+    extra: list[z3.ExprRef] = []
+    active_vars = ctx.all_variables()
+    for vinfo in active_vars.values():
+        if vinfo.math_type == MathType.Nat:
+            z3_v = _make_z3_var(vinfo.name, MathType.Nat)
+            solver.add(z3_v >= 0)  # type: ignore[operator]
+
+    # The set-theory axioms are added by check_solver(), and only when the
+    # problem mentions a set operation (see _SET_FUNCTIONS).
 
     for h in ctx.all_hypotheses():
         try:
@@ -1239,7 +1278,7 @@ def verify_entailment(
     for c in extra:
         solver.add(c)
     solver.add(z3.Not(z3_claim))
-    result = solver.check()
+    result = check_solver(solver)
 
     if result == z3.unsat:
         return LogicResult(
@@ -1414,7 +1453,7 @@ def _decide(condition: sp.Basic, ctx: ProofContext, timeout_ms: int = 1500) -> O
         solver = new_solver(timeout_ms)
         _populate_solver_context(solver, ctx)
         solver.add(z3.Not(goal))
-        if solver.check() == z3.unsat:
+        if check_solver(solver) == z3.unsat:
             return answer
     return None
 
