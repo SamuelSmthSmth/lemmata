@@ -593,6 +593,23 @@ published at `https://samuelsmthsmth.github.io/lemmata-packs/` (site.json
   Students receive the change as an update, with no new app release.
 - **Sharing a pack made in the app.** A local pack's head offers *Share to the registry…*: export the file, upload it on GitHub, open the PR.
 
+## The desktop app
+
+`desktop/` wraps the static build in a Tauri shell: the same page, with the
+checker in Pyodide, in a native window, offline from the first launch.
+
+- **Building.** `uv run python desktop/build.py` builds the static site into
+  `desktop/build/www` and the installers for this OS.
+- **Checking.** `uv run python desktop/verify_desktop.py` drives the real app
+  over WebDriver, on Linux and Windows.
+- **What the page sees.** The page has no access to the shell. Its one
+  difference is a marker, `<meta name="lemmata-shell" content="desktop">`,
+  which `js/site.js` reads as `desktop`, `kept` and `holder`. Copy that says
+  where work is kept uses those, or `[data-site-kept]` in markup, so it never
+  says "browser" in the app.
+
+See [`desktop/README.md`](../desktop/README.md).
+
 ## Customising for an institution
 
 One file, `site.json`, names and points a copy of the app. Write your own, set
@@ -614,6 +631,8 @@ Every field is optional:
 - **`preinstall`** lists the bundled packs a first visit installs.
 
 The name also reaches the page title, the PDF report and the engine archive.
+The same file builds an institution's desktop app (`desktop/build.py`, with
+its own `--identifier` and `--icon`).
 
 ## About `static/vendor/`
 

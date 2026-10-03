@@ -9,7 +9,7 @@
 import { el } from "./format.js";
 import { ARRANGEMENTS, layoutApi } from "./layout.js";
 import { getPref, setPref } from "./prefs.js";
-import { site } from "./site.js";
+import { holder, site } from "./site.js";
 
 let handlers = {};
 
@@ -208,7 +208,7 @@ export function renderSettings() {
       }),
       action({
         label: "Delete everything",
-        hint: "Removes every proof, snapshot and setting from this browser. Export first if you want to keep them.",
+        hint: `Removes every proof, snapshot and setting from ${holder}. Export first if you want to keep them.`,
         buttonLabel: "Delete everything",
         tone: "danger",
         confirm: async () => `Click again to delete ${(await handlers.countFiles?.()) ?? "all"} proofs`,

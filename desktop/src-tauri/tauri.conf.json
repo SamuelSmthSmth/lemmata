@@ -1,0 +1,53 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Lemmata",
+  "version": "0.1.0",
+  "identifier": "systems.sous.lemmata",
+  "build": {
+    "frontendDist": "../build/www"
+  },
+  "app": {
+    "withGlobalTauri": false,
+    "windows": [],
+    "security": {
+      "csp": {
+        "default-src": "'self'",
+        "script-src": "'self' 'wasm-unsafe-eval'",
+        "worker-src": "'self' blob:",
+        "style-src": "'self' 'unsafe-inline'",
+        "img-src": "'self' data: blob:",
+        "font-src": "'self' data:",
+        "connect-src": "'self' https:",
+        "object-src": "'none'",
+        "base-uri": "'self'",
+        "form-action": "'none'"
+      }
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "category": "Education",
+    "shortDescription": "Check proofs written the way your lecture notes write them",
+    "longDescription": "Write proofs the way lecture notes write them and have every line checked, with counterexamples when a step is wrong. Works offline: the checker runs on your computer.",
+    "copyright": "Copyright 2026 Samuel Okwuonu. Apache-2.0; course packs CC BY-SA 4.0.",
+    "license": "Apache-2.0",
+    "homepage": "https://lemmata.sous.systems",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+    "macOS": {
+      "signingIdentity": "-",
+      "minimumSystemVersion": "11.0"
+    },
+    "linux": {
+      "deb": {
+        "section": "education"
+      }
+    }
+  }
+}

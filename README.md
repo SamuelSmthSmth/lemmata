@@ -85,6 +85,13 @@ uv run python ui/vendor_pyodide.py && uv run python ui/build_static.py
 python -m http.server --directory dist
 ```
 
+And as a **desktop app** (Tauri; the same static build in a native window,
+offline from the first launch). See [`desktop/README.md`](desktop/README.md):
+
+```bash
+uv run python desktop/build.py      # installers for this OS (needs Rust and Node)
+```
+
 ---
 
 ## 🧪 Verification & Testing

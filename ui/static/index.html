@@ -4,6 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Lemmata · Proof intern</title>
+    <link rel="icon" href="static/icon.svg" type="image/svg+xml" />
     <meta name="description" content="Check proofs written the way your lecture notes write them, line by line." />
     <script>
       // Resolve the theme, the syntax scheme and the editor's type size before
@@ -304,7 +305,7 @@
       <div class="page page--narrow">
         <header class="page-head">
           <h1 id="settings-title">Settings</h1>
-          <p class="page-lede">Kept in this browser. Nothing here is sent anywhere.</p>
+          <p class="page-lede">Kept <span data-site-kept>in this browser</span>. Nothing here is sent anywhere.</p>
         </header>
         <form id="settings-form" class="settings" onsubmit="return false"></form>
       </div>
@@ -351,7 +352,7 @@
       <form id="pack-form" class="pack-form" novalidate></form>
       <div slot="footer" class="dialog-actions pack-dialog-actions">
         <div id="pack-status" class="pack-status" role="status" aria-live="polite"></div>
-        <wa-button id="pack-install" size="s" appearance="filled-outlined">Install in this browser</wa-button>
+        <wa-button id="pack-install" size="s" appearance="filled-outlined">Install <span data-site-kept>in this browser</span></wa-button>
         <wa-button id="pack-export" size="s" variant="brand">Export .pack.json</wa-button>
       </div>
     </wa-dialog>

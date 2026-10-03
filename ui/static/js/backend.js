@@ -57,7 +57,7 @@ function start(restarting = false) {
         resolve();
       } else if (data.type === "failed") {
         setStatus("failed", data.error);
-        reject(new Error(`The checker could not start in this browser: ${data.error}`));
+        reject(new Error(`The checker could not start: ${data.error}`));
       } else if (data.id !== undefined && pending.has(data.id)) {
         const { resolve: done, reject: fail } = pending.get(data.id);
         pending.delete(data.id);
@@ -67,7 +67,7 @@ function start(restarting = false) {
     });
     worker.addEventListener("error", (event) => {
       setStatus("failed", event.message);
-      reject(new Error(`The checker could not start in this browser: ${event.message}`));
+      reject(new Error(`The checker could not start: ${event.message}`));
     });
   });
   ready.catch(() => {});

@@ -34,7 +34,7 @@ import { permalinkFor, readPermalink, writePermalink } from "./permalink.js";
 import { getPref, setPref } from "./prefs.js";
 import { applyResponse } from "./render.js";
 import { initSettings, renderSettings } from "./settings.js";
-import { loadSite, site } from "./site.js";
+import { holder, kept, loadSite, site } from "./site.js";
 import { state } from "./state.js";
 import { initTabs, renderTabs } from "./tabs.js";
 import { showToast } from "./toast.js";
@@ -107,7 +107,7 @@ async function saveActive() {
     } catch (error) {
       if (!warnedAboutStorage) {
         warnedAboutStorage = true;
-        showToast("This browser refused to store your work. Export the workspace to keep it.", { tone: "danger", ms: 8000 });
+        showToast(`${holder[0].toUpperCase()}${holder.slice(1)} refused to store your work. Export the workspace to keep it.`, { tone: "danger", ms: 8000 });
       }
     }
   }
@@ -1199,9 +1199,9 @@ initSettings({
   storageSummary: async () => {
     const usage = await db.usage();
     const files = ws.model.files.size;
-    const kept = ws.model.persistent ? "kept in this browser" : "not kept — this browser will not store data";
+    const where = ws.model.persistent ? `kept ${kept}` : `not kept — ${holder} will not store data`;
     const size = usage ? ` · ${(usage.used / 1024).toFixed(0)} KB used` : "";
-    return `${files} proof${files === 1 ? "" : "s"}, ${kept}${size}`;
+    return `${files} proof${files === 1 ? "" : "s"}, ${where}${size}`;
   },
   onWipe: async () => {
     await db.wipe();
@@ -1236,7 +1236,7 @@ async function init() {
   onEngineStatus(({ state, detail }) => {
     if (state === "loading" || state === "restarting") setEngineLoading(`${state === "restarting" ? "Restarting the checker" : "Loading the checker"}${detail ? ` · ${detail}` : ""}`);
     else setEngineLoading(null);
-    if (state === "failed") showToast(`The checker could not start in this browser: ${detail}`, { tone: "danger", ms: 12000 });
+    if (state === "failed") showToast(`The checker could not start in ${holder}: ${detail}`, { tone: "danger", ms: 12000 });
   });
   if (!canExportPdf) {
     dom.downloadPdf.hidden = true;
@@ -1279,7 +1279,7 @@ async function init() {
     },
   });
   pinnedGuide = await db.meta.get("pinnedGuide", null);
-  dom.statusStorage.textContent = ws.model.persistent ? "Saved in this browser" : "Not saved — storage unavailable";
+  dom.statusStorage.textContent = ws.model.persistent ? `Saved ${kept}` : "Not saved — storage unavailable";
   dom.statusStorage.dataset.ok = String(ws.model.persistent);
 
   // A link wins: the fragment is what the person clicking it meant to see.

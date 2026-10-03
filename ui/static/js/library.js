@@ -12,6 +12,7 @@ import { checkProof } from "./api.js";
 import { el } from "./format.js";
 import * as packs from "./packs.js";
 import * as registry from "./registry.js";
+import { kept } from "./site.js";
 
 let handlers = {};
 let copies = () => new Map(); // entryKey -> {fileId, tone}
@@ -204,7 +205,7 @@ function packHead(pack, { installed, update }) {
   const count = entryCount(pack);
   const meta = [`v${pack.version}`, pack.authors?.join(", "), pack.license, `${count} ${count === 1 ? "entry" : "entries"}`];
   if (record?.origin === "file") meta.push("installed from a file");
-  if (record?.origin === "local") meta.push("made in this browser");
+  if (record?.origin === "local") meta.push(`made ${kept}`);
   if (record?.origin === "registry") meta.push("from the registry");
   if (pack.remote) meta.push(`from the registry${pack.remote.engine ? `, verified on engine ${pack.remote.engine}` : ""}`);
   head.append(el("p", "pack-meta", meta.filter(Boolean).join(" · ")));

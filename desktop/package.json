@@ -1,0 +1,12 @@
+{
+  "name": "lemmata-desktop",
+  "private": true,
+  "description": "The desktop app: the static build of the web app in a Tauri shell. Build with `uv run python desktop/build.py`.",
+  "license": "Apache-2.0",
+  "scripts": {
+    "tauri": "tauri"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "2.12.1"
+  }
+}
