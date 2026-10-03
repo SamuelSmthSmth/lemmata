@@ -144,7 +144,7 @@ PROBES: list[Probe] = [
     Probe("structure", "restating the forall yourself", "Theorem: \"Overstated\"\nClaim: forall n : Int, Even(n) => Even(n^2)\nProof:\n    Given n : Int\n    Assume h1: Even(n)\n    Therefore forall n : Int, Even(n) => Even(n^2)\nQED", "INVALID", guard="ScopeGuard",
           gap="prove the body under Given/Assume and let QED discharge it"),
     Probe("structure", "import", "import \"lemmas.aether\"\n\nTheorem: \"Imported\"\nProof:\n    Let x : Real\n    Step: x + 0 = x\nQED", "INVALID", guard="Library",
-          gap="the engine looks in the importing file's directory, then a `base_dir`, then the process working directory; the UI passes only source text, so it has nothing to resolve against"),
+          why="no file of that name exists here, and the message names it; the app sends the proofs in your workspace with each check, so there `import` resolves against them (beside the importing proof, then the workspace root) before the importing file's directory, a `base_dir` and the working directory"),
     # --- the guardrails ----------------------------------------------------
     Probe("guard", "chain continues a strict inequality", "Let x : Real\nAssume h: x > 2\nStep: (x^2 - 4) / (x - 2) = x + 2\nStep: > 4", "VALID"),
     Probe("guard", "chain mixes directions", "Let x : Real\nAssume h: x >= 3\nStep: x >= 3\nStep: <= 5", "INVALID", guard="ChainGuard"),

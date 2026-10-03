@@ -2,8 +2,10 @@
 
 Drives a headless Chrome through the `agent-browser` CLI and asserts the
 behaviours that are awkward to catch any other way: editor key bindings, the
-debounced round-trip, the client-side step inspector, and auditor keyboard
-navigation.
+debounced round-trip, the client-side step inspector, auditor keyboard
+navigation, and the app around them -- the workspace of many proofs kept in
+IndexedDB, imports between them, the Library and its exercises, the palette,
+settings, and a workspace .zip that survives a round trip.
 
 Starts its own server on a free port and cleans up afterwards.
 
@@ -137,6 +139,7 @@ def settle(timeout: float = 12.0) -> dict:
 
 # Filled in once the server is up; see main().
 STARTING_SOURCE = ""
+EXAMPLES: dict[str, str] = {}
 
 
 def permalink(source: str, strict: bool = False) -> str:
@@ -153,8 +156,20 @@ def permalink(source: str, strict: bool = False) -> str:
 
 
 def reset_page() -> dict:
-    """Load the starting example in a guaranteed-fresh page."""
+    """Load the starting example in a guaranteed-fresh page.
+
+    Waits for the editor to hold that source as well as for a verdict: boot is
+    asynchronous (storage, then the Library, then the file), and a click that
+    lands before the editor is filled hits a line that is about to be replaced.
+    """
     ab("open", permalink(STARTING_SOURCE))
+    expected = STARTING_SOURCE.rstrip("\n").split("\n")
+    deadline = time.time() + 10
+    state = settle()
+    while time.time() < deadline and state["lines"][: len(expected)] != expected:
+        time.sleep(0.2)
+        state = settle()
+    time.sleep(0.3)
     return settle()
 
 
@@ -194,20 +209,56 @@ def click_step(selector: str) -> None:
 
 
 def load_example(example_id: str) -> dict:
-    """Pick an example from the menu.
+    """Open a bundled example as its own proof.
 
-    `select` cannot drive this control: #examples is a <wa-select>, a custom
-    element, not a native <select>, so there is nothing for the CLI to set.
-    Setting the property and dispatching the same `change` the component emits
-    is equivalent to choosing the option.
+    The examples now live in the Library rather than a menu; a permalink is
+    the shortest path to one, and it reuses the workspace file when the same
+    source is already open.
     """
-    js(
-        "(() => { const s = document.querySelector('#examples');"
-        f" s.value = {json.dumps(example_id)};"
-        " s.dispatchEvent(new Event('change', { bubbles: true })); return s.value; })()"
-    )
-    time.sleep(0.4)
+    ab("open", permalink(EXAMPLES[example_id]))
     return settle()
+
+
+def wipe() -> None:
+    """Forget every proof, snapshot and preference this origin has stored.
+
+    Done from a same-origin page that is not the app, so no open connection
+    can block the IndexedDB delete.
+    """
+    ab("open", f"{BASE}/api/health")
+    js(
+        "(() => { window.__wiped = false; localStorage.clear();"
+        " const r = indexedDB.deleteDatabase('aether');"
+        " r.onsuccess = r.onerror = r.onblocked = () => { window.__wiped = true; }; return 'ok'; })()"
+    )
+    deadline = time.time() + 5
+    while time.time() < deadline and js("window.__wiped") is not True:
+        time.sleep(0.1)
+
+
+def fresh() -> dict:
+    """A first visit: empty storage, the app's own starting point."""
+    wipe()
+    ab("open", BASE)
+    return settle()
+
+
+def saved() -> None:
+    """Let the debounced autosave (400ms) land before reloading."""
+    time.sleep(0.8)
+
+
+def files_in_workspace() -> list[str]:
+    return js("JSON.stringify([...document.querySelectorAll('#explorer .tree-row--file .tree-label')].map(e => e.textContent))")
+
+
+def drop_file(name: str, text: str) -> None:
+    js(
+        "(() => { const file = new File([" + json.dumps(text) + "], " + json.dumps(name) + ","
+        " { type: 'text/plain' }); const dt = new DataTransfer(); dt.items.add(file);"
+        " window.dispatchEvent(new DragEvent('drop', { dataTransfer: dt, bubbles: true,"
+        " cancelable: true })); return 'dropped'; })()"
+    )
 
 
 def set_strict(on: bool) -> None:
@@ -230,8 +281,7 @@ def set_strict(on: bool) -> None:
 
 def run_checks() -> None:
     print("== open the page ==")
-    ab("open", BASE)
-    state = settle()
+    state = fresh()
     check(state["verdict"] == "VALID", f"starts on a valid proof ({state['verdict']})")
     check(state["steps"] == 8, f"auditor lists {state['steps']} steps")
 
@@ -383,6 +433,14 @@ def run_checks() -> None:
         state["lines"][10] == "QED -- AUTOSAVE",
         f"the edit landed ({state['lines'][10]!r})",
     )
+    saved()
+
+    ab("open", BASE)
+    restored = settle()
+    check(
+        restored["lines"][10] == "QED -- AUTOSAVE",
+        "the workspace reopens the edited proof with no link at all (IndexedDB)",
+    )
 
     ab("reload")
     state = settle()
@@ -395,8 +453,7 @@ def run_checks() -> None:
     print("== a permalink reproduces the proof in a clean browser ==")
     # Vary the query, or this is a fragment-only change and would not reload.
     shared = f"{BASE}/?r={time.time_ns()}{state['hash']}"
-    state = reset_page()
-    check("-- AUTOSAVE" not in state["lines"][10], "the reset really did discard the edit")
+    wipe()
     ab("open", shared)
     state = settle()
     check(
@@ -404,42 +461,27 @@ def run_checks() -> None:
         "opening the fragment restores the exact proof",
     )
 
-    print("== workspace panel: snapshots, reset, timeline ==")
+    print("== history: snapshots, reset, timeline ==")
+    wipe()
     reset_page()
-    ab("click", "#history-toggle")
+    ab("click", "#desk-tab-history")
     time.sleep(0.4)
-    # The panel is a <wa-popup>; it has no `hidden` attribute to read (that
-    # check could never fail), so assert the popup's own state instead.
-    check(
-        js("document.querySelector('#history-popup').active === true"),
-        "the workspace panel opens",
-    )
+    check(js("!document.querySelector('#desk-history').hidden") is True, "the History tab opens in the reading pane")
 
-    # Earlier sections load examples, and loading an example snapshots the buffer
-    # it replaced, so the snapshot list does not start empty.  Clear it rather
-    # than assert against whatever the previous sections happened to leave.
     ab("click", "#clear-history")
     time.sleep(0.3)
     check(js("document.querySelectorAll('#snapshots .snapshot').length") == 0, "snapshots can be cleared")
 
-    # The panel is a dropdown and overlays the editor.  How far down it reaches
-    # depends on the type metrics and the panel's own content, so rather than
-    # hope a given line falls clear of it, close it for the edit and reopen it.
-    # The timeline and snapshot list are rendered from stored state, not from
-    # the popup being open, so nothing is missed by looking afterwards.
     before = timeline_checks()
-    ab("click", "#history-close")
-    time.sleep(0.3)
     append_to_line(11, " -- SNAP")
     state = settle()
-    ab("click", "#history-toggle")
     time.sleep(0.3)
     after = timeline_checks()
     check(state["lines"][10].endswith("-- SNAP"), f"the edit landed ({state['lines'][10]!r})")
     check(after > before, f"the timeline records the check ({before} -> {after})")
 
     ab("click", "#snapshot-now")
-    time.sleep(0.4)
+    time.sleep(0.5)
     check(
         js("document.querySelectorAll('#snapshots .snapshot').length") == 1,
         "'Snapshot now' adds one snapshot",
@@ -447,6 +489,7 @@ def run_checks() -> None:
 
     ab("click", "#reset-workspace")
     state = settle()
+    time.sleep(0.4)
     check("-- SNAP" not in state["lines"][10], f"reset drops the edit ({state['lines'][10]!r})")
     check(
         js("document.querySelectorAll('#snapshots .snapshot').length") == 2,
@@ -456,7 +499,7 @@ def run_checks() -> None:
     # Newest first, so the hand-made snapshot is at index 1.
     js(
         "document.querySelectorAll('#snapshots .snapshot')[1]"
-        ".querySelector('wa-button').click(); 'clicked'"
+        ".querySelector('.text-button').click(); 'clicked'"
     )
     state = settle()
     check(
@@ -465,11 +508,12 @@ def run_checks() -> None:
     )
 
     ab("click", "#clear-history")
-    time.sleep(0.4)
+    time.sleep(0.5)
     state = probe()
     check(js("document.querySelectorAll('#timeline .tl-bar').length") == 0, "clearing empties the timeline")
     check(js("document.querySelectorAll('#snapshots .snapshot').length") == 0, "clearing empties the snapshots")
     check("-- SNAP" in state["lines"][10], "clearing leaves the proof itself alone")
+    ab("click", "#desk-tab-files")
 
     print("== download and drag-and-drop ==")
     buffer_head = probe()["lines"][0]
@@ -483,21 +527,19 @@ def run_checks() -> None:
         check(text.lstrip().startswith("Theorem"), f"the file is the proof ({text[:20]!r}…)")
         check(buffer_head in text, "the download contains the current buffer, not an example")
 
-    js(
-        "(() => { const file = new File(['Let z : Real\\nStep: z = z\\n'], 'dropped.aether',"
-        " { type: 'text/plain' }); const dt = new DataTransfer(); dt.items.add(file);"
-        " window.dispatchEvent(new DragEvent('drop', { dataTransfer: dt, bubbles: true,"
-        " cancelable: true })); return 'dropped'; })()"
-    )
+    drop_file("dropped.aether", "Let z : Real\nStep: z = z\n")
+    time.sleep(0.4)
     state = settle()
     check("dropped.aether" in (state["toast"] or ""), f"dropping a file reports it ({state['toast']!r})")
-    check(state["lines"][0] == "Let z : Real", f"the dropped proof is loaded ({state['lines'][0]!r})")
+    check(state["lines"][0] == "Let z : Real", f"the dropped proof is opened ({state['lines'][0]!r})")
+    check("dropped.aether" in files_in_workspace(), "and kept as a file of its own in the workspace")
     check(state["verdict"] == "VALID", f"the dropped proof is checked ({state['verdict']})")
 
     print("== the strict setting is remembered ==")
     reset_page()
     set_strict(True)
-    time.sleep(0.6)
+    settle()
+    saved()
     ab("reload")
     settle()
     check(
@@ -534,6 +576,14 @@ def run_checks() -> None:
 
     panel_checks()
     syntax_checks()
+    workspace_checks()
+    import_checks()
+    migration_checks()
+    lint_and_template_checks()
+    palette_checks()
+    library_checks()
+    settings_checks()
+    zip_checks()
 
 
 PANEL_PROBE = """(() => {
@@ -573,7 +623,7 @@ def panel_checks() -> None:
     settle()
 
     start = js(PANEL_PROBE)
-    check(start["layout"] == "columns", f"the default arrangement is Columns ({start['layout']})")
+    check(start["layout"] == "split", f"the default arrangement is Split ({start['layout']})")
     check(
         start["order"] == ["editor", "audit", "context"],
         f"the panes start in reading order ({start['order']})",
@@ -587,12 +637,12 @@ def panel_checks() -> None:
     ab("click", "#layout-toggle")
     time.sleep(0.4)
     check(js(PANEL_PROBE)["pressed"] == "true", "the toolbar button reports the menu is open")
-    ab("click", "#layout-options [data-arrangement='split']")
+    ab("click", "#layout-options [data-arrangement='focus']")
     time.sleep(0.4)
 
     split = js(PANEL_PROBE)
-    check(split["layout"] == "split", f"the menu switches to Split ({split['layout']})")
-    check(split["areas"] not in ("", "none"), "Split lays the grid out with real template areas")
+    check(split["layout"] == "focus", f"the menu switches to Focus ({split['layout']})")
+    check(split["areas"] not in ("", "none"), "Focus lays the grid out with real template areas")
     check(
         split["order"] == ["editor", "audit", "context"],
         "choosing an arrangement leaves the pane order alone",
@@ -624,7 +674,7 @@ def panel_checks() -> None:
     ab("reload")
     settle()
     remembered = js(PANEL_PROBE)
-    check(remembered["layout"] == "split", "the arrangement survives a reload")
+    check(remembered["layout"] == "focus", "the arrangement survives a reload")
     check(
         remembered["order"] == ["audit", "context", "editor"],
         f"so does the pane order ({remembered['order']})",
@@ -671,6 +721,284 @@ def syntax_checks() -> None:
     js("localStorage.removeItem('aether-syntax')")
 
 
+LEMMA = """\
+Theorem: "Even times even is even"
+Claim: forall a : Int, Even(a) => Even(a * 2)
+Proof:
+    Given a : Int
+    Assume h: Even(a)
+    Obtain k : Int such that a = 2 * k from h
+    Step: a * 2 = 2 * (2 * k)
+    Hence Even(a * 2)
+QED
+"""
+
+USES_LEMMA = """\
+import "lemmas.aether"
+
+Theorem: "Uses the lemma"
+Proof:
+    Given n : Int
+    Assume h: Even(n)
+    Therefore Even(n * 2)
+QED
+"""
+
+WORKSPACE_PROBE = """JSON.stringify({
+  tabs: [...document.querySelectorAll('#tabs .tab .tab-label')].map(e => e.textContent),
+  active: (document.querySelector('#tabs .tab.is-active .tab-label')||{}).textContent ?? null,
+  path: document.querySelector('#editor-path').textContent,
+  files: [...document.querySelectorAll('#explorer .tree-row--file .tree-label')].map(e => e.textContent),
+  folders: [...document.querySelectorAll('#explorer .tree-row--folder .tree-label')].map(e => e.textContent),
+})"""
+
+
+def workspace() -> dict:
+    return js(WORKSPACE_PROBE)
+
+
+def workspace_checks() -> None:
+    print("== the workspace: many proofs, tabs, rename, delete with undo ==")
+    fresh()
+    # A first visit shows the starting example's notes; the file tools are
+    # on the Files tab.
+    ab("click", "#desk-tab-files")
+    start = workspace()
+    check(start["path"] == "Examples/Even square theorem.aether", f"a first visit opens the starting example ({start['path']!r})")
+    check(start["files"] == ["Even square theorem.aether"], f"and the explorer lists it ({start['files']})")
+
+    ab("click", "#file-new")
+    state = settle()
+    after = workspace()
+    check(len(after["tabs"]) == 2, f"'New proof' opens a second tab ({after['tabs']})")
+    check(after["path"] == "Examples/Untitled.aether", f"next to the open proof ({after['path']!r})")
+    check(state["lines"][0].startswith("Theorem"), "starting from a proof skeleton")
+
+    ab("focus", "#explorer .tree-row.is-active")
+    ab("press", "F2")
+    time.sleep(0.3)
+    check(js("document.activeElement.classList.contains('tree-rename')") is True, "F2 on a file starts renaming it in place")
+    ab("fill", ".tree-rename", "week1")
+    ab("press", "Enter")
+    time.sleep(0.5)
+    renamed = workspace()
+    check(renamed["path"] == "Examples/week1.aether", f"the extension is kept ({renamed['path']!r})")
+    check("week1" in renamed["tabs"], f"the tab follows the rename ({renamed['tabs']})")
+
+    ab("click", "#folder-new")
+    time.sleep(0.4)
+    ab("fill", ".tree-rename", "Sheets")
+    ab("press", "Enter")
+    time.sleep(0.4)
+    check("Sheets" in workspace()["folders"], f"a folder can be made and named ({workspace()['folders']})")
+
+    ab("focus", "#explorer .tree-row.is-active")
+    ab("press", "Delete")
+    time.sleep(0.5)
+    gone = workspace()
+    check("week1.aether" not in gone["files"], f"Delete removes the proof ({gone['files']})")
+    check(js("!!document.querySelector('#toast .toast-action')") is True, "and offers an Undo")
+    js("document.querySelector('#toast .toast-action').click(); 'undone'")
+    time.sleep(0.6)
+    check("week1.aether" in workspace()["files"], "Undo brings it back")
+
+    saved()
+    ab("reload")
+    settle()
+    kept = workspace()
+    check(
+        sorted(kept["files"]) == ["Even square theorem.aether", "week1.aether"] and "Sheets" in kept["folders"],
+        f"files and folders survive a reload ({kept['files']}, {kept['folders']})",
+    )
+
+    ab("click", "#tabs .tab.is-active .tab-close")
+    time.sleep(0.4)
+    check(len(workspace()["tabs"]) == 1, "closing a tab closes the tab, not the file")
+    check("week1.aether" in workspace()["files"], "the file stays in the explorer")
+
+
+def import_checks() -> None:
+    print("== imports between proofs in the workspace ==")
+    fresh()
+    drop_file("lemmas.aether", LEMMA)
+    time.sleep(0.5)
+    settle()
+    drop_file("uses.aether", USES_LEMMA)
+    time.sleep(0.5)
+    state = settle()
+    check(state["verdict"] == "VALID", f"a proof importing another workspace file checks ({state['verdict']})")
+    check("Imported 'lemmas.aether'" in js("document.querySelector('#audit').textContent"), "the auditor names the import")
+
+    drop_file("orphan.aether", USES_LEMMA.replace("lemmas.aether", "missing.aether"))
+    time.sleep(0.5)
+    settle()
+    audit = js("document.querySelector('#audit').textContent")
+    check("Import not found" in audit and "missing.aether" in audit, "a missing import is named, not silently ignored")
+
+
+def migration_checks() -> None:
+    print("== the old single-buffer workspace migrates ==")
+    wipe()
+    legacy = {
+        "source": "Let q : Real\nStep: q = q\n",
+        "strict": False,
+        "snapshots": [{"name": "Old snapshot", "ts": 1700000000000, "source": "Let q : Real\n", "strict": False}],
+    }
+    js(f"localStorage.setItem('aether:workspace', {json.dumps(json.dumps(legacy))}); 'set'")
+    ab("open", BASE)
+    state = settle()
+    check(workspace()["files"] == ["My proof.aether"], f"the old buffer becomes a file ({workspace()['files']})")
+    check(state["lines"][0] == "Let q : Real", "with its source")
+    ab("click", "#desk-tab-history")
+    time.sleep(0.5)
+    check(js("document.querySelectorAll('#snapshots .snapshot').length") == 1, "and its snapshots")
+    ab("click", "#desk-tab-files")
+
+
+def lint_and_template_checks() -> None:
+    print("== diagnostics in the editor, problem keys, templates ==")
+    ab("open", permalink("Let x : Real\nStep: (x + 1)^2 = x^2 + 1\n"))
+    settle()
+    time.sleep(0.3)
+    check(js("document.querySelectorAll('.cm-lint-marker-error').length") == 1, "a failing step gets a gutter mark")
+    check(js("document.querySelectorAll('.cm-lintRange-error').length") >= 1, "and its source range is underlined")
+    check(
+        "first on line 2" in js("document.querySelector('#status-problem').textContent"),
+        "the status bar points to the first problem",
+    )
+    ab("click", ".cm-line:nth-child(1)")
+    ab("press", "F8")
+    time.sleep(0.3)
+    check(probe()["activeLine"] == "2", f"F8 moves to the next problem (line {probe()['activeLine']})")
+
+    ab("click", "#file-new")
+    settle()
+    before = len(probe()["lines"])
+    ab("click", "#templates-menu > button")
+    time.sleep(0.4)
+    js("[...document.querySelectorAll('#templates-menu wa-dropdown-item')].find(i => i.value === 'induction').click(); 'ok'")
+    time.sleep(0.5)
+    lines = probe()["lines"]
+    check(len(lines) > before, f"a template inserts a whole proof shape ({before} -> {len(lines)} lines)")
+
+
+def palette_checks() -> None:
+    print("== the command palette ==")
+    reset_page()
+    ab("click", ".cm-line:nth-child(1)")
+    ab("press", "Control+k")
+    time.sleep(0.3)
+    check(js("document.querySelector('#palette').open") is True, "Ctrl+K opens the palette")
+    ab("keyboard", "type", "go to library")
+    time.sleep(0.2)
+    ab("press", "Enter")
+    time.sleep(0.5)
+    check(js("document.body.dataset.view") == "library", "running a command closes it and acts")
+
+    ab("press", "Control+k")
+    time.sleep(0.3)
+    ab("keyboard", "type", "2.18")
+    time.sleep(0.2)
+    first = js("(document.querySelector('#palette-list .palette-row.is-selected .palette-label')||{}).textContent ?? ''")
+    check(first.startswith("Example 2.18") or "2.18" in first, f"a reference finds the Library entry ({first!r})")
+    ab("press", "Enter")
+    settle()
+    time.sleep(0.4)
+    check(js("document.body.dataset.view") == "workspace", "opening an entry returns to the workspace")
+    check("2.18" in workspace()["path"], f"as a copy of the entry ({workspace()['path']!r})")
+    check("2.18" in js("document.querySelector('#notes').textContent"), "with the entry beside it in Notes")
+    ab("press", "Escape")
+
+
+def library_checks() -> None:
+    print("== the Library: search, open beside, spot the error ==")
+    fresh()
+    ab("click", ".rail-button[data-view='library']")
+    time.sleep(0.4)
+    check(js("new URLSearchParams(location.search).get('view')") == "library", "the view is in the URL")
+    js("(() => { const s = document.querySelector('#library-search'); s.value = 'Lagrange'; s.dispatchEvent(new Event('input')); return 1; })()")
+    time.sleep(0.3)
+    titles = js("JSON.stringify([...document.querySelectorAll('.entry-title')].map(e => e.textContent))")
+    check(bool(titles) and all("Lagrange" in t or "lagrange" in t.lower() for t in titles) or any("Lagrange" in t for t in titles),
+          f"search looks across every pack ({titles[:3]})")
+    js("(() => { const s = document.querySelector('#library-search'); s.value = ''; s.dispatchEvent(new Event('input')); return 1; })()")
+
+    ab("click", "#library-filters [data-filter='trap']")
+    time.sleep(0.3)
+    kinds = js("document.querySelectorAll('.entry').length === document.querySelectorAll('.entry--trap').length")
+    check(kinds is True, "the Traps filter shows only traps")
+    ab("click", ".entry--trap .entry-head")
+    time.sleep(0.3)
+    ab("click", ".entry.is-open .entry-actions .text-button--primary")
+    state = settle()
+    time.sleep(0.3)
+    check(state["verdict"] == "Exercise", f"a trap opens as an exercise ({state['verdict']})")
+    check(js("document.body.dataset.exercise") == "hidden", "with the answer hidden")
+    visible_meta = js("[...document.querySelectorAll('.step-meta')].filter(e => e.offsetParent).length")
+    check(visible_meta == 0, f"no step verdicts are visible ({visible_meta})")
+    check(js("document.querySelectorAll('.cm-lint-marker').length") == 0, "and no gutter marks give it away")
+
+    js("document.querySelector('.note-pick .text-button:not(.text-button--primary)').click(); 'shown'")
+    time.sleep(0.6)
+    check(js("document.body.dataset.exercise") == "revealed", "'Show the answer' reveals it")
+    check(js("!!document.querySelector('.note-verdict')") is True, "and the Notes say which line fails")
+    check(js("document.querySelector('#verdict').textContent") == "INVALID", "the real verdict comes back")
+
+
+def settings_checks() -> None:
+    print("== settings apply live and persist ==")
+    fresh()
+    ab("click", ".rail-button[data-view='settings']")
+    time.sleep(0.4)
+    ab("click", "#setting-editor-size-label + .filters [data-value='15'], .filters[aria-labelledby='setting-editor-size-label'] [data-value='15']")
+    time.sleep(0.3)
+    size = js("document.documentElement.style.getPropertyValue('--editor-size')")
+    check(size == "15px", f"the editor size applies at once ({size!r})")
+    js("document.querySelector('#setting-wrap').shadowRoot.querySelector('label').click(); 'ok'")
+    time.sleep(0.3)
+    ab("reload")
+    settle()
+    check(js("document.body.dataset.view") == "settings", "a reload stays on the same view")
+    check(js("document.documentElement.style.getPropertyValue('--editor-size')") == "15px", "the editor size survives a reload")
+    ab("click", ".rail-button[data-view='workspace']")
+    time.sleep(0.4)
+    check(js("!!document.querySelector('.cm-editor .cm-lineWrapping')") is True, "line wrapping survives too")
+
+
+def zip_checks() -> None:
+    print("== the workspace as a .zip, out and back in ==")
+    import zipfile
+
+    fresh()
+    drop_file("lemmas.aether", LEMMA)
+    time.sleep(0.5)
+    settle()
+    ab("click", "#desk-tab-files")
+    target = Path("/tmp/aether-verify-workspace.zip")
+    target.unlink(missing_ok=True)
+    ab("download", "#workspace-export", str(target))
+    time.sleep(0.8)
+    check(target.exists(), "the export button writes a .zip")
+    if not target.exists():
+        return
+    with zipfile.ZipFile(target) as archive:
+        names = sorted(archive.namelist())
+        lemma = archive.read("lemmas.aether").decode() if "lemmas.aether" in names else ""
+    check(names == ["Examples/Even square theorem.aether", "lemmas.aether"], f"it holds every proof, with folders ({names})")
+    check(lemma == LEMMA, "byte for byte")
+
+    wipe()
+    ab("open", BASE)
+    settle()
+    ab("click", "#desk-tab-files")
+    ab("upload", "#workspace-import-input", str(target))
+    time.sleep(1.0)
+    settle()
+    files = workspace()["files"]
+    check("lemmas.aether" in files, f"importing it restores the proofs ({files})")
+    check(len(files) == 3, "and a clash with an existing file is renamed, not overwritten")
+
+
 def main() -> int:
     server = subprocess.Popen(
         [sys.executable, "-m", "ui", "--port", str(PORT)],
@@ -692,7 +1020,8 @@ def main() -> int:
         global STARTING_SOURCE
         with urllib.request.urlopen(f"{BASE}/api/examples", timeout=5) as resp:
             examples = json.loads(resp.read())
-        STARTING_SOURCE = next(e for e in examples if e["id"] == "even-square")["source"]
+        EXAMPLES.update({e["id"]: e["source"] for e in examples})
+        STARTING_SOURCE = EXAMPLES["even-square"]
 
         run_checks()
     finally:

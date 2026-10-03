@@ -415,7 +415,7 @@ A `VALID` row checks out, and still does with **Strict Domain Checking** on. `IN
 | structure · `Claim is discharged by QED` | VALID |  |
 | structure · `a Claim that is not established` | INVALID | QED |
 | structure · `restating the forall yourself` | INVALID | prove the body under Given/Assume and let QED discharge it |
-| structure · `import` | INVALID | the engine looks in the importing file's directory, then a `base_dir`, then the process working directory; the UI passes only source text, so it has nothing to resolve against |
+| structure · `import` | INVALID | Library |
 | guard · `chain continues a strict inequality` | VALID |  |
 | guard · `chain mixes directions` | INVALID | ChainGuard |
 | guard · `chained step with no anchor` | INVALID | ChainGuard |
