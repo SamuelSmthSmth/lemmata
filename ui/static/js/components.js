@@ -22,10 +22,10 @@
 // a slotted icon stays 0x0 and paints nothing.  A plain <svg> inside
 // <wa-button> lands in the button's label slot and just works.
 //
-// `icon.js` is still imported below regardless: <wa-select>, <wa-option> and
-// <wa-dialog> create <wa-icon library="system"> elements of their own, and the
-// custom element has to be defined for those to render.  Their glyphs are
-// embedded data: URIs, so they make no requests.
+// `icon.js` is still imported below regardless: <wa-dialog> (its close button)
+// and several other components create <wa-icon library="system"> elements of
+// their own, and the custom element has to be defined for those to render.
+// Their glyphs are embedded data: URIs, so they make no requests.
 
 import { setBasePath } from "../vendor/webawesome/webawesome.js";
 
@@ -35,9 +35,7 @@ import "../vendor/webawesome/components/dropdown/dropdown.js";
 import "../vendor/webawesome/components/dropdown-item/dropdown-item.js";
 import "../vendor/webawesome/components/input/input.js";
 import "../vendor/webawesome/components/icon/icon.js";
-import "../vendor/webawesome/components/option/option.js";
 import "../vendor/webawesome/components/popup/popup.js";
-import "../vendor/webawesome/components/select/select.js";
 import "../vendor/webawesome/components/spinner/spinner.js";
 import "../vendor/webawesome/components/switch/switch.js";
 import "../vendor/webawesome/components/toast/toast.js";
