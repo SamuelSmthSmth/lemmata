@@ -18,6 +18,8 @@ from aether.core.ast import (
     FunctionCallNode,
     RelationNode,
     QuantifierNode,
+    MatrixNode,
+    VectorNode,
 )
 from aether.core.types import MathType
 from aether.engine.context import (
@@ -224,6 +226,21 @@ def substitute_expr(expr: ExprNode, var_name: str, replacement: ExprNode) -> Exp
         return FunctionCallNode(
             func=expr.func,
             args=[substitute_expr(a, var_name, replacement) for a in expr.args],
+            line=expr.line,
+            col=expr.col,
+        )
+    # Matrix and vector entries: `[[1, n], [0, 1]]` at n = k + 1 is
+    # `[[1, k + 1], [0, 1]]`.  Without this the entries kept their n, and a
+    # matrix-power induction could never match its own step.
+    if isinstance(expr, MatrixNode):
+        return MatrixNode(
+            rows=[[substitute_expr(e, var_name, replacement) for e in row] for row in expr.rows],
+            line=expr.line,
+            col=expr.col,
+        )
+    if isinstance(expr, VectorNode):
+        return VectorNode(
+            elements=[substitute_expr(e, var_name, replacement) for e in expr.elements],
             line=expr.line,
             col=expr.col,
         )
@@ -1115,94 +1132,238 @@ def verify_induction_schema(
     claim: ExprNode,
     ctx: ProofContext,
 ) -> Optional[LogicResult]:
-    """Check whether a universal claim ``forall n : Nat, P(n)`` is established by
-    a verified base case ``P(0)`` (or ``P(1)``) and inductive step ``forall k, P(k) => P(k + 1)``.
+    """Check whether a universal claim is established by mathematical induction.
 
-    Returns None when the proof is not an induction at all (no base case or no
-    matching step), a valid result when the induction establishes the claim,
-    and an invalid one when it is an induction that does not, saying why:
+    The claims it reads, as A Level and the notes state them:
 
-    - Induction is a rule about the natural numbers.  Over the integers or the
-      reals, a base case and a step leave everything below the base unproved
-      ("every integer is non-negative" has both), so the claim must range over
-      Nat.
-    - Nat starts at 0.  A base case at n = 1 leaves P(0) open, so it must hold
-      too: established in the proof, or provable directly (the sum of the first
-      0 squares is 0, so a base case at 1 still proves that formula for every
-      natural number).  Otherwise the claim is refused ("2^n >= 2 for every
-      natural n" has a base case at 1 and a valid step, and is false at 0).
+    - ``forall n : Nat, P(n)``: every natural number, from 0;
+    - ``forall n : Nat, n >= a => P(n)`` (or ``n > a``, ``a <= n``): from a;
+    - ``forall n : Int, n >= a => P(n)``: the integers from a.
+
+    The facts it looks for among the established hypotheses:
+
+    - base cases ``P(a)``, ``P(a + 1)``, … as the Base case blocks export them;
+    - an inductive step ``forall k, H => P(k + d)`` for d = 1, 2 or 3, where
+      each conjunct of H is one of ``P(k)``, …, ``P(k + d - 1)`` (the
+      hypotheses) or a side condition that follows from ``k >= a`` (``k >= 5``
+      in a step starting at 5).  d = 2 is a recurrence like
+      ``u(n + 2) = 5 u(n + 1) - 6 u(n)``, which needs two base cases.
+
+    Returns None when the proof is not an induction at all, a valid result
+    when it establishes the claim, and an invalid one when it is an induction
+    that does not, saying why.  Soundness, case by case:
+
+    - Over the integers a claim needs a starting value: a base case and a step
+      say nothing about the numbers below the base ("every integer is
+      non-negative" has both).  The reals have no induction at all.
+    - Unguarded, the claim starts at 0, so a base case at a > 0 leaves P(0),
+      …, P(a - 1) open: each must be established or provable directly ("2^n
+      >= 2 for every natural n" has a base case at 1 and a valid step, and is
+      false at 0; the sum of no squares is 0, so a base case at 1 still proves
+      that formula for every natural number).
+    - A side condition in the step must follow from ``k >= a``: a step that
+      assumes ``k >= 5`` proves nothing about a claim starting at 1.
     """
     expanded_claim = ctx.expand_user_functions(claim) or claim
     if not (isinstance(expanded_claim, QuantifierNode) and expanded_claim.quantifier == "forall"):
         return None
 
     n_var = expanded_claim.var
-    p_n = expanded_claim.formula
+    p_n, start = _induction_guard(expanded_claim.formula, n_var)
     hyps = ctx.all_hypotheses()
 
     def established(prop: ExprNode) -> bool:
         return any(_exprs_match(h.proposition, prop, ctx) for h in hyps)
 
-    # 1. The base case, P(0) or P(1), among the established facts.
-    p_zero = substitute_expr(p_n, n_var, NumberNode(value="0"))
-    base_zero = established(p_zero)
-    if not base_zero and not established(substitute_expr(p_n, n_var, NumberNode(value="1"))):
+    def p_at(value: int) -> ExprNode:
+        return substitute_expr(p_n, n_var, _int_node(value))
+
+    # 1. Inductive steps among the established facts: forall k, H => P(k + d).
+    steps = [s for s in (_induction_step(h.proposition, p_n, n_var, ctx) for h in hyps) if s is not None]
+    if not steps:
         return None
 
-    # 2. The inductive step, forall k, P(k) => P(k + 1), among the established facts.
-    step_found = False
-    for h in hyps:
-        prop = h.proposition
-        if (
-            isinstance(prop, QuantifierNode)
-            and prop.quantifier == "forall"
-            and isinstance(prop.formula, BinaryOpNode)
-            and prop.formula.op in ("=>", "->", "implies", "\\implies")
-        ):
-            k_var = prop.var
-            ih_part = prop.formula.left
-            step_part = prop.formula.right
-            expected_ih = substitute_expr(p_n, n_var, SymbolNode(name=k_var))
-            k_plus_1 = BinaryOpNode(op="+", left=SymbolNode(name=k_var), right=NumberNode(value="1"))
-            expected_step = substitute_expr(p_n, n_var, k_plus_1)
-            if _exprs_match(ih_part, expected_ih, ctx) and _exprs_match(step_part, expected_step, ctx):
-                step_found = True
+    # 2. Base cases: the run P(a), …, P(a + d - 1) a step needs.  Guarded, a is
+    # the claim's start; unguarded, the smallest run of established bases.
+    candidates = [start] if start is not None else list(range(0, 11))
+    chosen: Optional[tuple[int, _InductionStep]] = None
+    for a in candidates:
+        for step in steps:
+            if all(established(p_at(a + j)) for j in range(step.span)):
+                chosen = (a, step)
                 break
-    if not step_found:
-        return None
+        if chosen is not None:
+            break
+    if chosen is None:
+        if start is None:
+            return None
+        span = min(s.span for s in steps)
+        missing = ", ".join(f"{n_var} = {start + j}" for j in range(span) if not established(p_at(start + j)))
+        return LogicResult(
+            valid=False,
+            message=(
+                f"The claim starts at {n_var} = {start}, so the induction needs a base case there"
+                f"{'' if span == 1 else f' and at the {span - 1} after it (the step uses {span} earlier values)'}: "
+                f"missing {missing}."
+            ),
+            backend="Induction",
+        )
+    a, step = chosen
 
     # 3. It is an induction: is it one that proves this claim?
-    if _quantifier_type(expanded_claim.var_type, ctx, MathType.Real) != MathType.Nat:
+    mt = _quantifier_type(expanded_claim.var_type, ctx, MathType.Real)
+    if mt not in (MathType.Nat, MathType.Int) or (mt == MathType.Int and start is None):
         return LogicResult(
             valid=False,
             message=(
                 f"Induction proves a claim about the natural numbers only, but this one is "
                 f"over {expanded_claim.var_type or 'an unstated type'}: a base case and an inductive "
                 f"step say nothing about the numbers below the base. State it as "
-                f"'forall {n_var} : Nat, …'."
+                f"'forall {n_var} : Nat, …', or from a starting value: "
+                f"'forall {n_var} : Int, {n_var} >= {a} => …'."
             ),
             backend="Induction",
         )
-    if not base_zero:
-        zero = verify_entailment(p_zero, ctx)
-        if not zero.valid:
+    if start is None:
+        # Unguarded over Nat: everything below the base run must hold as well.
+        for j in range(a):
+            below = verify_entailment(p_at(j), ctx)
+            if not below.valid:
+                return LogicResult(
+                    valid=False,
+                    message=(
+                        f"The base case is {n_var} = {a}, but the claim is for every natural number, "
+                        f"and {j} is one: '{p_at(j)}' is not established. Prove it as a base case "
+                        f"{n_var} = {j}; if it is false at {j}, the claim itself needs changing, "
+                        f"for instance to 'forall {n_var} : Nat, {n_var} >= {a} => …'."
+                    ),
+                    counterexample=below.counterexample,
+                    counterexample_dict=below.counterexample_dict,
+                    backend="Induction",
+                )
+    for condition in step.side_conditions:
+        if not _follows_from_start(condition, step.var, a, mt, ctx):
             return LogicResult(
                 valid=False,
                 message=(
-                    f"The base case is {n_var} = 1, but the claim is for every natural number, "
-                    f"and 0 is one: '{p_zero}' is not established. Prove it as a base case "
-                    f"{n_var} = 0; if it is false at 0, the claim itself needs changing."
+                    f"The inductive step assumes '{condition}', but the claim starts at "
+                    f"{n_var} = {a}: the step has to hold for every {step.var} >= {a}, so it may only "
+                    f"assume what follows from that."
                 ),
-                counterexample=zero.counterexample,
-                counterexample_dict=zero.counterexample_dict,
                 backend="Induction",
             )
 
+    shape = "base case + inductive step" if step.span == 1 else f"{step.span} base cases + a {step.span}-step recurrence"
     return LogicResult(
         valid=True,
-        message=f"Verified by Mathematical Induction on {n_var} (base case + inductive step).",
+        message=f"Verified by Mathematical Induction on {n_var} from {a} ({shape}).",
         backend="Induction",
     )
+
+
+@dataclass
+class _InductionStep:
+    """An inductive step as read from ``forall k, H => P(k + span)``."""
+
+    var: str
+    span: int
+    side_conditions: list[ExprNode]
+
+
+_IMPLIES_OPS = ("=>", "->", "implies", "\\implies")
+
+
+def _int_node(value: int) -> ExprNode:
+    return NumberNode(value=str(value)) if value >= 0 else UnaryOpNode(op="-", operand=NumberNode(value=str(-value)))
+
+
+def _int_value(node: ExprNode) -> Optional[int]:
+    """A literal whole number (``5``, ``-2``), or None."""
+    if isinstance(node, NumberNode) and node.value.isdigit():
+        return int(node.value)
+    if isinstance(node, UnaryOpNode) and node.op == "-":
+        inner = _int_value(node.operand)
+        return -inner if inner is not None else None
+    return None
+
+
+def _induction_guard(formula: ExprNode, n_var: str) -> tuple[ExprNode, Optional[int]]:
+    """Split ``n >= a => P(n)`` into ``(P(n), a)``; an unguarded claim gives ``(P(n), None)``."""
+    if not (isinstance(formula, BinaryOpNode) and formula.op in _IMPLIES_OPS and isinstance(formula.left, RelationNode)):
+        return formula, None
+    guard = formula.left
+    rel = canonical_rel(guard.op)
+    is_n = lambda e: isinstance(e, (SymbolNode, GreekSymbolNode)) and e.name == n_var  # noqa: E731
+    if is_n(guard.left) and rel in (">=", ">"):
+        bound = _int_value(guard.right)
+        offset = 1 if rel == ">" else 0
+    elif is_n(guard.right) and rel in ("<=", "<"):
+        bound = _int_value(guard.left)
+        offset = 1 if rel == "<" else 0
+    else:
+        return formula, None
+    if bound is None:
+        return formula, None
+    return formula.right, bound + offset
+
+
+def _conjuncts(expr: ExprNode) -> list[ExprNode]:
+    if isinstance(expr, BinaryOpNode) and expr.op.lower() in ("and", "\\land", "/\\"):
+        return _conjuncts(expr.left) + _conjuncts(expr.right)
+    return [expr]
+
+
+def _induction_step(prop: ExprNode, p_n: ExprNode, n_var: str, ctx: ProofContext) -> Optional[_InductionStep]:
+    """Read ``prop`` as an inductive step for P, or None if it is not one."""
+    if not (
+        isinstance(prop, QuantifierNode)
+        and prop.quantifier == "forall"
+        and isinstance(prop.formula, BinaryOpNode)
+        and prop.formula.op in _IMPLIES_OPS
+    ):
+        return None
+    k = prop.var
+    k_node = SymbolNode(name=k)
+
+    def p_shift(j: int) -> ExprNode:
+        arg = k_node if j == 0 else BinaryOpNode(op="+", left=k_node, right=NumberNode(value=str(j)))
+        return substitute_expr(p_n, n_var, arg)
+
+    for span in (1, 2, 3):
+        if not _exprs_match(prop.formula.right, p_shift(span), ctx):
+            continue
+        side: list[ExprNode] = []
+        hypotheses = 0
+        for conjunct in _conjuncts(prop.formula.left):
+            if any(_exprs_match(conjunct, p_shift(j), ctx) for j in range(span)):
+                hypotheses += 1
+            else:
+                side.append(conjunct)
+        # A step with no hypothesis at all proves P(k + span) outright, which
+        # the solver can check by itself; it is not what makes an induction.
+        if hypotheses:
+            return _InductionStep(var=k, span=span, side_conditions=side)
+    return None
+
+
+def _follows_from_start(condition: ExprNode, k: str, a: int, mt: MathType, ctx: ProofContext) -> bool:
+    """Whether ``condition`` about k follows from ``k >= a`` (and k's type) alone."""
+    fresh = "_ind_k"
+    renamed = substitute_expr(condition, k, SymbolNode(name=fresh))
+    ctx.push_scope()
+    try:
+        ctx.declare_variable(fresh, "Nat" if mt == MathType.Nat else "Int", is_witness=False)
+        ctx.add_hypothesis(
+            RelationNode(op=">=", left=SymbolNode(name=fresh), right=_int_node(a)),
+            label=None,
+            is_assumption=True,
+        )
+        # The step's own assumptions are out of scope here; what remains is
+        # k >= a and the proof's standing facts.  A condition that follows from
+        # those (an instance of an assumed recurrence) holds for every k >= a.
+        return verify_entailment(renamed, ctx, _induction=False).valid
+    finally:
+        ctx.pop_scope()
 
 
 def _eliminate_divisibility_witnesses(

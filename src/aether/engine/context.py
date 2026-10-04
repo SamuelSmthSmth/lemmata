@@ -18,6 +18,8 @@ from aether.core.ast import (
     IntegralNode,
     LimitNode,
     NumberNode,
+    MatrixNode,
+    VectorNode,
 )
 from aether.core.types import MathType, normalize_type_name, split_function_type
 
@@ -156,6 +158,17 @@ def collect_free_symbols(expr: ExprNode, bound: Optional[set[str]] = None) -> se
         return out
     if isinstance(expr, LimitNode):
         return collect_free_symbols(expr.body, bound | {expr.var}) | collect_free_symbols(expr.target, bound)
+    if isinstance(expr, MatrixNode):
+        out = set()
+        for row in expr.rows:
+            for entry in row:
+                out |= collect_free_symbols(entry, bound)
+        return out
+    if isinstance(expr, VectorNode):
+        out = set()
+        for entry in expr.elements:
+            out |= collect_free_symbols(entry, bound)
+        return out
     return set()
 
 
@@ -235,6 +248,18 @@ def substitute_mapping(
             var=expr.var,
             target=substitute_mapping(expr.target, mapping, bound),
             direction=expr.direction,
+            line=expr.line,
+            col=expr.col,
+        )
+    if isinstance(expr, MatrixNode):
+        return MatrixNode(
+            rows=[[substitute_mapping(e, mapping, bound) for e in row] for row in expr.rows],
+            line=expr.line,
+            col=expr.col,
+        )
+    if isinstance(expr, VectorNode):
+        return VectorNode(
+            elements=[substitute_mapping(e, mapping, bound) for e in expr.elements],
             line=expr.line,
             col=expr.col,
         )
