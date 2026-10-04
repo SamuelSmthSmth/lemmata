@@ -517,10 +517,11 @@ def main() -> int:
     # that replaced the killed one or by the other in the pool.
     with Server(env={"AETHER_CHECK_BUDGET": "1"}) as server:
         print("== check budget ==")
-        # The longest check the repo pins: a trap whose failing step keeps the
-        # solver busy (seconds, on any machine) in work it does not meter.
-        notation = json.loads((PROJECT / "courses" / "notation.json").read_text(encoding="utf-8"))
-        slow = next(e["source"] for e in notation["entries"] if e["id"] == "partial-geometric-sum-needs-r-1")
+        # A step that keeps SymPy expanding for several seconds on any machine,
+        # in work no solver timeout meters.  It is written out here rather than
+        # borrowed from a pack: the budget test used the slowest pack entry
+        # until the engine learned to settle that entry at once.
+        slow = "Let x, y, z : Real\nStep: (x + y + z)^45 = (x + y - z)^45 + 1\n"
         started = time.monotonic()
         status, _, body = server.request("/api/check", "POST", {"source": slow})
         data = json.loads(body)
