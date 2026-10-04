@@ -1,6 +1,8 @@
 """Mathematical types, domains, and standard sets in Aether."""
 
+import re
 from enum import Enum
+from typing import Optional
 
 
 class MathType(str, Enum):
@@ -15,6 +17,9 @@ class MathType(str, Enum):
     Set = "Set"
     #: A member of a structure's carrier (``Given a : G`` after ``Assume Group(G, ...)``).
     Element = "Element"
+    #: A function between number types (``Given f : Real -> Real``); its
+    #: argument and result types are the variable's ``signature``.
+    Function = "Function"
 
 
 # Aliases accepted by the parser → canonical MathType name.
@@ -64,6 +69,9 @@ _ALIASES: dict[str, MathType] = {
     "matrices": MathType.Matrix,
     # Set
     "set": MathType.Set,
+    # Function (of reals, unless a signature says otherwise)
+    "function": MathType.Function,
+    "functions": MathType.Function,
     "sets": MathType.Set,
 }
 
@@ -81,3 +89,9 @@ def normalize_type_name(raw_name: str) -> MathType:
         if mt.value.lower() == key:
             return mt
     raise ValueError(f"Unknown type: {raw_name!r}")
+
+
+def split_function_type(raw_name: str) -> Optional[list[str]]:
+    """The parts of a function type (``Real -> Real`` → ``["Real", "Real"]``), else None."""
+    parts = [p.strip() for p in re.split(r"->|→|⇒|=>", raw_name)]
+    return parts if len(parts) >= 2 and all(parts) else None

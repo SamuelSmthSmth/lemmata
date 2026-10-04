@@ -70,6 +70,22 @@ export async function exportLatex({ source, standalone = true, strictDomains = f
   return response.json();
 }
 
+/**
+ * The proof as a Lean 4 + Mathlib skeleton: {lean, rows, untranslated, error?}.
+ * Each row is a run of Lean lines and the source line they came from.
+ */
+export async function exportLean({ source, files = null, path = null, citations = null, signal }) {
+  if (inBrowser) return browser.lean({ source, files, path, citations });
+  const response = await fetch("/api/export/lean", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ source, files, path, citations }),
+    signal,
+  });
+  if (!response.ok) throw new Error(`server returned ${response.status}`);
+  return response.json();
+}
+
 export async function exportPdf({ source, strictDomains = false, breakdown = true, session = null, signal }) {
   if (inBrowser) throw new Error("PDF export needs a TeX installation, which this web version does not have");
   const response = await fetch("/api/export/pdf", {

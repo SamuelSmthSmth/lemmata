@@ -244,6 +244,17 @@ def main() -> int:
         check(step["source_line"] is not None, "steps carry source_line")
         check(step.get("diagnostic_range") is not None, "steps carry diagnostic_range")
 
+        print("== POST /api/export/lean ==")
+        _, _, body = server.request("/api/export/lean", "POST", {"source": by_id["even-square"]["source"]})
+        lean = json.loads(body)
+        check(lean.get("error") is None and lean["lean"].startswith("import Mathlib\n"), "Lean export is a whole Lean file")
+        lines = lean["lean"].splitlines()
+        covered = [n for r in lean["rows"] for n in range(r["lean_from"], r["lean_to"] + 1)]
+        check(covered == list(range(1, len(lines) + 1)), "Lean rows cover every Lean line once, in order")
+        check(any(r["line"] and lines[r["lean_from"] - 1].strip().startswith("intro") for r in lean["rows"]), "a Given became an intro on its own row")
+        _, _, body = server.request("/api/export/lean", "POST", {"source": "Theorem: \"Bad\"\nProof:\nGiven n : Int\nQED"})
+        check(bool(json.loads(body).get("error")), "a proof that does not parse has no Lean, and says why")
+
         print("== POST /api/export/latex ==")
         _, _, body = server.request(
             "/api/export/latex", "POST", {"source": by_id["even-square"]["source"], "standalone": True}

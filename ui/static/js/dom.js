@@ -98,4 +98,14 @@ export const dom = {
   copyLatex: byId("copy-latex"),
   downloadTex: byId("download-tex"),
   downloadPdf: byId("download-pdf"),
+
+  // "Show in Lean": the proof beside its Lean 4 skeleton.
+  showLean: byId("show-lean"),
+  leanDialog: byId("lean-dialog"),
+  leanUntranslated: byId("lean-untranslated"),
+  leanTable: byId("lean-table"),
+  leanRows: byId("lean-rows"),
+  copyLean: byId("copy-lean"),
+  downloadLean: byId("download-lean"),
+  openLean: byId("open-lean"),
 };

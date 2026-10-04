@@ -454,6 +454,10 @@ class AetherASTTransformer(Transformer):
         raw = "".join(_tok(t) for t in children if _is_token(t))
         return _TYPE_SETS.get(raw, raw)
 
+    def function_type(self, children: list) -> str:
+        # [type_str, ARROW, type_str, ...]: written canonically as `Real -> Real`.
+        return " -> ".join(c for c in children if isinstance(c, str) and not _is_token(c))
+
     # -------------------------------------------------------------------
     # Assume
     # -------------------------------------------------------------------

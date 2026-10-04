@@ -151,6 +151,13 @@ export const browser = {
       return { latex: "", error: error instanceof Overran ? `checking the proof for the report ${error.message}` : error.message };
     }
   },
+  async lean({ source, files, path, citations }) {
+    try {
+      return await job("lean", { source, files, path, citations });
+    } catch (error) {
+      return { lean: "", rows: [], untranslated: [], error: error instanceof Overran ? `checking the proof for the export ${error.message}` : error.message };
+    }
+  },
   async validatePack(data) {
     return job("validate_pack", { pack: data });
   },

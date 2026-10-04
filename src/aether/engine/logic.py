@@ -574,6 +574,32 @@ def ast_to_z3(
                     f"`{expr.func}` takes {expected} argument(s), but got {len(expr.args)}."
                 )
 
+        # A declared function (`Given f : Real -> Real`): one symbol, with the
+        # declared argument and result sorts, however its arguments are written.
+        fvar = ctx.get_var(expr.func) if expr.func not in bound_vars else None
+        if fvar is not None and fvar.signature is not None:
+            arg_types, result_type = fvar.signature
+            if len(expr.args) != len(arg_types):
+                raise LogicConversionError(
+                    f"`{expr.func}` is declared as {fvar.type_label}, so it takes "
+                    f"{len(arg_types)} argument(s), but got {len(expr.args)}."
+                )
+            z3_args = []
+            for a, t in zip(expr.args, arg_types):
+                z = ast_to_z3(a, ctx, bound_vars, extra_constraints)
+                want = _make_z3_var("_", t).sort()
+                if want == z3.RealSort() and z3.is_int(z):
+                    z = z3.ToReal(z)
+                elif want == z3.IntSort() and z3.is_real(z):
+                    z = z3.ToInt(z)
+                z3_args.append(z)
+            result = _make_z3_var("_", result_type).sort()
+            uf = z3.Function(expr.func, *[_make_z3_var("_", t).sort() for t in arg_types], result)
+            applied = uf(*z3_args)
+            if extra_constraints is not None and result_type == MathType.Nat:
+                extra_constraints.append(applied >= 0)  # type: ignore[operator]
+            return applied
+
         # Uninterpreted predicate / function
         z3_args = [ast_to_z3(a, ctx, bound_vars, extra_constraints) for a in expr.args]
         arg_sorts = [a.sort() for a in z3_args]

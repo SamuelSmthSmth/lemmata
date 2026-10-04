@@ -406,6 +406,51 @@ def export_latex(request: LatexExportRequest) -> LatexExportResponse:
         return LatexExportResponse(latex="", error=str(exc))
 
 
+class LeanExportRequest(BaseModel):
+    source: str = ""
+    # As for /api/check: the workspace, so imports and citations resolve.
+    files: Optional[dict[str, str]] = None
+    path: Optional[str] = None
+    citations: Optional[dict[str, Any]] = None
+
+
+class LeanRowModel(BaseModel):
+    # The source line these Lean lines came from; None for Lean's own scaffolding.
+    line: Optional[int] = None
+    source: str = ""
+    lean_from: int
+    lean_to: int
+    # The source line's verdict (VALID, WARNING, INVALID), when it has one.
+    status: Optional[str] = None
+
+
+class LeanUntranslatedModel(BaseModel):
+    line: Optional[int] = None
+    what: str
+
+
+class LeanExportResponse(BaseModel):
+    lean: str = ""
+    rows: list[LeanRowModel] = []
+    untranslated: list[LeanUntranslatedModel] = []
+    error: Optional[str] = None
+
+
+@app.post("/api/export/lean", response_model=LeanExportResponse)
+def export_lean(request: LeanExportRequest) -> LeanExportResponse:
+    """The proof as a Lean 4 + Mathlib skeleton, lined up with its source lines."""
+    try:
+        result = pool().run(
+            "lean",
+            {"source": request.source, "files": request.files, "path": request.path, "citations": request.citations},
+        )
+        return LeanExportResponse(**result)
+    except CheckTimeout as exc:
+        return LeanExportResponse(error=f"checking the proof for the export stopped after {exc.budget:g} s")
+    except Exception as exc:
+        return LeanExportResponse(error=str(exc))
+
+
 class PdfExportRequest(BaseModel):
     source: str = ""
     strict_domains: bool = False

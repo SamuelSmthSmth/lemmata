@@ -31,6 +31,7 @@ from aether.core.ast import (
     QuantifierNode,
     BinaryOpNode,
     ImportNode,
+    FunctionCallNode,
 )
 from aether.parser.parser import AetherParser
 from aether.engine.hints import hints_for
@@ -51,6 +52,7 @@ from aether.engine.context import (
     GeneralizationError,
     canonical_rel,
     collect_free_symbols,
+    substitute_mapping,
 )
 from aether.engine.algebra import (
     extract_domain_obligations,
@@ -726,6 +728,7 @@ class ProofChecker:
         """A step that cites results: resolve each, use them for this step only."""
         index = self._citations
         cited: list[tuple[str, Target, list[tuple[Optional[str], ExprNode]]]] = []
+        cited_defs: list[FuncDefNode] = []
         rest: list[str] = []
         for part in split_parts(justification):
             targets = index.lookup(part)
@@ -736,22 +739,32 @@ class ProofChecker:
                 continue
             if len(targets) > 1:
                 return self._citation_failure(stmt, ctx, ambiguous_message(part, targets))
-            claims, problem = self._cited_claims(targets[0])
+            claims, problem, defs = self._cited_claims(targets[0])
             if problem:
                 return self._citation_failure(stmt, ctx, problem)
             cited.append((part, targets[0], claims))
+            cited_defs.extend(defs)
 
         if not cited:
             return self._dispatch(stmt, ctx)
         # Known by the name it was cited as, so the step, its message and the
         # hypotheses all call the result the same thing.
         added = [ctx.add_hypothesis(claim, label=target.label, is_assumption=False) for _, target, claims in cited for _, claim in claims]
+        # The definitions the cited result is stated in come with it, for this
+        # step, unless the proof already has its own of that name.
+        lent = [
+            ctx.declare_function(d.name, d.params, d.body).name
+            for d in cited_defs
+            if ctx.get_function(d.name) is None and ctx.get_var(d.name) is None
+        ]
         try:
             stripped = replace(stmt, justification=", ".join(rest) or None)
             result = self._dispatch(stripped, ctx)
         finally:
             for frame in ctx._frames:
                 frame.hypotheses[:] = [h for h in frame.hypotheses if not any(h is a for a in added)]
+            for name in lent:
+                ctx.current_frame.functions.pop(name, None)
         part, target, claims = cited[0]
         statement_text = "; ".join(str(claim) for _, claim in claims)
         if result.status == StepStatus.INVALID:
@@ -769,17 +782,19 @@ class ProofChecker:
         valid, _ = self._validate_justification(part, ctx)
         return valid
 
-    def _cited_claims(self, target: Target) -> tuple[list[tuple[Optional[str], ExprNode]], Optional[str]]:
-        """The proved claims of a cited source, or why it cannot be used."""
+    def _cited_claims(
+        self, target: Target
+    ) -> tuple[list[tuple[Optional[str], ExprNode]], Optional[str], list[FuncDefNode]]:
+        """The proved claims of a cited source and the definitions they use, or why it cannot be used."""
         defs: list[FuncDefNode] = []
         claims: list[tuple[Optional[str], ExprNode]] = []
         root = self._virtual_path("__main__.aether")
         result = self._process_import(ImportNode(path=target.key), root, [root], defs, claims)
         if result.status == StepStatus.INVALID:
-            return [], f"'{target.label}' cannot be used: {result.message}"
+            return [], f"'{target.label}' cannot be used: {result.message}", []
         if not claims:
-            return [], f"'{target.label}' does not state a proved result to use (it has no theorem with a claim)."
-        return claims, None
+            return [], f"'{target.label}' does not state a proved result to use (it has no theorem with a claim).", []
+        return claims, None, defs
 
     def _citation_failure(self, stmt: StatementNode, ctx: ProofContext, message: str) -> StepResult:
         vars_snap, hyps_snap = self._snapshot(ctx)
@@ -1535,6 +1550,14 @@ class ProofChecker:
                 elif isinstance(target, BinaryOpNode) and target.op in ("=>", "->", "implies", "\\implies"):
                     licensed_antecedents.append(target.left)
                     target = target.right
+                elif (
+                    isinstance(target, FunctionCallNode)
+                    and (fn := ctx.get_function(target.func)) is not None
+                    and len(fn.params) == len(target.args)
+                ):
+                    # A defined claim (`Claim: Continuous(g, 2)`) is proved as its
+                    # definition says: its ∀s and ⇒s license the proof's Given/Assume.
+                    target = substitute_mapping(fn.body, dict(zip(fn.params, target.args)))
                 else:
                     break
 
@@ -1559,7 +1582,9 @@ class ProofChecker:
                 ant_ctx = ProofContext()
                 for vinfo in ctx.all_variables().values():
                     if not vinfo.is_witness:
-                        ant_ctx.declare_variable(vinfo.name, vinfo.math_type)
+                        ant_ctx.declare_variable(
+                            vinfo.name, vinfo.type_label if vinfo.signature else vinfo.math_type
+                        )
                 for ant in licensed_antecedents:
                     ant_ctx.add_hypothesis(ant, is_assumption=True)
                 for h in root_assumptions:

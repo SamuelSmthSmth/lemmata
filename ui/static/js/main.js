@@ -7,7 +7,8 @@
 // Side-effect import: defines every <wa-*> custom element. Imported first so
 // nothing below can touch an element that has not been upgraded yet.
 import "./components.js";
-import { canExportPdf, checkProof, exportLatex, exportPdf, fetchLibrary, validatePack } from "./api.js";
+import { canExportPdf, checkProof, exportLatex, exportLean, exportPdf, fetchLibrary, validatePack } from "./api.js";
+import { leanEditorUrl, leanFilename, renderLeanMessage, renderLeanRows, untranslatedNote } from "./lean.js";
 import { onEngineStatus, warmUp } from "./backend.js";
 import { initAuditNav, selectStepForLine } from "./audit.js";
 import { insertSymbol, insertTemplate, setCitationSource, setScopeSource, SYMBOLS, TEMPLATES } from "./complete.js";
@@ -171,6 +172,22 @@ function importableFiles(path, source) {
   return files;
 }
 
+/**
+ * What the engine needs beside the source: the workspace, only when this proof
+ * imports from it, and the installed packs and the names they answer to when
+ * it may cite a result.
+ */
+function engineContext(file, source) {
+  let files = ws.hasImports(source) ? importableFiles(file.path, source) : null;
+  let citations = null;
+  if (packs.mayCite(source)) {
+    const workspace = { ...ws.sourcesByPath(), [file.path]: source };
+    files = { ...workspace, ...packs.importSources(packs.installedPacks()), ...(files ?? {}) };
+    citations = packs.citationIndex(packs.installedPacks(), workspace);
+  }
+  return { files, citations };
+}
+
 async function runCheck() {
   window.clearTimeout(state.timer);
   state.timer = null;
@@ -185,16 +202,7 @@ async function runCheck() {
 
   const source = currentSource();
   try {
-    // The workspace travels only when this proof imports from it, and with the
-    // installed packs and the names they answer to when it may cite a result.
-    const citing = packs.mayCite(source);
-    let files = ws.hasImports(source) ? importableFiles(file.path, source) : null;
-    let citations = null;
-    if (citing) {
-      const workspace = { ...ws.sourcesByPath(), [file.path]: source };
-      files = { ...workspace, ...packs.importSources(packs.installedPacks()), ...(files ?? {}) };
-      citations = packs.citationIndex(packs.installedPacks(), workspace);
-    }
+    const { files, citations } = engineContext(file, source);
     const data = await checkProof({
       source,
       strictDomains: dom.strict.checked,
@@ -964,6 +972,79 @@ dom.downloadPdf.addEventListener("click", async () => {
 });
 
 // ---------------------------------------------------------------------------
+// Show in Lean
+// ---------------------------------------------------------------------------
+
+let leanAbortController = null;
+let leanResult = null;
+
+/** Copy, download and open act on a translation, so they wait for one. */
+function setLeanActions(ready) {
+  for (const button of [dom.copyLean, dom.downloadLean, dom.openLean]) button.disabled = !ready;
+}
+
+async function refreshLean() {
+  const file = active();
+  if (!dom.leanDialog.open || !file) return;
+  leanAbortController?.abort();
+  const controller = new AbortController();
+  leanAbortController = controller;
+  leanResult = null;
+  setLeanActions(false);
+  dom.leanTable.setAttribute("aria-busy", "true");
+  dom.leanUntranslated.hidden = true;
+  renderLeanMessage(dom.leanRows, "Translating to Lean…");
+  const source = currentSource();
+  try {
+    const data = await exportLean({ source, path: file.path, ...engineContext(file, source), signal: controller.signal });
+    if (controller !== leanAbortController) return;
+    if (data.error) {
+      renderLeanMessage(dom.leanRows, `There is no Lean for this proof yet: ${data.error}`, { error: true });
+      return;
+    }
+    leanResult = data;
+    renderLeanRows(dom.leanRows, data, source);
+    setLeanActions(true);
+    const note = untranslatedNote(data.untranslated);
+    dom.leanUntranslated.textContent = note;
+    dom.leanUntranslated.hidden = !note;
+  } catch (error) {
+    if (error.name === "AbortError") return;
+    renderLeanMessage(dom.leanRows, `Could not translate the proof: ${error.message}`, { error: true });
+  } finally {
+    if (controller === leanAbortController) dom.leanTable.setAttribute("aria-busy", "false");
+  }
+}
+
+function openLeanDialog() {
+  if (!active()) return;
+  dom.leanDialog.open = true;
+  refreshLean();
+}
+
+dom.showLean.addEventListener("click", openLeanDialog);
+dom.leanDialog.addEventListener("wa-after-hide", () => {
+  leanAbortController?.abort();
+  leanAbortController = null;
+});
+dom.copyLean.addEventListener("click", async () => {
+  if (!leanResult) return;
+  const ok = await copyText(leanResult.lean);
+  showToast(ok ? "Lean copied to clipboard" : "Could not copy to clipboard", { tone: ok ? "info" : "warning" });
+});
+dom.downloadLean.addEventListener("click", () => {
+  if (!leanResult) return;
+  const filename = leanFilename(exportStem());
+  downloadText(leanResult.lean, filename);
+  showToast(`Downloaded ${filename}`);
+});
+dom.openLean.addEventListener("click", () => {
+  if (!leanResult) return;
+  // The desktop app hands an outside address to the system browser.
+  window.open(leanEditorUrl(leanResult.lean), "_blank", "noopener");
+});
+
+// ---------------------------------------------------------------------------
 // Theme and syntax
 // ---------------------------------------------------------------------------
 
@@ -999,6 +1080,7 @@ function paletteItems() {
     { kind: "command", label: "Switch light / dark theme", run: () => applyTheme(currentTheme() === "dark" ? "light" : "dark", { persist: true }) },
     { kind: "command", label: "Toggle syntax colours", run: () => applySyntax(currentSyntax() === "vivid" ? "mono" : "vivid", { persist: true }) },
     { kind: "command", label: "Export to LaTeX / PDF", run: openLatexDialog },
+    { kind: "command", label: "Show in Lean", keywords: "lean mathlib export skeleton", run: openLeanDialog },
     { kind: "command", label: "Download this proof", run: () => dom.downloadProof.click() },
     { kind: "command", label: "Export the workspace as .zip", run: exportWorkspace },
     { kind: "command", label: "Snapshot this proof", run: () => dom.snapshotNow.click() },

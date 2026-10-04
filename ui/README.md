@@ -336,6 +336,17 @@ decide* page. Metadata only; nothing is run on request.
 The proof as LaTeX (two styles, with or without the verification report), or
 compiled to PDF when a TeX engine is installed.
 
+### `POST /api/export/lean`
+
+"Show in Lean": the proof as a Lean 4 + Mathlib skeleton
+(`aether.core.lean_export`), `{lean, rows, untranslated, error?}`. `rows` runs
+through the Lean in order, each run of Lean lines (`lean_from`–`lean_to`,
+1-based) with the source `line` it came from (null for Lean's scaffolding),
+its `source` text and that line's `status`; `untranslated` lists what was left
+as `sorry` with its line. Takes `files`, `path` and `citations` as
+`/api/check` does. The namespace is the site name. The `lean` CI job compiles
+every pinned proof's skeleton against Mathlib (`lean/generate.py`).
+
 ### `GET /api/site`
 
 The product's name, tagline and version: `{name, tagline, version}`. The name

@@ -1264,6 +1264,240 @@ kbd {
   gap: 6px;
 }
 
+/* --- Show in Lean: the proof beside its Lean 4 skeleton --------------------
+   Two columns that read straight across: each source line, then the Lean it
+   became.  Rows are flush and hairline-divided like the auditor's, and a line
+   that did not check carries the auditor's rail, so a failure looks the same
+   here as everywhere else. */
+
+.lean-dialog {
+  --width: min(1180px, calc(100vw - 32px));
+}
+
+.lean-dialog::part(body) {
+  padding: 0;
+}
+
+.lean-dialog::part(footer) {
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+
+.lean-body {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.lean-lede,
+.lean-untranslated,
+.lean-legal {
+  margin: 0;
+  max-width: 78ch;
+  font-family: var(--font-prose);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.lean-lede {
+  padding: 0 16px 12px;
+  color: var(--muted);
+}
+
+.lean-lede code {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.lean-untranslated {
+  padding: 0 16px 12px;
+  color: var(--text);
+}
+
+.lean-legal {
+  flex: 1 1 100%;
+  max-width: none;
+  text-align: left;
+  font-size: 12px;
+  color: var(--muted-dim);
+}
+
+
+
+.lean-actions {
+  flex: 1 1 auto;
+  width: 100%;
+  flex-wrap: wrap;
+}
+
+.lean-table {
+  max-height: min(64vh, 720px);
+  overflow: auto;
+  border-top: 1px solid var(--border);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.lean-table:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+.lean-row {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+  border-bottom: 1px solid var(--hairline);
+}
+
+.lean-row:last-child {
+  border-bottom: 0;
+}
+
+/* The auditor's rail: a line that did not check, or left a caveat. */
+.lean-row::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 2px;
+  background: transparent;
+}
+
+.lean-row.is-invalid::before {
+  background: var(--invalid);
+}
+
+.lean-row.is-warning::before {
+  background: var(--warning);
+}
+
+.lean-row--head {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--panel);
+  border-bottom: 1px solid var(--border);
+}
+
+.lean-row--head .lean-cell {
+  padding: 6px 12px 6px 14px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.lean-cell {
+  min-width: 0;
+  padding: 5px 12px 5px 14px;
+}
+
+/* The Lean is the code surface: paper, as the editor is, beside the
+   dialog's raised surface where the student's lines sit. */
+.lean-out {
+  background: var(--bg);
+  border-left: 1px solid var(--hairline);
+}
+
+.lean-row--head .lean-cell + .lean-cell {
+  border-left: 1px solid var(--hairline);
+}
+
+.lean-line {
+  display: grid;
+  grid-template-columns: 3.5ch minmax(0, 1fr);
+  gap: 10px;
+}
+
+.lean-n {
+  text-align: right;
+  font-size: 11px;
+  line-height: calc(12px * 1.5);
+  color: var(--muted-dim);
+  font-variant-numeric: tabular-nums;
+  user-select: none;
+}
+
+.lean-text {
+  font: inherit;
+  color: var(--text);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.lean-tok--kw {
+  color: var(--accent);
+}
+
+.lean-tok--sorry {
+  font-weight: 700;
+}
+
+.lean-tok--comment {
+  color: var(--muted-dim);
+}
+
+/* Lean's own scaffolding (the header, `namespace`, a block's closing line)
+   has no source line; a line split around others shows again, quietly. */
+.lean-row.is-repeat .lean-src .lean-text,
+.lean-row.is-repeat .lean-src .lean-tok,
+.lean-line.is-quiet .lean-text,
+.lean-line.is-quiet .lean-tok {
+  color: var(--muted-dim);
+}
+
+.lean-message {
+  padding: 14px 16px;
+  font-family: var(--font-prose);
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.lean-message.is-error {
+  color: var(--invalid);
+}
+
+@media (max-width: 760px) {
+  /* Stacked: each source line, then the Lean it became, beneath it. */
+  .lean-row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .lean-row--head,
+  .lean-row.is-scaffold .lean-src {
+    display: none;
+  }
+
+  /* Stacked, the student's line sits on the lowered fill above its Lean. */
+  .lean-src {
+    background: var(--panel-2);
+    border-bottom: 1px solid var(--hairline);
+  }
+
+  .lean-out {
+    border-left: 0;
+  }
+
+  .lean-table {
+    max-height: none;
+    overflow: visible;
+  }
+
+  .lean-dialog .dialog-actions {
+    flex-wrap: wrap;
+  }
+
+  .lean-dialog .dialog-actions wa-button {
+    flex: 1 1 auto;
+  }
+}
+
 /* --- Pack dialog: a folder's details as a pack ----------------------------- */
 
 .pack-dialog {

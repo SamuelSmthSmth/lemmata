@@ -91,6 +91,21 @@ against `sources` first — relative to `file_path`, then the root — and then
 falls back to the disk search. The web app passes its browser workspace this
 way.
 
+### Show in Lean
+
+`aether.core.lean_export.export_to_lean(source, *, sources=None, citations=None,
+file_path=None, namespace="Lemmata")` returns a `LeanExport` (`lean`, `rows`,
+`untranslated`, `to_dict()`): the proof as a Lean 4 + Mathlib skeleton, each
+step's proof a `sorry` with a comment naming the backend that checked it and a
+tactic to try. It raises `ParseError` like `check_source`. The UI runs it as the
+`lean` job (`ui/engine_jobs.py`, server and Pyodide alike) behind
+`POST /api/export/lean`. **Every skeleton must compile:** `uv run python
+lean/generate.py` writes `lean/Generated.lean` from every example, pack entry,
+capability probe and Guide example, and the `lean` CI workflow compiles it
+against the Mathlib pinned in `lean/lakefile.toml` (there is no local Lean
+toolchain to rely on; push a `lean/**` branch to iterate). Raise Mathlib's
+`rev` and `lean/lean-toolchain` together.
+
 ### Data Structures Returned by `checker.check_source(source_text)`
 
 #### `ProofReport`
@@ -193,6 +208,7 @@ Every claim this repo makes is checked by a script you can run yourself:
 | `uv run python ui/verify_capabilities.py` | the CNL capability matrix listed in `USER_GUIDE.md` — and that the table published there still matches the pins; `--markdown` prints it as the doc table, and every snippet runs under a wall-clock budget (`--budget`, 10s) because Z3's soft `timeout` is not enforceable in-process |
 | `uv run python ui/verify_server.py` | the HTTP API (check budget and `TIMEOUT`, workspace imports, library, capabilities), both export styles, the vendored asset graph, and every *Try it* example in the Guide |
 | `node ui/verify_frontend.mjs` | the CodeMirror tokenizer, the frontend module graph, layout rules and the `.zip` reader/writer |
+| `lean` CI job (`uv run python lean/generate.py`, then `lake env lean Generated.lean` in `lean/`) | every "Show in Lean" skeleton of every pinned proof compiles against pinned Mathlib |
 | `node ui/verify_wasm.mjs` | every pinned verdict (course packs, examples, capability probes) gives the same answer inside Pyodide — the browser's Python — as natively, with timings; needs `uv run python ui/vendor_pyodide.py` once |
 | `uv run python ui/verify_browser.py --static` | the static build (`uv run python ui/build_static.py` → `dist/`): checking, imports, packs, LaTeX and the budget with the engine in the browser and no server |
 | `uv run python web/verify_web.py` | the public site (`web/`, built by `ui/build_site.py` with the app at `/app/`): every link and asset, the landing page's audits against the engine, the Vercel rules, the installer, and in a browser the old-permalink redirect, the storage notice, the scrub and phone widths |

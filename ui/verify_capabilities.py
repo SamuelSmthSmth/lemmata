@@ -166,6 +166,18 @@ PROBES: list[Probe] = [
     Probe("phrasing", "By h1, B", "Let x : Real\nAssume h1: x > 2\nBy h1, x^2 > 4", "VALID"),
     Probe("phrasing", "We have / Note that / Now / Clearly", "Let x : Real\nAssume x > 2\nWe have x + 1 > 3\nNote that x > 1\nNow x > 0\nClearly x >= 2", "VALID"),
     Probe("phrasing", "It follows that / We get", "Let x : Real\nAssume x > 2\nIt follows that x + 1 > 3\nWe get x > 1", "VALID"),
+    # --- functions and definitions about them ------------------------------
+    Probe("function", "Given f : Real -> Real", "Given f : Real -> Real\nAssume forall x : Real, f(x) > 0\nTherefore f(2) > 0", "VALID"),
+    Probe("function", "ℝ → ℝ, and other number types", "Let f : \u211d \u2192 \u211d\nGiven g : Int -> Int\nAssume forall n : Int, g(n) = 2 * n\nTherefore g(3) = 6", "VALID"),
+    Probe("function", "nothing is known about f unassumed", "Given f : Real -> Real\nTherefore f(2) > 0", "INVALID",
+          why="an abstract function is any function, so f(2) could be anything"),
+    Probe("function", "Definition 2.6 (Name): heading", "Definition 2.6 (Big): Big(x) <=> x > 10\nLet y : Real\nAssume Big(y)\nTherefore y > 5", "VALID"),
+    Probe("function", "a definition about a function, assumed", "Definition: Bounded(f) <=> forall x : Real, abs(f(x)) <= 1\nGiven h : Real -> Real\nAssume Bounded(h)\nTherefore abs(h(5)) <= 1", "VALID"),
+    Probe("function", "a defined function as the argument", "Define Cont(f, a) <=> forall \u03b5 > 0, exists \u03b4 > 0, forall x : Real, abs(x - a) < \u03b4 => abs(f(x) - f(a)) < \u03b5\nLet g(x) = 3 * x\nTherefore Cont(g, 2)", "VALID"),
+    Probe("function", "Claim: a defined property, proved by its definition",
+          "Define Cont(f, a) <=> forall \u03b5 > 0, exists \u03b4 > 0, forall x : Real, abs(x - a) < \u03b4 => abs(f(x) - f(a)) < \u03b5\n"
+          "Let g(x) = 3 * x\nTheorem: \"3x is continuous at 2\"\nClaim: Cont(g, 2)\nProof:\n    Given \u03b5 : Real\n    Assume h1: \u03b5 > 0\n"
+          "    Therefore exists d > 0, forall x : Real, abs(x - 2) < d => abs(g(x) - g(2)) < \u03b5 [witness: \u03b5 / 3]\nQED", "VALID"),
     # --- grammar edges -----------------------------------------------------
     Probe("grammar", "hash comments", "# a comment\nLet x : Real\nStep: x + 0 = x", "VALID"),
     Probe("grammar", "slash slash comments", "// a comment\nLet x : Real\nStep: x + 0 = x", "PARSE_ERROR",
