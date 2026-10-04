@@ -58,7 +58,8 @@ the open file and whether work is being kept.
   to proofs or traps.
 - **Guide** — the handbook, with a *Try it* button on every example and the
   live capability matrix.
-- **Settings** — theme, syntax colours, editor text size, line wrap, strict
+- **Settings** — theme, syntax colours, editor text size, line wrap, typeset
+  maths (visual mode), strict
   domains for new proofs, check debounce, panel arrangement, the reading pane,
   storage use, backup and delete-everything.
 
@@ -84,6 +85,7 @@ and every Library entry by reference.
 | Insert `∀ ∃ ∈ ∉ ⊆ ≤ ≥ ≠ ⇒ ⇔ ε δ ∞ √ ⁻¹ ℝ ℤ ℕ` | symbol strip; or type `\forall`, `<=`, … |
 | Completion of keywords, structures, functions and the proof's own names | editor (`Ctrl+Space`) |
 | Failing and warning steps marked in the gutter and underlined; hover for why | editor |
+| Typeset the maths in place (fractions, powers, roots, ∀ ∈ ℝ); the expression under the caret opens as source | Settings → *Typeset the maths*, palette |
 | Jump between problems | `F8` / `Shift+F8`, or the status bar |
 | Overall verdict, with counts and timing | status bar |
 | Toggle strict domain checking (per proof; default in Settings) | tool strip |

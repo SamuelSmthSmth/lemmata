@@ -218,7 +218,11 @@
       },
       "wordmark": {
         "displayName": "Wordmark",
-        "purpose": "The name as LaTeX sets it, 𝐿emma𝑡𝛼 ($L\\text{emma}t\\alpha$): a 2.3 KB Latin Modern Math subset (GUST Font License; ui/vendor_fonts.py) at 1.5em of its context. Sets the name only; the one sanctioned italic and second face. A non-Lemmata site name is set plainly in mono."
+        "purpose": "The name as LaTeX sets it, 𝐿emma𝑡𝛼 ($L\\text{emma}t\\alpha$): a 2.3 KB Latin Modern Math subset (GUST Font License; ui/vendor_fonts.py) at 1.5em of its context. Sets the name only; the one sanctioned italic. A non-Lemmata site name is set plainly in mono."
+      },
+      "stretch": {
+        "displayName": "Stretch Glyphs",
+        "purpose": "Visual mode only: a 10 KB Fira Math subset (OFL; ui/vendor_fonts.py, sha256-pinned) with its MATH table, for the radical, brackets round something tall, and the sum and integral signs. Every other mark stays in the mono, upright."
       }
     },
     "shadows": [

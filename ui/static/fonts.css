@@ -47,6 +47,18 @@
   unicode-range: U+2100-214F, U+2190-21FF, U+2200-22FF;
 }
 
+/* What the editor's visual mode cannot draw in a mono with no MATH table:
+ * radicals, brackets that grow round a fraction, and the sum and integral
+ * signs.  A few glyphs of Fira Math, a monoline sans whose strokes sit with
+ * the mono's, with its MATH table (ui/vendor_fonts.py), used only for those. */
+@font-face {
+  font-family: "Lemmata Stretch";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("vendor/fonts/firamath-stretch.woff2") format("woff2");
+}
+
 /* The name as LaTeX sets it, L\text{emma}t\alpha: a few glyphs of Latin
  * Modern Math (ui/vendor_fonts.py), used only by the wordmark. */
 @font-face {

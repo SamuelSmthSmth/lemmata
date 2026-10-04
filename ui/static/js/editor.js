@@ -15,6 +15,7 @@ import { indentUnit, syntaxHighlighting } from "../vendor/esm/@codemirror/langua
 import { aetherLanguage, makeHighlightStyle } from "../aether-language.js";
 import { completionExtensions } from "./complete.js";
 import { lintCommands, lintExtensions } from "./lint.js";
+import { visualMath } from "./visual.js";
 
 // Mirrors aether.parser.indenter.AetherIndenter.tab_len = 4.
 export const INDENT = "    ";
@@ -190,9 +191,10 @@ const aetherKeymap = keymap.of([
  * when the caret moves without editing -- including a click that lands where
  * the caret already was, which fires no selection change at all.
  */
-export function createEditor({ parent, onDocChanged, onSelectionMoved, onCaret = () => {}, wrap = false }) {
+export function createEditor({ parent, onDocChanged, onSelectionMoved, onCaret = () => {}, wrap = false, visual = false }) {
   const themeCompartment = new Compartment();
   const wrapCompartment = new Compartment();
+  const visualCompartment = new Compartment();
 
   // Declared before the view; the update listener below captures it.
   let programmaticChange = false;
@@ -207,6 +209,7 @@ export function createEditor({ parent, onDocChanged, onSelectionMoved, onCaret =
       indentUnit.of(INDENT),
       themeCompartment.of(themeExtensions(currentTheme())),
       wrapCompartment.of(wrap ? EditorView.lineWrapping : []),
+      visualCompartment.of(visual ? visualMath() : []),
       // Before basicSetup, so this source and config win over its defaults.
       completionExtensions(),
       basicSetup,
@@ -265,6 +268,11 @@ export function createEditor({ parent, onDocChanged, onSelectionMoved, onCaret =
 
     setWrap(on) {
       view.dispatch({ effects: wrapCompartment.reconfigure(on ? EditorView.lineWrapping : []) });
+    },
+
+    /** Typeset the maths in place (see visual.js); the document is unchanged either way. */
+    setVisual(on) {
+      view.dispatch({ effects: visualCompartment.reconfigure(on ? visualMath() : []) });
     },
 
     /** Put the caret at the start of line *n* and bring it into view. */
