@@ -671,9 +671,10 @@ kbd {
 }
 
 /* Scripts (powers, limits, bounds) likewise: MathML's 71% per level puts a
-   sum's `k = 0` at 9px and the `+` of `0⁺` below 7px.  10px is the floor. */
+   sum's `k = 0` at 9px and the `+` of `0⁺` below 7px.  The app's own floor,
+   11px, holds here too. */
 .cm-math :is(msup, msub, msubsup, munder, munderover, mover) > :not(:first-child) {
-  font-size: max(10px, 0.8em);
+  font-size: max(11px, 0.8em);
 }
 
 /* The marks the mono cannot draw (see fonts.css).  A radical takes its glyph
@@ -694,17 +695,6 @@ kbd {
 .cm-math msqrt > * {
   font-family: var(--font-mono);
   color: var(--cm-token-ink);
-}
-
-/* A typeset line is taller than a line of text, and CodeMirror sets its
-   line number at the top; centring keeps the number level with the line's
-   keyword, which sits on the maths axis.  Not when lines wrap: there a tall
-   gutter element is a wrapped statement, whose number belongs at its top. */
-.cm-visual:not(:has(.cm-lineWrapping)) .cm-lineNumbers .cm-gutterElement {
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: flex-end;
 }
 
 /* Single letters are italic by default in MathML; the notes' upright mono is
