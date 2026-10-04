@@ -255,6 +255,34 @@ Proof:
 QED
 ```
 
+#### Induction from a starting value, and recurrences
+
+A claim for "every positive integer" or "every $n \ge 5$" puts the start in the claim, as a guard: `forall n : Nat, n >= 5 => P(n)`. The base case is then `n = 5`. The inductive step may assume anything that follows from $k \ge 5$ (`Assume hk: k >= 5`, or `Given k : Nat where k >= 5`) alongside the hypothesis, in any order. Over the integers, induction needs a starting value (`forall n : Int, n >= -2 => …`). Without one, the base case and the step say nothing about the numbers below it.
+
+A sequence the question defines is declared as a function. Its first values and recurrence are its definition, and the verdict names them. A recurrence that uses two earlier terms needs two base cases:
+
+```text
+Theorem: "A recurrence"
+Claim: forall n : Nat, n >= 1 => u(n) = 2^(n - 1) + 1
+Proof:
+    Given u : Nat -> Int
+    Assume u1: u(1) = 2
+    Assume rec: forall n : Nat, n >= 1 => u(n + 1) = 2 * u(n) - 1
+    Base case n = 1:
+        Step: u(1) = 2^0 + 1
+    Inductive step:
+        Given k : Nat
+        Assume hk: k >= 1
+        Assume ih: u(k) = 2^(k - 1) + 1
+        Step: u(k + 1) = 2 * u(k) - 1
+        Step: = 2 * (2^(k - 1) + 1) - 1
+        Step: = 2^k + 1
+    Therefore forall n : Nat, n >= 1 => u(n) = 2^(n - 1) + 1
+QED
+```
+
+State a recurrence from where the sequence starts (`n >= 1` above). Stated for every natural number, it also applies at $n = 0$, where $u(1) = 2u(0) - 1$ forces $u(0) = \tfrac32$. Definitions that contradict each other are refused.
+
 ### Template 3: Real Analysis $\varepsilon$-$\delta$ Continuity Proof
 ```text
 Theorem: "Continuity of 3x at x=2"
@@ -467,6 +495,12 @@ A `VALID` row checks out, and still does with **Strict Domain Checking** on. `IN
 | structure · `induction from n = 1, when the claim holds at 0 too` | VALID |  |
 | structure · `induction from n = 1 does not cover n = 0` | INVALID | Nat starts at 0: a base case at 1 needs P(0) too, and 2^0 >= 2 is false |
 | structure · `induction over the integers is refused` | INVALID | a base case and a step say nothing below the base, so induction is accepted over Nat only |
+| structure · `induction from a starting value` | VALID |  |
+| structure · `a step may assume only what follows from the start` | INVALID | the step assumes k >= 5 but the claim starts at 1, so it says nothing about 2, 3 and 4 |
+| structure · `a recurrence defined in the proof, two base cases` | VALID |  |
+| structure · `a two-step recurrence needs two base cases` | INVALID | a step that uses n = k and n = k + 1 needs base cases at both 1 and 2 |
+| structure · `contradictory definitions are refused` | INVALID | u(1) = 1 and u(1) = 2 contradict each other, and anything would follow from them |
+| structure · `matrix-power induction` | VALID |  |
 | structure · `divisibility induction with powers` | VALID |  |
 | structure · `Subproof` | VALID |  |
 | structure · `justification [by ...]` | VALID |  |

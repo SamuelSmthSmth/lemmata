@@ -671,6 +671,45 @@ class ProofChecker:
     # Internal statement dispatch
     # -------------------------------------------------------------------
 
+    @staticmethod
+    def _defines_declared_function(prop: ExprNode, ctx: ProofContext) -> bool:
+        """Whether *prop* only says something about functions the proof declared.
+
+        ``u(1) = 2`` and ``forall n : Nat, u(n + 1) = 2 * u(n) - 1`` about a
+        ``Given u : Nat -> Int`` define u: they mention it and no other free
+        variable.  ``u(k) = 5`` (about some k) or ``x > 0`` does not.
+        """
+        functions = {name for name, v in ctx.all_variables().items() if v.signature is not None}
+        if not functions:
+            return False
+        calls: list[str] = []
+
+        def walk(node: object) -> None:
+            if isinstance(node, FunctionCallNode):
+                calls.append(node.func)
+            if isinstance(node, (list, tuple)):
+                for item in node:
+                    walk(item)
+            elif hasattr(node, "__dataclass_fields__"):
+                for name in node.__dataclass_fields__:
+                    if name not in ("line", "col"):
+                        walk(getattr(node, name))
+
+        walk(prop)
+        mentions = [c for c in calls if c in functions]
+        return bool(mentions) and not (collect_free_symbols(prop) - functions)
+
+    @staticmethod
+    def _contradictory(definitions: list, ctx: ProofContext) -> bool:
+        """Whether the definitions alone entail a contradiction (``u(1) = 1`` and ``u(1) = 2``)."""
+        check = ProofContext()
+        for vinfo in ctx.all_variables().values():
+            if not vinfo.is_witness:
+                check.declare_variable(vinfo.name, vinfo.type_label if vinfo.signature else vinfo.math_type)
+        for h in definitions:
+            check.add_hypothesis(h.proposition, is_assumption=True)
+        return verify_entailment(SymbolNode(name="false"), check).valid
+
     def _snapshot(self, ctx: ProofContext) -> tuple[dict[str, str], list[str]]:
         vars_snap = {k: v.type_label for k, v in ctx.all_variables().items()}
         hyps_snap = [
@@ -1370,12 +1409,22 @@ class ProofChecker:
                 ctx.add_hypothesis(stmt.case_condition, label=None, is_assumption=True)
             first_assumption = stmt.case_condition
 
+        # An inductive step's facts are all its assumptions together: the
+        # hypothesis and any side condition (`Assume hk: k >= 5`, or `Given k :
+        # Nat where k >= 5`), in whatever order the student wrote them.  Every
+        # other block keeps exporting its first assumption only.
+        inductive = stmt.label == "Inductive step"
+        step_assumptions: list[ExprNode] = []
         for inner in stmt.statements:
-            if isinstance(inner, VarDeclNode) and inner.condition is None:
+            if isinstance(inner, VarDeclNode) and (inner.condition is None or inductive):
                 for vname in inner.variables:
                     local_givens.append((vname, inner.type_name or "Real"))
-            if isinstance(inner, AssumeNode) and first_assumption is None:
-                first_assumption = inner.proposition
+                if inductive and inner.condition is not None:
+                    step_assumptions.append(inner.condition)
+            if isinstance(inner, AssumeNode):
+                if first_assumption is None:
+                    first_assumption = inner.proposition
+                step_assumptions.append(inner.proposition)
             res = self._check_statement(inner, ctx)
             sub_results.append(res)
             if res.status != StepStatus.INVALID:
@@ -1415,7 +1464,12 @@ class ProofChecker:
                     f"discharged '{first_assumption}' to conclude '{discharged_fact}'."
                 )
             else:
-                exported: ExprNode = BinaryOpNode(op="=>", left=first_assumption, right=last_conclusion)
+                premise = first_assumption
+                if inductive and len(step_assumptions) > 1:
+                    premise = step_assumptions[0]
+                    for extra in step_assumptions[1:]:
+                        premise = BinaryOpNode(op="and", left=premise, right=extra)
+                exported: ExprNode = BinaryOpNode(op="=>", left=premise, right=last_conclusion)
                 if stmt.case_condition is None and local_givens:
                     for gv_name, gv_type in reversed(local_givens):
                         exported = QuantifierNode(
@@ -1508,6 +1562,39 @@ class ProofChecker:
             h for h in ctx.all_hypotheses() if h.is_assumption and h.scope_depth == 0
         ]
 
+        # A sequence the question defines ("u_1 = 2, u_{n+1} = 2u_n - 1"):
+        # assumptions about a function the proof declared, and nothing else, are
+        # that function's definition, not hypotheses the claim must license.  The
+        # theorem proved is "for u so defined, the claim", and the message says
+        # so.  Definitions that contradict each other would make anything follow,
+        # so they must be consistent.
+        definitions = [h for h in root_assumptions if self._defines_declared_function(h.proposition, ctx)]
+        root_assumptions = [h for h in root_assumptions if h not in definitions]
+        where = ""
+        if definitions:
+            if self._contradictory(definitions, ctx):
+                return StepResult(
+                    statement=qed_node,
+                    line=qed_node.line,
+                    status=StepStatus.INVALID,
+                    message=(
+                        "QED failed: the definitions "
+                        + ", ".join(f"'{h.proposition}'" for h in definitions)
+                        + " contradict each other, so anything would follow from them."
+                        + (
+                            " A recurrence stated 'for all n : Nat' also applies at n = 0;"
+                            " if the sequence starts at 1, state it as 'forall n : Nat, n >= 1 => …'."
+                            if any(isinstance(h.proposition, QuantifierNode) for h in definitions)
+                            else ""
+                        )
+                    ),
+                    backend="QED",
+                    scope_depth=0,
+                    active_variables=vars_snap,
+                    active_hypotheses=hyps_snap,
+                )
+            where = " where " + " and ".join(str(h.proposition) for h in definitions)
+
         # If there are no undischarged root assumptions, check if the full quantified claim
         # is already established via Mathematical Induction or an explicit deduction.
         if not root_assumptions:
@@ -1517,7 +1604,7 @@ class ProofChecker:
                     statement=qed_node,
                     line=qed_node.line,
                     status=StepStatus.VALID,
-                    message=f"QED: Theorem claim '{claim}' verified ({ind_res.message})",
+                    message=f"QED: Theorem claim '{claim}'{where} verified ({ind_res.message})",
                     backend="QED",
                     scope_depth=0,
                     active_variables=vars_snap,
@@ -1615,7 +1702,7 @@ class ProofChecker:
                         statement=qed_node,
                         line=qed_node.line,
                         status=StepStatus.VALID,
-                        message=f"QED: Theorem claim '{claim}' verified.",
+                        message=f"QED: Theorem claim '{claim}'{where} verified.",
                         backend="QED",
                         scope_depth=0,
                         active_variables=vars_snap,
@@ -1628,7 +1715,7 @@ class ProofChecker:
                     statement=qed_node,
                     line=qed_node.line,
                     status=StepStatus.VALID,
-                    message=f"QED: Theorem claim '{claim}' verified.",
+                    message=f"QED: Theorem claim '{claim}'{where} verified.",
                     backend="QED",
                     scope_depth=0,
                     active_variables=vars_snap,
