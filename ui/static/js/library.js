@@ -69,6 +69,16 @@ export function showPack(name) {
   renderLibrary();
 }
 
+/** Show one entry of a pack, opened, and bring it into view (a cited result). */
+export function showEntry(name, entryId) {
+  activePack = name;
+  expanded = entryKey(name, entryId);
+  renderLibrary();
+  const head = document.querySelector(`.entry[data-entry="${CSS.escape(expanded)}"] .entry-head`);
+  head?.scrollIntoView({ block: "center" });
+  head?.focus();
+}
+
 export const libraryPacks = () => packs.installedPacks();
 export const findEntry = packs.findEntry;
 

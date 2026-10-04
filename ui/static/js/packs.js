@@ -128,6 +128,51 @@ export function importSources(packList) {
   return out;
 }
 
+/**
+ * The names a proof may cite (`by Theorem 1.1`, `By the triangle inequality, …`),
+ * each pointing at the file that proves it: {name: [[label, key], …]}.  An
+ * installed proof answers to its reference when that carries a number
+ * ("Theorem 1.1", and "MTH2008 Theorem 1.1"), its title, and its title's
+ * short form ("The triangle inequality, by the four cases" -> "The triangle
+ * inequality"); a workspace theorem to its name.  The engine matches names
+ * exactly (after normalising) and reports any that point at two results.
+ */
+export function citationIndex(packList, workspace = {}) {
+  const out = {};
+  const add = (name, label, key) => {
+    const clean = String(name ?? "").trim();
+    if (!clean) return;
+    const list = (out[clean] ??= []);
+    if (!list.some(([, k]) => k === key)) list.push([label, key]);
+  };
+  for (const pack of packList) {
+    const course = pack.courses?.[0] ?? "";
+    for (const entry of pack.entries) {
+      if (entry.kind !== "proof") continue;
+      const key = `${importPath(pack.name, entry.id)}.aether`;
+      // As the notes name it: "MTH2008 Theorem 1.1 (the triangle inequality)".
+      const short = entry.title.split(",")[0].trim();
+      const named = short ? ` (${short.charAt(0).toLowerCase()}${short.slice(1)})` : "";
+      const label = /\d/.test(entry.ref) ? `${course ? `${course} ` : ""}${entry.ref}${named}` : entry.title;
+      if (/\d/.test(entry.ref)) {
+        add(entry.ref, label, key);
+        for (const code of pack.courses ?? []) add(`${code} ${entry.ref}`, label, key);
+      }
+      add(entry.title, label, key);
+      if (short !== entry.title) add(short, label, key);
+    }
+  }
+  for (const [path, source] of Object.entries(workspace)) {
+    for (const match of String(source).matchAll(/^\s*(?:Theorem|Lemma|Proposition)\s*:?\s*"([^"]+)"/gim)) {
+      add(match[1], match[1], path);
+    }
+  }
+  return out;
+}
+
+/** Whether a proof may be citing something: a `by`/`using` reason, or a `By …,` sentence. */
+export const mayCite = (source) => /\b(by|using)\s+\S|^\s*(since|by)\b/im.test(source);
+
 /** Whether a proof (or anything it would send along) imports from a pack. */
 export const importsFromPacks = (source) => /^\s*import\s+"@/m.test(source);
 

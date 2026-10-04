@@ -156,6 +156,16 @@ PROBES: list[Probe] = [
     Probe("guard", "sqrt needs its radicand bounded", "Let x : Real\nAssume h: x >= 0\nStep: sqrt(x^2) = x", "VALID"),
     Probe("guard", "a logarithm's argument is not obliged positive", "Let x : Real\nStep: ln(x) = ln(x)", "VALID",
           gap="positivity of `ln`'s argument is not extracted, so `ln(x)` needs no `x > 0` in scope; the solver now discharges `exp(x) > 0`, so `ln(exp(x)) = x` would survive the check"),
+    # --- phrasing as the notes write it ------------------------------------
+    Probe("phrasing", "Let ε > 0 be given", "Let \u03b5 > 0 be given\nStep: \u03b5 / 2 > 0", "VALID"),
+    Probe("phrasing", "Fix ε > 0", "Fix \u03b5 > 0\nStep: \u03b5 / 2 > 0", "VALID"),
+    Probe("phrasing", "Set / Take / Put δ = …", "Fix \u03b5 > 0\nSet \u03b4 = \u03b5 / 3\nStep: \u03b4 > 0", "VALID"),
+    Probe("phrasing", "Since A, B", "Let x : Real\nAssume x > 2\nSince x > 2, x^2 > 4", "VALID"),
+    Probe("phrasing", "Since checks its premise", "Let x : Real\nAssume x > 2\nSince x > 3, x^2 > 9", "INVALID",
+          why="the premise does not follow, so it cannot be used"),
+    Probe("phrasing", "By h1, B", "Let x : Real\nAssume h1: x > 2\nBy h1, x^2 > 4", "VALID"),
+    Probe("phrasing", "We have / Note that / Now / Clearly", "Let x : Real\nAssume x > 2\nWe have x + 1 > 3\nNote that x > 1\nNow x > 0\nClearly x >= 2", "VALID"),
+    Probe("phrasing", "It follows that / We get", "Let x : Real\nAssume x > 2\nIt follows that x + 1 > 3\nWe get x > 1", "VALID"),
     # --- grammar edges -----------------------------------------------------
     Probe("grammar", "hash comments", "# a comment\nLet x : Real\nStep: x + 0 = x", "VALID"),
     Probe("grammar", "slash slash comments", "// a comment\nLet x : Real\nStep: x + 0 = x", "PARSE_ERROR",

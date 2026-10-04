@@ -39,6 +39,8 @@ simple_stmt: var_decl
            | obtain_stmt
            | step_stmt
            | deduce_stmt
+           | since_stmt
+           | by_stmt
            | import_stmt
            | QED_KW
 
@@ -46,7 +48,7 @@ import_stmt: IMPORT_KW STRING
 
 var_decl: VAR_INTRO var_list ":" type_name (("with"i | SUCH_THAT) expr)?        -> var_decl_typed
         | (VAR_INTRO | DEFINE_KW) CNAME "(" var_list ")" (REL_OP | IFF_OP) expr -> func_def
-        | VAR_INTRO var_ident REL_OP arith_expr                                 -> var_decl_cond
+        | VAR_INTRO var_ident REL_OP arith_expr BE_GIVEN?                       -> var_decl_cond
 
 assume_stmt: ASSUME_KW (CNAME ":")? expr
 
@@ -60,6 +62,11 @@ step_stmt: STEP_KW ":" REL_OP arith_expr justification?  -> step_chained
 
 deduce_stmt: DEDUCE_KW REL_OP arith_expr justification?             -> deduce_chained
            | DEDUCE_KW expr justification? witness_clause?          -> deduce_expr
+
+// As the notes write it: `Since x > 2, x^2 > 4` (the premise is checked, then
+// used) and `By Theorem 1.1, |a + b| <= |a| + |b|` (the citation justifies).
+since_stmt: SINCE_KW expr "," expr justification? witness_clause?
+by_stmt: BY_KW CITE_TEXT "," expr witness_clause?
 
 justification: "[" JUST_TEXT "]"
              | ("using"i | "by"i) JUST_TEXT
@@ -203,19 +210,31 @@ CLAIM_KW.2:     /claim/i
 PROOF_KW.2:     /proof/i
 QED_KW.2:       /qed/i
 VAR_INTRO.2:    /let/i | /given/i | /fix/i | /take/i
+                // `Set δ = ε/3`, `Put δ = …`: only before `name =`, so `Set` stays a type.
+                | /(set|put)(?=\s+\S+\s*=)/i
+BE_GIVEN.2:     /be\s+given(?![a-zA-Z0-9_])/i
 DEFINE_KW.2:    /define/i | /definition/i
 ASSUME_KW.2:    /assume/i | /suppose/i | /hypothesize/i
 OBTAIN_KW.2:    /obtain/i | /choose/i | /pick/i
 SUCH_THAT.2:    /such that/i | /where/i | /satisfying/i
 STEP_KW.2:      /step/i
 DEDUCE_KW.2:    /therefore/i | /thus/i | /hence/i | /so/i | /then/i | /conclude/i
+                // The notes' other ways of stating a fact that follows.
+                | /it\s+follows\s+that(?![a-zA-Z0-9_])/i | /we\s+(have|get)(?![a-zA-Z0-9_])/i
+                | /we\s+see\s+that(?![a-zA-Z0-9_])/i | /(note|observe)\s+that(?![a-zA-Z0-9_])/i
+                | /(now|clearly)(?![a-zA-Z0-9_]),?/i
+SINCE_KW.3:     /since(?![a-zA-Z0-9_])/i
+BY_KW.3:        /by(?![a-zA-Z0-9_])/i
+// What `By …,` cites: everything up to the comma that ends it.
+CITE_TEXT:      /[^,\n\[\]]+(?=,)/
 CASE_KW.2:      /case/i
 BASE_CASE_KW.2: /base case/i
 IND_STEP_KW.2:  /inductive step/i | /induction step/i
 IMPORT_KW.2:    /import/i
 
 // JUST_TEXT matches words separated by spaces (won't consume brackets/newlines/colons)
-JUST_TEXT: /[a-zA-Z0-9_,.^+*\-\\\/"']+(\s+[a-zA-Z0-9_,.^+*\-\\\/"']+)*/
+// (spaces and tabs only between words: a justification never runs onto the next line)
+JUST_TEXT: /[a-zA-Z0-9_,.^+*\-\\\/"']+([ \t]+[a-zA-Z0-9_,.^+*\-\\\/"']+)*/
 
 NUMBER:       /[0-9]+(\.[0-9]+)?/
 STRING:       /\"[^\"]*\"/

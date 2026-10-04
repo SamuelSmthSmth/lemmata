@@ -845,6 +845,78 @@ kbd {
   padding: 10px 12px;
 }
 
+/* What to try: the advice reads as a sentence in ink, after the reason in
+   quiet ink, because it is the part the student acts on. */
+.step-hint {
+  margin: 4px 0 0;
+  font-family: var(--font-prose);
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text);
+}
+
+/* A fix in the editor's diagnostic tooltip: the app's primary text button. */
+.cm-editor .cm-tooltip-lint .cm-diagnosticAction {
+  /* The app's primary text button (.text-button.text-button--primary). */
+  display: inline-flex;
+  align-items: center;
+  height: 24px;
+  margin-left: 8px;
+  padding: 0 8px;
+  border: 1px solid color-mix(in oklab, var(--accent) 45%, transparent);
+  border-radius: var(--radius);
+  background: none;
+  color: var(--accent);
+  font: 12px var(--font-mono);
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.cm-editor .cm-tooltip-lint .cm-diagnosticAction:hover {
+  background: var(--accent-bg);
+}
+
+.cm-editor .cm-tooltip-lint .cm-diagnosticAction:focus-visible {
+  outline: 2px solid var(--wa-color-focus);
+  outline-offset: -2px;
+}
+
+.ctx-hint + .ctx-hint,
+.ctx-cite {
+  margin-top: 8px;
+}
+
+.ctx-hint p {
+  margin: 0 0 4px;
+  font-family: var(--font-prose);
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text);
+}
+
+.ctx-cite-name {
+  margin: 0 0 4px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+/* The action lines up with the label and statement above it. */
+.ctx-cite .text-button {
+  margin-left: -8px;
+}
+
+.ctx-cite-claim {
+  display: block;
+  /* The app's mono, as the step statements are (a bare <code> would take the
+     browser's), so <= reads as the notes' sign. */
+  font-family: var(--font-mono);
+  margin-bottom: 6px;
+  font-size: 12px;
+  color: var(--muted);
+  word-break: break-word;
+}
+
 .ctx-empty {
   color: var(--muted-dim);
   font-size: 12px;
@@ -3365,6 +3437,18 @@ body[data-exercise="hidden"] .step::before {
   padding-top: 0;
   padding-bottom: 0;
   line-height: 16px;
+}
+
+/* The verdict always reads in full; the problem button beside it is what gives
+   way on a narrow screen, so the two never share pixels. */
+.statusbar .verdict-block {
+  flex: none;
+}
+
+#status-problem {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .status-item {

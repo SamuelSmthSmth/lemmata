@@ -52,6 +52,8 @@ def _step(result, lines: list[str]) -> dict[str, Any]:
         "counterexample_dict": getattr(result, "counterexample_dict", None),
         "diagnostic_range": getattr(result, "diagnostic_range", None),
         "subproof_metadata": getattr(result, "subproof_metadata", None),
+        "citation": getattr(result, "citation", None),
+        "hints": list(getattr(result, "hints", []) or []),
     }
 
 
@@ -65,6 +67,7 @@ def check_payload(
     files: Optional[Mapping[str, str]] = None,
     checker=None,
     path: Optional[str] = None,
+    citations: Optional[Mapping[str, Any]] = None,
 ) -> dict[str, Any]:
     """Check *source* and shape the result as the ``/api/check`` response body."""
     from aether import ParseError, ProofChecker
@@ -79,8 +82,9 @@ def check_payload(
 
     try:
         if files:
-            # The workspace: imports resolve against these files, relative to `path`.
-            reports = checker.check_source(source, file_path=path, sources=dict(files))
+            # The workspace: imports resolve against these files, relative to `path`;
+            # `citations` names the results a step may cite (`by Theorem 1.1`).
+            reports = checker.check_source(source, file_path=path, sources=dict(files), citations=citations or None)
         else:
             reports = checker.check_source(source)
     except ParseError as err:
@@ -168,6 +172,7 @@ class Engine:
                     payload.get("files"),
                     checker=self.checkers[strict],
                     path=payload.get("path"),
+                    citations=payload.get("citations"),
                 )
             finally:
                 self.checkers[strict].clear_cache()

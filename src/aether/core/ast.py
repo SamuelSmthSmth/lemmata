@@ -308,13 +308,15 @@ class DeduceNode(StatementNode):
     claim: ExprNode = field(default_factory=ExprNode)
     justification: Optional[str] = None
     witness: Optional[ExprNode] = None
+    # `Since <premise>, <claim>`: the premise is checked first, then used.
+    premise: Optional[ExprNode] = None
 
     def __str__(self) -> str:
-        base = f"Therefore {self.claim}"
+        base = f"Since {self.premise}, {self.claim}" if self.premise is not None else f"Therefore {self.claim}"
         if self.witness:
             base += f" [witness: {self.witness}]"
         if self.justification:
-            base += f" using {self.justification}"
+            base += f" [{self.justification}]"
         return base
 
 

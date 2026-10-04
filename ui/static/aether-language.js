@@ -11,12 +11,14 @@ const STRUCTURE_KW = new Set([
   "theorem", "lemma", "proposition", "claim", "proof", "qed", "case", "define", "definition",
 ]);
 const INTRO_KW = new Set([
-  "let", "given", "fix", "take",
+  "let", "given", "fix", "take", "put",
   "assume", "suppose", "hypothesize",
   "obtain", "choose", "pick", "step",
 ]);
 const FLOW_KW = new Set([
   "therefore", "thus", "hence", "so", "then", "conclude", "exists", "forall",
+  // The notes' other openers (grammar.lark: SINCE_KW, DEDUCE_KW).
+  "since", "now", "clearly", "follows", "have", "get", "note", "observe",
 ]);
 const JOIN_KW = new Set(["such", "that", "where", "satisfying", "from", "with", "using", "by", "as"]);
 const LOGIC_KW = new Set([
@@ -65,8 +67,15 @@ export const AETHER_TOKENS = {
   comment: tags.comment,
 };
 
+// After `by` / `using`, up to a comma or bracket, the words are the name of
+// what is cited ("MTH2008 Theorem 1.1", "Divisibility of 3^n - 1 by 2"):
+// plain ink, not keywords, so "Theorem" in a name is not the skeleton's blue.
+const IN_CITATION = /\b(?:by|using)\s+[^,[\]]*$/i;
+
 export function aetherToken(stream) {
   if (stream.eatSpace()) return null;
+
+  if (IN_CITATION.test(stream.string.slice(0, stream.pos)) && stream.match(/[^\s,[\]]+/)) return "variableName";
 
   // `#` and `--` are ignored by the grammar, so treat them as comments.
   if (stream.match("#") || stream.match("--")) {

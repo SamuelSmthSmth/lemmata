@@ -377,12 +377,28 @@ components:
     typography: "{typography.statement}"
     rounded: "{rounded.sm}"
     padding: "10px 14px 10px 0"
+  step-hint:
+    textColor: "{colors.ink}"
+    typography: "{typography.prose}"
+  diagnostic-action:
+    textColor: "{colors.proof-blue}"
+    typography: "{typography.control}"
+    rounded: "{rounded.sm}"
+    padding: "0 8px"
+    height: "24px"
+  cited-result-name:
+    textColor: "{colors.ink}"
+  cited-result-claim:
+    textColor: "{colors.ink-quiet}"
+    typography: "{typography.control}"
 ---
 
 <!-- Recorded from the shipped build at commit cdd8ca2 (ui/static/styles.css, index.html, js/). Verification at that commit: axe-core reports zero violations on every view, in both themes and at phone width; the impeccable finish review returned "pass with fixes", and all fixes are applied in cdd8ca2. -->
 <!-- Pack-manager refinement recorded from the shipped build (606f4ed, fa70b9c) (styles.css, js/library.js, js/pack-author.js, js/explorer.js, index.html #pack-dialog): Library pack rail and pack head, the pack dialog, the control boundary and secondary-button tokens, toast rules, the explorer's pack folder. -->
 <!-- Public site recorded from the shipped build in web/ (assets/site.css, assets/site.js, index.html, partials/, download/, privacy/, terms/, cookies/; screenshots in .impeccable/review/), after the impeccable finish review returned "ship" following one fix batch. An extension of this world, not a new one: every site colour is one of the app's tokens with the same light/dark pairs. Site entries are marked "Public site" below; the app's sections are unchanged. Also recorded: the JetBrains Mono math subset (ui/vendor_fonts.py, ui/static/fonts.css). -->
 <!-- Pack registry site recorded from the shipped build in the sibling repo lemmata-packs (tools/pages.py, web/shell.html, web/publish.html, web/assets/site.css, web/assets/site.js, web/assets/fonts/; screenshots in .impeccable/review/packs/), after the impeccable finish review returned "ship" following two fix rounds. Direction: .impeccable/surfaces/registry-index-html.md ("The Library, Online"), with one accepted amendment: entry keys are quiet ink at rest and take Proof Blue only when lit. An extension of this world: every colour is one of the app's tokens with the same light/dark pairs, and the fonts are the app's own subsets. Registry entries are marked "Pack registry site" below; nothing above them changed. -->
+
+<!-- Hints, fixes and citations recorded from the shipped build (ui/static/js/audit.js, context.js, lint.js, fixes.js; ui/static/aether-language.js; styles.css .step-hint, .ctx-hint, .ctx-cite*, .cm-diagnosticAction, .statusbar .verdict-block; screenshots in .impeccable/review/hints/), after the impeccable finish review returned "ship" following two fix rounds. An ordinary extension of the Workspace: new entries are "Hints and Fixes" and "Cited Result" under Components, a sentence on the Status Bar, the Named Once Rule, and their Do's and Don'ts; nothing else changed. -->
 
 <!-- Wordmark and icon recorded from the shipped build (ui/static/fonts.css, ui/vendor_fonts.py, vendor/fonts/latinmodern-wordmark.woff2; ui/build_site.py wordmark(); web/partials/nav.html and footer.html; web/assets/site.css .wm*, site.js; ui/static/index.html, styles.css .rail-mark, js/site.js; ui/static/icon.svg, desktop/icon.svg; lemmata-packs web/shell.html; screenshots in .impeccable/review/wordmark/). An approved brand change requested by the user: there is no logo; the name, typeset as LaTeX sets it, is the mark. The icon is the open tombstone. -->
 
@@ -548,6 +564,18 @@ A flush grid row: right-aligned dim line number, then the statement in mono with
 ### Editor Gutter
 Diagnostics wear the auditor's rail: the lint gutter is 8px wide and each marker is a 2px bar (red for error, amber for warning, blue for info). The diagnostic tooltip speaks in prose with a 2px status rail. The placeholder and comments are Ink Dim.
 
+### Hints and Fixes
+What to try after a step fails or warns: a sentence and, when the engine has one, a fix.
+- **In the auditor row:** each hint is one 12px sans sentence in ink beneath the step's reason (quiet ink), so the actionable sentence is the one that reads darkest. The row is itself a button, so it holds no buttons: no fix, no link.
+- **In Context & State:** the sections run Verification (omitted when empty), Domain obligations (omitted when a hint whose fix adds an Assume already states the obligation and where it fails), What to try, Cited result, then variables and hypotheses. What to try sets each hint sentence with its fix beneath as the one primary text button, labelled as the edit it makes ("Add Assume x - 1 ≠ 0", "Use ≥", "Use h1").
+- **In the editor:** hint sentences follow the diagnostic's message in the lint tooltip, and each fix is a diagnostic action drawn exactly as the primary text button (24px, 2px corners, 12px mono Proof Blue on a 45% Proof Blue outline, the quiet blue fill on hover, the 2px focus outline inset by 2px).
+- **Behaviour:** a fix is one ordinary editor edit, so Ctrl+Z undoes it; if the line has changed since the check, the fix is refused with a warning toast rather than applied to the wrong text.
+
+### Cited Result
+What a step leaned on, named as the notes name it. The name in 12px mono 600 ink ("MTH2008 Theorem 1.1 (the triangle inequality)"), its statement beneath in 12px quiet mono in the app's own mono, so `<=` ligates to the notes' sign, then "Open in the Library" (a pack result) or "Open the file" (a workspace import) as a quiet text button pulled left by its own 8px padding, so its first letter aligns with the name. In the editor, the words after `by` or `using`, up to a comma or bracket, are a plain name in ink and never take keyword colours, in either syntax scheme.
+
+**The Named Once Rule.** A cited result has one name and it is the same everywhere: the step's message ("…, by MTH2008 Theorem 1.1 (the triangle inequality)."), the Cited result label and the hypothesis label. A step's reason echoes after its statement in square brackets (`[MTH2008 Theorem 1.1]`, `[h2]`), as the student wrote it.
+
 ### Pane Head
 A label and a rule, with no fill: an uppercase tracked label in quiet ink, optional note in dim ink, tools aligned right, and a 1px Rule underline. A six-dot grip at the left drags the pane to swap slots.
 
@@ -558,7 +586,7 @@ At the top, the rail mark: a 32px link to site.json's `home` (the public site) h
 Two kinds, both without boxes. Reading-pane tabs are 11px uppercase labels; the selected one turns ink and gets a 2px Proof Blue underline. Open-proof tabs are 12px mono names divided by hairlines; the active tab takes the page's paper so it joins the editor below, with a 2px Proof Blue rule along its top, and a status dot when its last check failed or warned.
 
 ### Status Bar
-24px on Paper Raised with a Rule top edge, 11px tabular text in quiet ink. Left to right: the verdict, a red problem button that jumps to the failure, then caret, path and storage state (amber when storage is unavailable).
+24px on Paper Raised with a Rule top edge, 11px tabular text in quiet ink. Left to right: the verdict, a red problem button that jumps to the failure, then caret, path and storage state (amber when storage is unavailable). The verdict block never shrinks; on a narrow screen the problem button is what gives way, ending in an ellipsis, so the two never share pixels.
 
 ### Buttons
 The native family, used wherever a Web Awesome button would be heavier than the job:
@@ -641,6 +669,8 @@ The registry (repo lemmata-packs, rendered by tools/pages.py) is the app's Libra
 - **Do** set the public site's display specimen in JetBrains Mono, wrapping only between clauses, and let red appear once per demonstration, at its failing step.
 - **Do** let the name stand as the mark: 𝐿emma𝑡𝛼 in the Wordmark face at 1.5em, static everywhere but the site nav, and no logo on any page.
 - **Do** keep the registry's entry keys in quiet ink until a search, the URL or the pointer lights them, and set every proof it shows as the app's editor sets it in the mono scheme.
+- **Do** give a hint's fix exactly one primary text button, labelled as the edit it makes, and set the hint itself as a sentence in ink after the quiet reason.
+- **Do** name a cited result once, as the notes name it, and use that name in the message, the Cited result label and the hypothesis label alike.
 
 ### Don't:
 - **Don't** use green anywhere but a verdict.
@@ -649,4 +679,5 @@ The registry (repo lemmata-packs, rendered by tools/pages.py) is the app's Libra
 - **Don't** wrap rows in cards, give passing steps badges, or use filled status pills.
 - **Don't** introduce a display face, italics, a second sans, or text below 11px; the Wordmark face and its italics set the name and nothing else.
 - **Don't** add drop shadows; floating layers separate by surface and border, and the selected-row inset ring is the only shadow.
+- **Don't** put a button inside an auditor row; the row is the button, and its fixes live in Context & State and the editor tooltip.
 - **Don't** fetch anything cross-origin (icons, fonts, scripts): the app makes no runtime network requests.

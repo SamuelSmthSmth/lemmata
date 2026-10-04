@@ -82,6 +82,9 @@ function stepRow(entry, index) {
   if (message) body.append(el("p", "step-message", message));
   // No labels: each engine sentence already names itself.
   for (const { text, className } of callouts) body.append(note(null, text, className));
+  // What to try, in prose; the fixes themselves are buttons in Context & state
+  // and in the editor's diagnostic, since this row is itself a button.
+  for (const hint of result.hints ?? []) body.append(el("p", "step-hint", hint.message));
   row.append(body);
 
   row.addEventListener("click", () => selectStep(index, { focus: true }));

@@ -8,6 +8,14 @@
 
 import { lintGutter, nextDiagnostic, previousDiagnostic, setDiagnostics } from "../vendor/esm/@codemirror/lint@6.mjs";
 import { splitStepText } from "./format.js";
+import { applyFix } from "./fixes.js";
+
+// What a fix in the tooltip does: main.js routes it through the same path as
+// Context & state's button, which warns when the proof has changed.
+let onFix = (view, fix) => applyFix(view, fix);
+export function setLintFixHandler(fn) {
+  onFix = fn;
+}
 
 /** The extensions to add to the editor once. */
 export function lintExtensions() {
@@ -34,13 +42,16 @@ function stepDiagnostic(doc, result) {
   const range = lineRange(doc, result.line);
   if (!range) return null;
   const { message, callouts } = splitStepText(result);
-  const parts = [message, ...callouts.map((c) => c.text)].filter(Boolean);
+  const hints = result.hints ?? [];
+  const parts = [message, ...callouts.map((c) => c.text), ...hints.map((h) => h.message)].filter(Boolean);
   return {
     from: range.from,
     to: range.to,
     severity: result.status === "INVALID" ? "error" : "warning",
     source: result.backend,
     message: parts.join("\n"),
+    // A hint's fix, one click from the squiggle's tooltip.
+    actions: hints.filter((h) => h.fix).map((h) => ({ name: h.fix.label, apply: (view) => onFix(view, h.fix) })),
   };
 }
 

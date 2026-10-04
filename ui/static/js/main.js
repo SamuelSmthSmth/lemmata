@@ -10,8 +10,9 @@ import "./components.js";
 import { canExportPdf, checkProof, exportLatex, exportPdf, fetchLibrary, validatePack } from "./api.js";
 import { onEngineStatus, warmUp } from "./backend.js";
 import { initAuditNav, selectStepForLine } from "./audit.js";
-import { insertSymbol, insertTemplate, setScopeSource, SYMBOLS, TEMPLATES } from "./complete.js";
-import { renderContext } from "./context.js";
+import { insertSymbol, insertTemplate, setCitationSource, setScopeSource, SYMBOLS, TEMPLATES } from "./complete.js";
+import { renderContext, setContextHandlers } from "./context.js";
+import { applyFix } from "./fixes.js";
 import * as db from "./db.js";
 import { dom } from "./dom.js";
 import { createEditor, currentSyntax, currentTheme } from "./editor.js";
@@ -23,8 +24,8 @@ import { initHistory, renderHistory } from "./history.js";
 // Side-effect import: reads the stored panel arrangement and applies it during
 // module evaluation, which is still before the first paint.
 import { layoutApi } from "./layout.js";
-import { entryKey, findEntry, initLibrary, libraryPacks, renderLibrary, showPack } from "./library.js";
-import { showDiagnostics } from "./lint.js";
+import { entryKey, findEntry, initLibrary, libraryPacks, renderLibrary, showEntry, showPack } from "./library.js";
+import { setLintFixHandler, showDiagnostics } from "./lint.js";
 import { initNotes, renderNotes } from "./notes.js";
 import { allManifests, initPackAuthor, isPackFolder, openPackDialog, renameManifestFolder, restoreManifests } from "./pack-author.js";
 import * as packs from "./packs.js";
@@ -68,6 +69,31 @@ const editor = createEditor({
 });
 
 // Completion offers the variables the last check saw in scope at the caret.
+setCitationSource(() => packs.citationIndex(packs.installedPacks(), ws.sourcesByPath()));
+
+// Context & state's buttons: a hint's fix goes through the editor (so Ctrl+Z
+// takes it back, and the check that follows says whether it worked); a cited
+// result opens where it lives, a pack's entry in the Library or a workspace file.
+function useFix(fix) {
+  if (!applyFix(editor.view, fix)) showToast("The proof has changed since it was checked, so that fix no longer applies.", { tone: "warning" });
+}
+setLintFixHandler((_view, fix) => useFix(fix));
+setContextHandlers({
+  onFix: useFix,
+  async onOpenCited(citation) {
+    const match = /^@([^/]+\/[^/]+)\/(.+)\.aether$/.exec(citation.key);
+    if (match) {
+      setView("library");
+      showEntry(match[1], match[2]);
+      return;
+    }
+    const file = ws.filesSorted().find((f) => f.path === citation.key);
+    if (file) {
+      setView("workspace");
+      await activate(file.id);
+    }
+  },
+});
 setScopeSource((lineNumber) => {
   let best = null;
   for (const entry of state.steps) {
@@ -159,12 +185,22 @@ async function runCheck() {
 
   const source = currentSource();
   try {
+    // The workspace travels only when this proof imports from it, and with the
+    // installed packs and the names they answer to when it may cite a result.
+    const citing = packs.mayCite(source);
+    let files = ws.hasImports(source) ? importableFiles(file.path, source) : null;
+    let citations = null;
+    if (citing) {
+      const workspace = { ...ws.sourcesByPath(), [file.path]: source };
+      files = { ...workspace, ...packs.importSources(packs.installedPacks()), ...(files ?? {}) };
+      citations = packs.citationIndex(packs.installedPacks(), workspace);
+    }
     const data = await checkProof({
       source,
       strictDomains: dom.strict.checked,
-      // The workspace travels only when this proof imports from it.
-      files: ws.hasImports(source) ? importableFiles(file.path, source) : null,
+      files,
       path: file.path,
+      citations,
       signal: controller.signal,
     });
     if (seq !== state.seq) return; // superseded by a newer request

@@ -81,9 +81,12 @@ except ParseError as err:
     ...
 ```
 
-`check_source` also takes two optional keyword arguments, both backward
-compatible: `file_path` (the checked file's path, for relative imports) and
-`sources` (a `Mapping[str, str]` of other files by path). `import` resolves
+`check_source` also takes three optional keyword arguments, all backward
+compatible: `file_path` (the checked file's path, for relative imports),
+`sources` (a `Mapping[str, str]` of other files by path), and `citations` (the
+names a step may cite with `by …`, each mapped to the `sources` key that proves
+it, or to `[[label, key], …]` when it names more than one; see
+`aether.engine.citations`). `import` resolves
 against `sources` first — relative to `file_path`, then the root — and then
 falls back to the disk search. The web app passes its browser workspace this
 way.
@@ -111,6 +114,8 @@ Each item in `report.results` corresponds to one parsed statement and contains:
 - `active_variables: dict[str, str]` — Snapshot of declared variables and their canonical types at this point in the proof (e.g., `{"n": "Int", "k": "Int"}`).
 - `active_hypotheses: list[str]` — Snapshot of active assumptions and derived facts in scope at this point (e.g., `["h1: Even(n)", "n = (2 * k)"]`).
 - `domain_warnings: list[str]` — List of unresolved domain obligation messages triggered on this line (e.g., `["Unresolved domain obligation: requires non-zero denominator ((x - 2) != 0) in (((x ^ 2) - 4) / (x - 2)) (violated at x=2)."]`).
+- `citation: dict | None` — The result a `by …` citation used: `{"cited", "label", "key", "claim"}`.
+- `hints: list[dict]` — What to do about a step that did not check, in the student's notation: `{"message", "fix"?}`, where a fix is `{"line", "insert_before", "label"}` or `{"line", "col_start", "col_end", "text", "was", "label"}` (1-based; see `aether.engine.hints`). Empty for a step that checks.
 - `counterexample: str | None` — Concrete counterexample assignment if the step failed and one was found (e.g., `"Counterexample at x=3: LHS = 24, RHS = 23"` or `"x=1"`).
 
 ---

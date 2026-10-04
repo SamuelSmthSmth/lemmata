@@ -84,6 +84,9 @@ class StepModel(BaseModel):
     counterexample_dict: Optional[dict[str, str]] = None
     diagnostic_range: Optional[dict[str, int]] = None
     subproof_metadata: Optional[dict[str, Any]] = None
+    # The result a `by …` citation used, and what to do about a failure.
+    citation: Optional[dict[str, str]] = None
+    hints: list[dict[str, Any]] = Field(default_factory=list)
 
 
 class ReportModel(BaseModel):
@@ -119,6 +122,9 @@ class CheckRequest(BaseModel):
     # workspace path, and the checked file's own path for relative imports.
     files: Optional[dict[str, str]] = None
     path: Optional[str] = None
+    # The names a step may cite, each with the files that prove it (see
+    # aether.engine.citations): {"Theorem 1.1": [["MTH2008 Theorem 1.1 · …", "@core/mth2008/….aether"]]}.
+    citations: Optional[dict[str, Any]] = None
 
 
 class ExampleModel(BaseModel):
@@ -344,6 +350,7 @@ def check_proof(request: CheckRequest) -> CheckResponse:
                 "source": request.source,
                 "strict_domains": request.strict_domains,
                 "files": request.files,
+                "citations": request.citations,
                 "path": request.path,
             },
         )

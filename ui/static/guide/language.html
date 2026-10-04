@@ -28,6 +28,25 @@
 Assume h1: n = 2 * k
 Step: n = 2 * k [using h1]</pre>
 
+<h2>Writing it as the notes do</h2>
+<p>Lecture notes say <em>Let ε &gt; 0 be given</em>, <em>Take δ = ε/3</em>, <em>Since …, …</em> and <em>By …, …</em>. So can you: each of these means what it says, and is checked the same way as the keyword it stands for. <code>Since A, B</code> checks A first, then B using it.</p>
+<pre class="try" data-expect="VALID">Let ε &gt; 0 be given
+Take δ = ε / 3
+Since δ &gt; 0, 3 * δ &gt; 0
+We have 3 * δ = ε</pre>
+<pre class="try" data-expect="INVALID">Let x : Real
+Assume h1: x &gt; 2
+Since x &gt; 3, x^2 &gt; 9</pre>
+
+<h2>Citing a result by name</h2>
+<p>Write <code>by Theorem 1.1</code> — or <code>By the triangle inequality, …</code> — and the result is found among your installed packs and your workspace's theorems, with no <code>import</code> line. It is used for that step alone, and the audit says which result it was; a name that could mean two results is refused rather than guessed. Typing after <code>by</code> lists what you can cite.</p>
+
+<h2>When a step fails</h2>
+<p>A failing step says what to try, in your notation: the assumption a division needs, how far apart the two sides of an equation are, that a <code>&gt;</code> holds as <code>≥</code>. Where one edit would mend it there is a button for it, in Context &amp; state and in the editor's tooltip; Ctrl+Z takes it back.</p>
+<pre class="try" data-expect="INVALID">Let x : Real
+Assume x &gt;= 2
+Therefore x &gt; 2</pre>
+
 <h2>A claim checked at QED</h2>
 <p>With a <code>Claim:</code>, QED checks that the proof really established it — every assumption you made must be licensed by the claim's own hypotheses.</p>
 <pre class="try" data-expect="VALID">Theorem: "Goal"

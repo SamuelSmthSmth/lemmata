@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-10-03T23:00:00+00:00",
+  "generatedAt": "2026-10-04T12:00:00+00:00",
   "title": "Design System: Lemmata",
   "extensions": {
     "colorMeta": {
@@ -418,6 +418,22 @@
       "css": ".ds-step{position:relative;display:grid;grid-template-columns:22px 1fr;gap:11px;width:100%;text-align:left;font:13px/1.45 'JetBrains Mono',monospace;color:#16181d;background:#fff;border:0;border-bottom:1px solid #eceef1;padding:8px 12px 8px 14px;cursor:pointer}.ds-step:hover{background:#eff1f4}.ds-step:focus-visible{outline:2px solid #0a5fbf;outline-offset:-2px}.ds-step--invalid::before{content:'';position:absolute;left:0;top:0;bottom:0;width:2px;background:#be1824}.ds-step-line{font-size:11px;color:#666c7a;text-align:right}.ds-step-meta{float:right;font-size:11px;letter-spacing:.4px;color:#666c7a}.ds-bad{color:#be1824;font-weight:700}"
     },
     {
+      "name": "Hint and Fix",
+      "kind": "custom",
+      "refersTo": "step-hint",
+      "description": "What to try: the hint as a sentence in ink after the quiet reason, its fix as the one primary text button (also the editor tooltip's diagnostic action).",
+      "html": "<div class=\"ds-hint\"><p class=\"ds-hint-reason\">Claim 'x > 2' does not follow from current hypotheses.</p><p class=\"ds-hint-text\">This holds with ≥, not >: the two sides can be equal.</p><button class=\"ds-hint-fix\">Use ≥</button></div>",
+      "css": ".ds-hint{max-width:420px}.ds-hint-reason{margin:0;font:12px/1.5 -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:var(--ink-quiet,#555b6a)}.ds-hint-text{margin:4px 0;font:12px/1.5 -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:var(--ink,#16181d)}.ds-hint-fix{display:inline-flex;align-items:center;height:24px;padding:0 8px;border:1px solid color-mix(in oklab,#0a5fbf 45%,transparent);border-radius:2px;background:none;color:#0a5fbf;font:12px 'JetBrains Mono',ui-monospace,monospace;cursor:pointer}.ds-hint-fix:hover{background:color-mix(in oklab,#0a5fbf 8%,transparent)}.ds-hint-fix:focus-visible{outline:2px solid #0a5fbf;outline-offset:-2px}"
+    },
+    {
+      "name": "Cited Result",
+      "kind": "custom",
+      "refersTo": "cited-result-name",
+      "description": "The result a step leaned on, named as the notes name it, its statement in quiet mono, and a quiet text button back to it aligned by its own padding.",
+      "html": "<div class=\"ds-cite\"><p class=\"ds-cite-name\">MTH2008 Theorem 1.1 (the triangle inequality)</p><code class=\"ds-cite-claim\">forall a : Real, forall b : Real, abs((a + b)) <= (abs(a) + abs(b))</code><button class=\"ds-cite-open\">Open in the Library</button></div>",
+      "css": ".ds-cite-name{margin:0 0 4px;font:600 12px 'JetBrains Mono',ui-monospace,monospace;color:#16181d}.ds-cite-claim{display:block;margin-bottom:6px;font:12px 'JetBrains Mono',ui-monospace,monospace;color:#555b6a;word-break:break-word}.ds-cite-open{height:24px;margin-left:-8px;padding:0 8px;border:0;border-radius:2px;background:none;color:#16181d;font:12px 'JetBrains Mono',ui-monospace,monospace;cursor:pointer}.ds-cite-open:hover{background:#eff1f4}.ds-cite-open:focus-visible{outline:2px solid #0a5fbf;outline-offset:-2px}"
+    },
+    {
       "name": "Pane Head",
       "kind": "nav",
       "refersTo": "pane-head",
@@ -650,6 +666,11 @@
         "name": "The Lit Key Rule",
         "body": "An entry's key (Theorem 2.9, Example 2.18) is quiet ink at rest and takes Proof Blue only while something lights it: a search that matches it, the URL targeting it, or the pointer over it. A whole column of blue keys would make the accent a standing state.",
         "section": "colors"
+      },
+      {
+        "name": "The Named Once Rule",
+        "body": "A cited result has one name and it is the same everywhere: the step's message (\"…, by MTH2008 Theorem 1.1 (the triangle inequality).\"), the Cited result label and the hypothesis label. A step's reason echoes after its statement in square brackets (`[MTH2008 Theorem 1.1]`, `[h2]`), as the student wrote it.",
+        "section": "components"
       }
     ],
     "dos": [
@@ -663,7 +684,9 @@
       "Do give every form control the one Control Border, and give a flag the accent only when it is news.",
       "Do set the public site's display specimen in JetBrains Mono, wrapping only between clauses, and let red appear once per demonstration, at its failing step.",
       "Do let the name stand as the mark: 𝐿emma𝑡𝛼 in the Wordmark face at 1.5em, static everywhere but the site nav, and no logo on any page.",
-      "Do keep the registry's entry keys in quiet ink until a search, the URL or the pointer lights them, and set every proof it shows as the app's editor sets it in the mono scheme."
+      "Do keep the registry's entry keys in quiet ink until a search, the URL or the pointer lights them, and set every proof it shows as the app's editor sets it in the mono scheme.",
+      "Do give a hint's fix exactly one primary text button, labelled as the edit it makes, and set the hint itself as a sentence in ink after the quiet reason.",
+      "Do name a cited result once, as the notes name it, and use that name in the message, the Cited result label and the hypothesis label alike."
     ],
     "donts": [
       "Don't use green anywhere but a verdict.",
@@ -672,6 +695,7 @@
       "Don't wrap rows in cards, give passing steps badges, or use filled status pills.",
       "Don't introduce a display face, italics, a second sans, or text below 11px; the Wordmark face and its italics set the name and nothing else.",
       "Don't add drop shadows; floating layers separate by surface and border, and the selected-row inset ring is the only shadow.",
+      "Don't put a button inside an auditor row; the row is the button, and its fixes live in Context & State and the editor tooltip.",
       "Don't fetch anything cross-origin (icons, fonts, scripts): the app makes no runtime network requests."
     ]
   }

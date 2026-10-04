@@ -190,6 +190,36 @@ export const SYMBOLS = [
 
 let scopeAt = () => ({});
 
+let citations = () => ({});
+
+/** Hand in `() -> {name: [[label, key], …]}`: the results a step may cite (packs.citationIndex). */
+export function setCitationSource(fn) {
+  citations = fn;
+}
+
+/**
+ * After `by ` / `using ` (or a `By …,` sentence), offer what may be cited:
+ * the installed packs' results and the workspace's theorems.
+ */
+function citationCompletions(context, lineText, lineFrom) {
+  const match = /(?:\b(?:by|using)\s+|^\s*by\s+)([^,\[\]]*)$/i.exec(lineText);
+  if (!match) return null;
+  const typed = match[1];
+  const names = Object.entries(citations() ?? {});
+  if (!names.length) return null;
+  return {
+    from: lineFrom + lineText.length - typed.length,
+    options: names.map(([name, targets]) => ({
+      label: name,
+      type: "text",
+      detail: targets.length > 1 ? `${targets.length} results` : "",
+      info: targets.map(([label]) => label).join("\n"),
+      boost: /\d/.test(name) ? 1 : 0,
+    })),
+    validFor: /^[^,\[\]]*$/,
+  };
+}
+
 /** Hand in `(lineNumber) -> {name: type}` from the last check. */
 export function setScopeSource(fn) {
   scopeAt = fn;
@@ -220,11 +250,15 @@ const TEMPLATE_OPTIONS = TEMPLATES.map((t) =>
 
 function aetherCompletions(context) {
   const before = word(context);
-  if (!before && !context.explicit) return null;
+  const lineStart = context.state.doc.lineAt(context.pos);
+  const citingHere = /(?:\b(?:by|using)\s+|^\s*by\s+)[^,\[\]]*$/i.test(lineStart.text.slice(0, context.pos - lineStart.from));
+  if (!before && !context.explicit && !citingHere) return null;
   const line = context.state.doc.lineAt(context.pos);
   const lineText = line.text.slice(0, context.pos - line.from);
   // Inside a string (a theorem name) there is nothing to complete.
   if ((lineText.match(/"/g) ?? []).length % 2 === 1) return null;
+  const cite = citationCompletions(context, lineText, line.from);
+  if (cite) return cite;
 
   const scope = scopeAt(line.number) ?? {};
   const variables = Object.entries(scope).map(([name, type]) => ({

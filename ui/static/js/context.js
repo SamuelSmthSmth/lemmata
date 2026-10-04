@@ -7,6 +7,43 @@ import { dom } from "./dom.js";
 import { state } from "./state.js";
 import { bulletList, chipList, el, note, section, splitStepText } from "./format.js";
 
+let handlers = {};
+
+/** `{onFix(fix), onOpenCited(citation)}`: what the pane's buttons do (main.js). */
+export function setContextHandlers(next) {
+  handlers = next;
+}
+
+function textButton(label, tone, onClick) {
+  const button = el("button", `text-button${tone === "primary" ? " text-button--primary" : ""}`, label);
+  button.type = "button";
+  button.addEventListener("click", onClick);
+  return button;
+}
+
+/** "What to try": each hint, and its fix as the one action beside it. */
+function hintSection(hints) {
+  return section(
+    "What to try",
+    hints.map((hint) => {
+      const item = el("div", "ctx-hint");
+      item.append(el("p", null, hint.message));
+      if (hint.fix) item.append(textButton(hint.fix.label, "primary", () => handlers.onFix?.(hint.fix)));
+      return item;
+    }),
+  );
+}
+
+/** "Cited result": what the step leaned on, and the way back to it. */
+function citationSection(citation) {
+  const item = el("div", "ctx-cite");
+  item.append(el("p", "ctx-cite-name", citation.label));
+  item.append(el("code", "ctx-cite-claim", citation.claim));
+  const inPack = citation.key.startsWith("@");
+  item.append(textButton(inPack ? "Open in the Library" : "Open the file", "", () => handlers.onOpenCited?.(citation)));
+  return section("Cited result", [item]);
+}
+
 export function renderContext() {
   dom.context.replaceChildren();
 
@@ -71,7 +108,24 @@ export function renderContext() {
     if (className === "note--domain") continue;
     verificationNodes.push(note(null, text, className));
   }
-  dom.context.append(section("Verification", verificationNodes));
+  if (verificationNodes.length) dom.context.append(section("Verification", verificationNodes));
+  // The reason before the remedy: an unresolved obligation is what "What to
+  // try" answers, so it comes first, where Verification is for a failed step.
+  // When a hint already says what the obligation needs (and where it fails),
+  // the full obligation box would only repeat the auditor's; the hint is the
+  // reason and the remedy together.
+  const hintCoversDomain = (result.hints ?? []).some((h) => h.fix?.insert_before);
+  if (result.domain_warnings.length && !hintCoversDomain) {
+    dom.context.append(
+      section(
+        "Domain obligations",
+        // No label: the warning already begins "Unresolved domain obligation: …".
+        result.domain_warnings.map((warning) => note(null, warning, "note--domain")),
+      ),
+    );
+  }
+  if (result.hints?.length) dom.context.append(hintSection(result.hints));
+  if (result.citation) dom.context.append(citationSection(result.citation));
 
   if (result.subproof_metadata) {
     const meta = result.subproof_metadata;
@@ -102,14 +156,4 @@ export function renderContext() {
       bulletList(result.active_hypotheses, "No hypotheses in scope."),
     ]),
   );
-
-  if (result.domain_warnings.length) {
-    dom.context.append(
-      section(
-        "Domain obligations",
-        // No label: the warning already begins "Unresolved domain obligation: …".
-        result.domain_warnings.map((warning) => note(null, warning, "note--domain")),
-      ),
-    );
-  }
 }

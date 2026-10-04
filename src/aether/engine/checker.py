@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from enum import Enum
 from typing import Optional, Any
 
@@ -33,6 +33,15 @@ from aether.core.ast import (
     ImportNode,
 )
 from aether.parser.parser import AetherParser
+from aether.engine.hints import hints_for
+from aether.engine.citations import (
+    CitationIndex,
+    Target,
+    ambiguous_message,
+    looks_like_a_result,
+    split_parts,
+    unknown_message,
+)
 from aether.engine.context import (
     ProofContext,
     ContextError,
@@ -48,6 +57,7 @@ from aether.engine.algebra import (
     verify_algebraic_equality,
 )
 from aether.engine.logic import (
+    fresh_solver_context,
     verify_entailment,
     check_domain_obligation,
     verify_case_exhaustiveness,
@@ -84,6 +94,10 @@ class StepResult:
     counterexample_dict: Optional[dict[str, str]] = None
     subproof_metadata: Optional[dict[str, Any]] = None
     sub_results: list[StepResult] = field(default_factory=list)
+    # The result a `by …` citation used: {"cited", "label", "key", "claim"}.
+    citation: Optional[dict[str, str]] = None
+    # What to do about it: [{"message", "fix"?: {"line", "insert"|"replace", "text", "label"}}].
+    hints: list[dict[str, Any]] = field(default_factory=list)
 
     def __post_init__(self) -> None:
         if self.col is None and hasattr(self.statement, "col"):
@@ -117,6 +131,8 @@ class StepResult:
             "diagnostic_range": self.diagnostic_range,
             "subproof_metadata": self.subproof_metadata,
             "sub_results": [r.to_dict() for r in self.sub_results],
+            "citation": self.citation,
+            "hints": list(self.hints),
         }
 
 
@@ -206,6 +222,8 @@ class ProofChecker:
         self.base_dir = Path(base_dir).resolve() if base_dir else None
         self._parser = AetherParser()
         self._sources: Optional[dict[str, str]] = None
+        self._citations: Optional[CitationIndex] = None
+        self._lines: list[str] = []
         self._import_cache: dict[Path, tuple[list[FuncDefNode], list[tuple[Optional[str], ExprNode]], bool]] = {}
 
     def clear_cache(self) -> None:
@@ -222,6 +240,7 @@ class ProofChecker:
         source: str,
         file_path: Optional[Path | str] = None,
         sources: Optional[Mapping[str, str]] = None,
+        citations: Optional[Mapping[str, Any]] = None,
     ) -> list[ProofReport]:
         """Parse *source* and check all theorems and top-level statements.
 
@@ -231,10 +250,20 @@ class ProofChecker:
         the disk is searched.  When it is given, ``file_path`` may be the
         importing file's own workspace path, and relative imports resolve from
         its folder.
+
+        ``citations`` maps the names a step may cite (``by Theorem 1.1``,
+        ``By the triangle inequality, ...``) to the ``sources`` key that proves
+        each (see ``aether.engine.citations``).  A cited result is used for
+        that step alone, and the step's result says which one it was.
         """
         doc = self._parser.parse(source)
+        fresh_solver_context()
+        previous_lines = self._lines
+        self._lines = source.splitlines()
         previous = self._sources
+        previous_index = self._citations
         self._sources = dict(sources) if sources else None
+        self._citations = CitationIndex(citations) if citations else None
         try:
             if self._sources is not None:
                 # In-memory files may change between calls; never reuse a cached import.
@@ -244,6 +273,8 @@ class ProofChecker:
             return self.check_document(doc, file_path=file_path)
         finally:
             self._sources = previous
+            self._citations = previous_index
+            self._lines = previous_lines
 
     def check_file(self, file_path: Path | str) -> list[ProofReport]:
         """Read *file_path* from disk and verify its proof document."""
@@ -679,6 +710,91 @@ class ProofChecker:
         return StepStatus.INVALID if self.strict_domains else StepStatus.WARNING
 
     def _check_statement(self, stmt: StatementNode, ctx: ProofContext) -> StepResult:
+        justification = getattr(stmt, "justification", None)
+        if justification and self._citations is not None:
+            result = self._check_citing(stmt, justification, ctx)
+        else:
+            result = self._dispatch(stmt, ctx)
+        if result.status != StepStatus.VALID and not result.hints:
+            try:
+                result.hints = hints_for(result, stmt, ctx, self._lines, lambda rel: verify_entailment(rel, ctx).valid)
+            except Exception:  # noqa: BLE001 - a hint must never cost the verdict
+                result.hints = []
+        return result
+
+    def _check_citing(self, stmt: StatementNode, justification: str, ctx: ProofContext) -> StepResult:
+        """A step that cites results: resolve each, use them for this step only."""
+        index = self._citations
+        cited: list[tuple[str, Target, list[tuple[Optional[str], ExprNode]]]] = []
+        rest: list[str] = []
+        for part in split_parts(justification):
+            targets = index.lookup(part)
+            if not targets:
+                if looks_like_a_result(part) and not self._is_label_or_keyword(part, ctx):
+                    return self._citation_failure(stmt, ctx, unknown_message(part, index))
+                rest.append(part)
+                continue
+            if len(targets) > 1:
+                return self._citation_failure(stmt, ctx, ambiguous_message(part, targets))
+            claims, problem = self._cited_claims(targets[0])
+            if problem:
+                return self._citation_failure(stmt, ctx, problem)
+            cited.append((part, targets[0], claims))
+
+        if not cited:
+            return self._dispatch(stmt, ctx)
+        # Known by the name it was cited as, so the step, its message and the
+        # hypotheses all call the result the same thing.
+        added = [ctx.add_hypothesis(claim, label=target.label, is_assumption=False) for _, target, claims in cited for _, claim in claims]
+        try:
+            stripped = replace(stmt, justification=", ".join(rest) or None)
+            result = self._dispatch(stripped, ctx)
+        finally:
+            for frame in ctx._frames:
+                frame.hypotheses[:] = [h for h in frame.hypotheses if not any(h is a for a in added)]
+        part, target, claims = cited[0]
+        statement_text = "; ".join(str(claim) for _, claim in claims)
+        if result.status == StepStatus.INVALID:
+            message = f"{result.message} (The cited result says {statement_text}.)"
+        else:
+            message = f"{result.message.rstrip('.')}, by {target.label}."
+        return replace(
+            result,
+            statement=stmt,
+            message=message,
+            citation={"cited": part, "label": target.label, "key": target.key, "claim": statement_text},
+        )
+
+    def _is_label_or_keyword(self, part: str, ctx: ProofContext) -> bool:
+        valid, _ = self._validate_justification(part, ctx)
+        return valid
+
+    def _cited_claims(self, target: Target) -> tuple[list[tuple[Optional[str], ExprNode]], Optional[str]]:
+        """The proved claims of a cited source, or why it cannot be used."""
+        defs: list[FuncDefNode] = []
+        claims: list[tuple[Optional[str], ExprNode]] = []
+        root = self._virtual_path("__main__.aether")
+        result = self._process_import(ImportNode(path=target.key), root, [root], defs, claims)
+        if result.status == StepStatus.INVALID:
+            return [], f"'{target.label}' cannot be used: {result.message}"
+        if not claims:
+            return [], f"'{target.label}' does not state a proved result to use (it has no theorem with a claim)."
+        return claims, None
+
+    def _citation_failure(self, stmt: StatementNode, ctx: ProofContext, message: str) -> StepResult:
+        vars_snap, hyps_snap = self._snapshot(ctx)
+        return StepResult(
+            statement=stmt,
+            line=stmt.line,
+            status=StepStatus.INVALID,
+            message=message,
+            backend="Citation",
+            scope_depth=ctx.scope_depth,
+            active_variables=vars_snap,
+            active_hypotheses=hyps_snap,
+        )
+
+    def _dispatch(self, stmt: StatementNode, ctx: ProofContext) -> StepResult:
         if isinstance(stmt, ImportNode):
             return self._process_import(stmt, None, [], [], [])
         if isinstance(stmt, VarDeclNode):
@@ -1076,7 +1192,27 @@ class ProofChecker:
             counterexample_dict=z3_res.counterexample_dict,
         )
 
+    def _check_premise(self, stmt: DeduceNode, ctx: ProofContext) -> Optional[StepResult]:
+        """`Since A, B`: A must already hold.  A label (`Since h1, …`) is a
+        justification; anything else is checked as a step of its own, which on
+        success also makes it a fact B can use.  Returns the failure, or None."""
+        premise = stmt.premise
+        if isinstance(premise, SymbolNode) and ctx.get_hypothesis(premise.name) is not None:
+            return None
+        check = self._check_deduce(DeduceNode(claim=premise, line=stmt.line, col=stmt.col), ctx)
+        if check.status == StepStatus.INVALID:
+            return replace(
+                check,
+                statement=stmt,
+                message=f"The premise does not hold here, so it cannot be used: {check.message}",
+            )
+        return None
+
     def _check_deduce(self, stmt: DeduceNode, ctx: ProofContext) -> StepResult:
+        if stmt.premise is not None:
+            premise_failed = self._check_premise(stmt, ctx)
+            if premise_failed is not None:
+                return premise_failed
         claim = stmt.claim
 
         # Handle chained deduction (`Therefore <= 8 * k^2` where left is `<prev>`)

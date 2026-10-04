@@ -48,6 +48,19 @@ SOLVER_RLIMIT = 500_000
 SOLVER_BACKSTOP_MS = 6000
 
 
+def fresh_solver_context() -> None:
+    """Start the next check on a new Z3 context.
+
+    Z3's search depends on the terms its context has seen, so in a long-lived
+    process (the server's workers, the browser's worker, a test run) the same
+    proof could check, time out or stall depending on what was checked before
+    it.  A fresh context per check makes every verdict depend only on the
+    proof, as it does in a new process.  Nothing in the engine keeps Z3 terms
+    between checks; the old context is freed once nothing refers to it.
+    """
+    z3.z3._main_ctx = None
+
+
 def new_solver(timeout_ms: int) -> z3.Solver:
     """A solver bounded by SOLVER_RLIMIT, with a wall-clock backstop.
 

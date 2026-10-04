@@ -432,7 +432,10 @@ class LatexProofExporter:
                 c_str = expr_to_latex(stmt.claim)
                 w_str = f" [witness: ${expr_to_latex(stmt.witness)}$]" if stmt.witness else ""
                 j_str = f" \\quad \\text{{[by {stmt.justification}]}}" if stmt.justification else ""
-                lines.append(f"{ind}Therefore, ${c_str}${w_str}{j_str}.")
+                if stmt.premise is not None:
+                    lines.append(f"{ind}Since ${expr_to_latex(stmt.premise)}$, ${c_str}${w_str}{j_str}.")
+                else:
+                    lines.append(f"{ind}Therefore, ${c_str}${w_str}{j_str}.")
 
             elif isinstance(stmt, SubProofNode):
                 # SubProofNode carries `label` and `case_condition` -- there is

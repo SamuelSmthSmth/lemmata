@@ -423,8 +423,8 @@ class AetherASTTransformer(Transformer):
                            line=ln, col=col)
 
     def var_decl_cond(self, children: list) -> VarDeclNode:
-        # [VAR_INTRO, CNAME|GREEK_LETTER, REL_OP, arith_expr]
-        kw, name_tok, op_tok, bound = children
+        # [VAR_INTRO, CNAME|GREEK_LETTER, REL_OP, arith_expr, ?BE_GIVEN]
+        kw, name_tok, op_tok, bound = [c for c in children if getattr(c, "type", "") != "BE_GIVEN"]
         ln, col = _pos(kw)
         vname = _ident(name_tok)
         lhs_node: ExprNode = (
@@ -529,6 +529,27 @@ class AetherASTTransformer(Transformer):
         witness = exprs[1] if len(exprs) > 1 else None
         just = next((c for c in children if isinstance(c, str) and not _is_token(c)), None)
         return DeduceNode(claim=claim, justification=just, witness=witness,
+                          line=ln, col=col)
+
+    def since_stmt(self, children: list) -> DeduceNode:
+        # [SINCE_KW, premise, claim, ?just_str, ?witness]
+        kw = children[0]
+        ln, col = _pos(kw)
+        exprs = [c for c in children if _is_expr(c)]
+        premise, claim = exprs[0], exprs[1]
+        witness = exprs[2] if len(exprs) > 2 else None
+        just = next((c for c in children if isinstance(c, str) and not _is_token(c)), None)
+        return DeduceNode(claim=claim, premise=premise, justification=just, witness=witness,
+                          line=ln, col=col)
+
+    def by_stmt(self, children: list) -> DeduceNode:
+        # [BY_KW, CITE_TEXT, claim, ?witness]
+        kw, cite = children[0], children[1]
+        ln, col = _pos(kw)
+        exprs = [c for c in children if _is_expr(c)]
+        claim = exprs[0]
+        witness = exprs[1] if len(exprs) > 1 else None
+        return DeduceNode(claim=claim, justification=_tok(cite).strip(), witness=witness,
                           line=ln, col=col)
 
     def deduce_chained(self, children: list) -> DeduceNode:

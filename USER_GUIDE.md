@@ -39,11 +39,14 @@ Here are the core keywords you will use:
 | `Theorem:` / `Lemma:` | `Theorem: "Even square"` | Declares a named theorem or lemma. |
 | `Claim:` | `Claim: forall n : Int, Even(n) => Even(n^2)` | Declares the exact goal checked at `QED`. |
 | `Proof:` | `Proof:` | Begins the indented proof block. |
-| `Given` / `Let` / `Fix` | `Given n : Int`<br>`Let x, y : Real`<br>`Fix \epsilon : Real where \epsilon > 0`<br>`Let \delta = \epsilon / 3` | Introduces new variables, constraints, or variable definitions into scope. |
+| `Given` / `Let` / `Fix` | `Given n : Int`<br>`Let x, y : Real`<br>`Fix \epsilon : Real where \epsilon > 0`<br>`Let ε > 0 be given`<br>`Let \delta = \epsilon / 3` | Introduces new variables, constraints, or variable definitions into scope. `Let ε > 0` alone declares a real `ε` with that condition. |
+| `Take` / `Set` / `Put` | `Take δ = ε / 3`<br>`Set δ = ε / 3` | Names a value, exactly as `Let δ = …` does. |
 | `Assume` / `Suppose` | `Assume h1: Even(n)`<br>`Suppose x > 2`<br>`Assume Group(G, op, e, inv)` | Declares a local hypothesis, premise, or algebraic structure. Labels like `h1:` are optional. |
 | `Obtain` | `Obtain k : Int such that n = 2 * k from h1` | Unpacks an existential fact or definition (extracts witness `k` from `Even(n)`). |
 | `Step:` | `Step: n^2 = (2 * k)^2`<br>`Step: = 4 * k^2 [by algebra]`<br>`Step: < 8 * k^2 [using h1]` | Equational or inequality deduction. Leaving off the LHS chains from previous RHS. Optional `[by ...]` or `[using ...]`. |
-| `Therefore` / `Hence` / `Thus` | `Therefore exists m : Int, n^2 = 4 * m [witness: k^2]`<br>`Hence MultipleOf(n^2, 4) [by definition]` | Deduces a new fact. Optional `[witness: ...]` for existential claims and `[by ...]` / `[using ...]`. |
+| `Therefore` / `Hence` / `Thus` | `Therefore exists m : Int, n^2 = 4 * m [witness: k^2]`<br>`Hence MultipleOf(n^2, 4) [by definition]` | Deduces a new fact. Optional `[witness: ...]` for existential claims and `[by ...]` / `[using ...]`. `So`, `Then`, `We have`, `We get`, `Note that`, `Now`, `Clearly` and `It follows that` say the same. |
+| `Since … , …` | `Since x > 2, x^2 > 4`<br>`Since h1, x + 1 > 3` | The first part must already hold (it is checked); the second follows using it. A label (`h1`) is used as it stands. |
+| `By … , …` | `By h1, x^2 > 4`<br>`By Theorem 1.1, abs(a - b) <= abs(a) + abs(-b)` | The second part follows using what is named: a label, or a result cited by name (§4). |
 | `Base case` / `Inductive step` | `Base case n = 0:`<br>`Inductive step:` | Opens mathematical induction subproofs. |
 | `Case` | `Case x >= 0:`<br>`Case x < 0:` | Splits into exhaustive cases. |
 | `Subproof:` | `Subproof:` | Opens a general nested subproof (e.g., for universal generalization or implication). |
@@ -152,6 +155,30 @@ You can explicitly justify your deductions with `[by ...]` or `[using ...]`:
 - `Step: op(a, e) = a [by definition]` — From active structure definitions.
 - `Step: op(a, b) = op(a, c) [using h1]` — Using an active assumption or label.
 - `Therefore Congruent(a^2, b^2, m) [using h1]` — Deducing via cited facts.
+
+### Citing a Result by Name
+A step can lean on a proved result without an `import` line: name it, as the notes do.
+- `Step: abs(a - b) <= abs(a) + abs(-b) by Theorem 1.1`
+- `By the triangle inequality, abs(a - b) <= abs(a) + abs(-b)`
+- `… [by MTH2008 Theorem 1.1]`
+
+In the app a result can be cited by its reference when that has a number (`Theorem 1.1`, and `MTH2008 Theorem 1.1` with the course), by its title, or by the title's first part (`The triangle inequality` for "The triangle inequality, by the four cases"); a theorem in your workspace by its name. Typing after `by` offers what is installed.
+- The cited result is used **for that step only**, and the audit says which one it was. Context & state shows its statement, with a link back to it.
+- A name that could mean two results is refused with both named ("cite it by its full name"); an unknown name is refused with the nearest names.
+- Only results that state something can be cited: a pack's worked calculations, with no `Claim:` or conclusion, have nothing to lend.
+
+From Python, pass the names with `check_source(source, sources=..., citations={"Theorem 1.1": "path/of/its.aether"})`.
+
+### When a Step Fails: Hints
+A step that does not check comes back with what to try, in your own notation, and a one-click fix when there is exactly one edit that would mend it:
+- **An unguarded division or root:** "This step needs x − 1 ≠ 0 …" with **Add Assume x − 1 ≠ 0**.
+- **Algebra off by a term:** "The two sides differ by ε/2."
+- **A strict inequality that holds non-strictly:** "This holds with ≥, not >" with **Use ≥**.
+- **A label that is out of scope or mistyped:** where it was introduced, or **Use h1**.
+- **A mistyped predicate:** "Did you mean Even?" with **Use Even**.
+- **A chain that changes direction:** how to split it.
+
+Fixes are in Context & state and in the editor's tooltip on the marked line; each is one ordinary edit, so Ctrl+Z takes it back, and the check that follows says whether it worked.
 
 ### Splitting Proofs into Multiple Files
 You can organize reusable lemmas across multiple files:
@@ -442,6 +469,14 @@ A `VALID` row checks out, and still does with **Strict Domain Checking** on. `IN
 | guard · `an assumption can discharge it` | VALID |  |
 | guard · `sqrt needs its radicand bounded` | VALID |  |
 | guard · `a logarithm's argument is not obliged positive` | VALID | positivity of `ln`'s argument is not extracted, so `ln(x)` needs no `x > 0` in scope; the solver now discharges `exp(x) > 0`, so `ln(exp(x)) = x` would survive the check |
+| phrasing · `Let ε > 0 be given` | VALID |  |
+| phrasing · `Fix ε > 0` | VALID |  |
+| phrasing · `Set / Take / Put δ = …` | VALID |  |
+| phrasing · `Since A, B` | VALID |  |
+| phrasing · `Since checks its premise` | INVALID | the premise does not follow, so it cannot be used |
+| phrasing · `By h1, B` | VALID |  |
+| phrasing · `We have / Note that / Now / Clearly` | VALID |  |
+| phrasing · `It follows that / We get` | VALID |  |
 | grammar · `hash comments` | VALID |  |
 | grammar · `slash slash comments` | PARSE_ERROR | `#` and `--` each start a comment; `//` does not |
 | grammar · `CRLF line endings` | VALID |  |

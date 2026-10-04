@@ -682,6 +682,52 @@ try {
 check(refused, "verifiedText accepts bytes the index does not vouch for");
 console.log("registry checked");
 
+// --- hint fixes and citations (js/fixes.js, js/packs.js) -----------------------
+{
+  const { fixChange } = await import(new URL("./static/js/fixes.js", import.meta.url));
+  const { citationIndex, mayCite } = await import(new URL("./static/js/packs.js", import.meta.url));
+  // A minimal CodeMirror Text: lines, line(n), sliceString.
+  const textDoc = (text) => {
+    const lines = text.split("\n");
+    const starts = [];
+    let at = 0;
+    for (const l of lines) {
+      starts.push(at);
+      at += l.length + 1;
+    }
+    return {
+      lines: lines.length,
+      line: (n) => ({ from: starts[n - 1], to: starts[n - 1] + lines[n - 1].length, text: lines[n - 1] }),
+      sliceString: (a, b) => text.slice(a, b),
+    };
+  };
+  const apply = (text, change) => text.slice(0, change.from) + change.insert + text.slice(change.to);
+  const proof = 'Theorem: "t"\nProof:\n    Let x : Real\n    Step: (x^2 - 1) / (x - 1) = x + 1\nQED';
+  const inserted = fixChange(textDoc(proof), { line: 4, insert_before: "Assume x - 1 != 0" });
+  check(inserted && apply(proof, inserted).includes("    Assume x - 1 != 0\n    Step:"), "an inserted line takes the indentation of the line it goes above");
+  const swap = "Therefore x > 2";
+  const swapped = fixChange(textDoc(swap), { line: 1, col_start: 13, col_end: 14, text: "≥", was: ">" });
+  check(swapped && apply(swap, swapped) === "Therefore x ≥ 2", "a replacement edits exactly the columns it names");
+  check(fixChange(textDoc("Therefore x < 2"), { line: 1, col_start: 13, col_end: 14, text: "≥", was: ">" }) === null, "a fix whose text has changed since the check is refused");
+  check(fixChange(textDoc("x"), { line: 3, insert_before: "y" }) === null, "a fix past the end of the proof is refused");
+
+  const pack = {
+    name: "core/mth2008", title: "Real Analysis", courses: ["MTH2008"],
+    entries: [
+      { id: "t11", ref: "Theorem 1.1", title: "The triangle inequality, by the four cases", kind: "proof" },
+      { id: "trap", ref: "Trap", title: "A trap", kind: "trap" },
+      { id: "n", ref: "Notation", title: "In Unicode", kind: "proof" },
+    ],
+  };
+  const index = citationIndex([pack], { "lemmas.aether": 'Lemma: "Bernoulli"\nProof:' });
+  check(index["Theorem 1.1"]?.[0]?.[1] === "@core/mth2008/t11.aether", "a numbered reference is citable");
+  check(Boolean(index["MTH2008 Theorem 1.1"]) && Boolean(index["The triangle inequality"]), "so are the course-qualified reference and the title's short form");
+  check(!index["Trap"] && !index["Notation"] && !index["A trap"], "traps and unnumbered references are not");
+  check(index["Bernoulli"]?.[0]?.[1] === "lemmas.aether", "a workspace theorem is citable by its name");
+  check(mayCite("Step: x = y by Theorem 1.1") && mayCite("By h1, x > 0") && mayCite("Since x > 2, y > 1") && !mayCite("Let x : Real"), "mayCite spots a proof that cites");
+  console.log("hint fixes and citations checked");
+}
+
 console.log();
 if (failures.length) {
   console.log(`${failures.length} check(s) failed:`);
