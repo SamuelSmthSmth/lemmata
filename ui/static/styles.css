@@ -2019,16 +2019,28 @@ kbd {
 
 /* -------------------------------------------------------------------------
    Boot: from first paint until main.js has the workspace ready (a few
-   hundred ms of storage and catalogue), the view and the status bar hold
-   back, so nobody watches an empty shell fill in piece by piece.  The
-   loading line only appears if the wait passes 200ms; a quick boot shows
-   paper and then the workspace.  The rail is static and stays.
+   hundred ms of storage and catalogue), a flat layer of the page's paper
+   covers the whole window, so nobody watches the shell fill in piece by
+   piece behind it.  The loading line sits on that layer, and only appears
+   if the wait passes 200ms: a quick boot shows paper, then the workspace.
+   When the workspace is ready the layer fades away from in front of it.
    ------------------------------------------------------------------------- */
 
 .boot {
-  grid-area: view;
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
   display: none;
-  place-self: center;
+  place-items: center;
+  background: var(--bg);
+}
+
+html[data-booting] .boot {
+  display: grid;
+}
+
+.boot-mark {
+  display: grid;
   justify-items: center;
   gap: 10px;
   color: var(--muted);
@@ -2036,20 +2048,7 @@ kbd {
   font-weight: 700;
   letter-spacing: 0.09em;
   text-transform: uppercase;
-}
-
-html[data-booting] .boot {
-  display: grid;
   animation: boot-in 0.24s cubic-bezier(0.16, 1, 0.3, 1) 0.2s both;
-}
-
-/* Opacity as well as visibility: a descendant that sets its own
-   `visibility: visible` (a tab's close button does) would show through. */
-html[data-booting] .view,
-html[data-booting] .statusbar > * {
-  visibility: hidden;
-  opacity: 0;
-  pointer-events: none;
 }
 
 /* A 2px rule, the verdict's own mark, with a segment of Proof Blue running
@@ -2071,15 +2070,23 @@ html[data-booting] .statusbar > * {
   animation: boot-run 1.1s cubic-bezier(0.65, 0, 0.35, 1) infinite alternate;
 }
 
-/* The workspace settles in rather than snapping on. */
-html[data-booted] .view:not([hidden]),
-html[data-booted] .statusbar > * {
-  animation: boot-in 0.18s cubic-bezier(0.16, 1, 0.3, 1) both;
+/* Ready: the layer lifts off the workspace rather than snapping away.  It
+   stays drawn (and lets clicks through) for the fade, then main.js drops
+   the flag and it is gone. */
+html[data-booted] .boot {
+  display: grid;
+  pointer-events: none;
+  animation: boot-out 0.2s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
 @keyframes boot-in {
   from { opacity: 0; }
   to { opacity: 1; }
+}
+
+@keyframes boot-out {
+  from { opacity: 1; }
+  to { opacity: 0; }
 }
 
 @keyframes boot-run {
@@ -2089,13 +2096,12 @@ html[data-booted] .statusbar > * {
 
 @media (prefers-reduced-motion: reduce) {
   /* No fade, but still the 200ms grace, so a quick boot shows no loader. */
-  html[data-booting] .boot {
+  .boot-mark {
     animation: boot-in 0.01s linear 0.2s both;
   }
 
-  html[data-booted] .view:not([hidden]),
-  html[data-booted] .statusbar > * {
-    animation: none;
+  html[data-booted] .boot {
+    display: none;
   }
 
   .boot-rule::after {

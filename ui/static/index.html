@@ -333,10 +333,13 @@
       </div>
     </main>
 
-    <!-- While the workspace opens (html[data-booting]); hidden after. -->
+    <!-- While the workspace opens (html[data-booting]): a layer of paper over
+         everything, with the loading line on it. -->
     <div class="boot" role="status">
-      <span class="boot-label">Loading</span>
-      <span class="boot-rule" aria-hidden="true"></span>
+      <div class="boot-mark">
+        <span class="boot-label">Loading</span>
+        <span class="boot-rule" aria-hidden="true"></span>
+      </div>
     </div>
 
     <!-- The status bar: the verdict, where you are, and whether work is kept. -->
