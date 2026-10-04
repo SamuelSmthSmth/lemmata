@@ -1039,6 +1039,48 @@ class LeanExporter:
         scope.defs[d.name] = d
         scope.types.pop(d.name, None)
 
+    def _sequence_params(self, stmts: list[StatementNode], claim: Optional[ExprNode], scope: _Scope) -> list[str]:
+        """A sequence the question defines, bound by the statement with its definitions.
+
+        ``Given u : Nat -> Int`` with ``Assume u1: u(1) = 2`` and a recurrence,
+        and a claim about u: the checker reads the assumptions as u's
+        definition, and the theorem proved is "for u so defined, the claim".
+        In Lean that is ``theorem t (u : ℕ → ℤ) (u1 : u 1 = 2) (rec : …) : claim``.
+        The claim mentions u, so u cannot wait to be introduced by the proof.
+        """
+        if claim is None:
+            return []
+        claim_free: dict[str, Any] = {}
+        _free_in_expr(claim, set(), claim_free)
+        called = {k[:-2] for k in claim_free if k.endswith("()")}
+        params: list[str] = []
+        functions: set[str] = set()
+        for s in stmts:
+            if not (isinstance(s, VarDeclNode) and s.condition is None and s.type_name):
+                continue
+            if not split_function_type(s.type_name) or not set(s.variables) & called:
+                continue
+            t = lean_type(s.type_name)
+            if t is None:
+                continue
+            for v in s.variables:
+                scope.types[v] = t
+                params.append(f"({lean_name(v)} : {t})")
+                functions.add(v)
+            s._lean_structure = True  # type: ignore[attr-defined]
+        for s in stmts:
+            if not isinstance(s, AssumeNode) or not functions:
+                continue
+            prop_free: dict[str, Any] = {}
+            _free_in_expr(s.proposition, set(), prop_free)
+            plain = {k[:-2] if k.endswith("()") else k for k in prop_free}
+            if not plain & functions or plain - functions - set(_CONSTANTS):
+                continue
+            text = _Expr(scope, self.untranslated, s.line).prop(s.proposition)
+            params.append(f"({self._hyp_name(s.label, s.line)} : {text})")
+            s._lean_structure = True  # type: ignore[attr-defined]
+        return params
+
     def _param_type(self, param: str, body: ExprNode) -> str:
         arity = _called_arity(body, param)
         if arity is not None:
@@ -1065,6 +1107,7 @@ class LeanExporter:
         scope = outer.child()
         name = self._fresh(slug(thm.name) if thm and thm.name else None)
         params, structure_rows = self._structure_params(stmts, scope)
+        params += self._sequence_params(stmts, claim, scope)
         self.algebra = next((p.split("[")[1].split()[0] for p in params if "[" in p and "Subgroup" not in p and ".Normal" not in p), None)
         # Everything the statement and proof use but never introduce is bound
         # by the statement: an abstract `f`, a predicate `P`, an undeclared `x`.
