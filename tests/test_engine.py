@@ -453,6 +453,73 @@ QED
         report = checker.check_source(src)[0]
         assert not report.is_valid
 
+    def test_base_case_at_one_does_not_cover_zero(self, checker: ProofChecker):
+        # Nat starts at 0.  A base case at 1 and a valid step used to "prove"
+        # this, which is false at n = 0.
+        src = """\
+Theorem: "2^n >= 2 for every natural number (false at 0)"
+Claim: forall n : Nat, 2^n >= 2
+Proof:
+    Base case n = 1:
+        Step: 2^1 = 2
+        Therefore 2^1 >= 2
+    Inductive step:
+        Given k : Nat
+        Assume ih: 2^k >= 2
+        Step: 2^(k + 1) = 2 * 2^k
+        Step: >= 4
+        Therefore 2^(k + 1) >= 2
+    Therefore forall n : Nat, 2^n >= 2
+QED
+"""
+        report = checker.check_source(src)[0]
+        assert not report.is_valid, report.format_report()
+        refusal = next(r for r in report.results if r.backend == "Induction")
+        assert "0 is one" in refusal.message
+
+    def test_base_case_at_one_is_fine_when_zero_holds_too(self, checker: ProofChecker):
+        # The sum of no squares is 0, which the formula gives at n = 0, so a
+        # base case at 1 (as A Level writes it) still proves it for every n.
+        src = """\
+Theorem: "Sum of squares"
+Claim: forall n : Nat, sum(r, 1, n, r^2) = n * (n + 1) * (2 * n + 1) / 6
+Proof:
+    Base case n = 1:
+        Step: sum(r, 1, 1, r^2) = 1
+        Step: = 1 * 2 * 3 / 6
+    Inductive step:
+        Given k : Nat
+        Assume ih: sum(r, 1, k, r^2) = k * (k + 1) * (2 * k + 1) / 6
+        Step: sum(r, 1, k + 1, r^2) = sum(r, 1, k, r^2) + (k + 1)^2
+        Step: = k * (k + 1) * (2 * k + 1) / 6 + (k + 1)^2
+        Step: = (k + 1) * (k + 2) * (2 * k + 3) / 6
+    Therefore forall n : Nat, sum(r, 1, n, r^2) = n * (n + 1) * (2 * n + 1) / 6
+QED
+"""
+        report = checker.check_source(src)[0]
+        assert report.is_valid, report.format_report()
+
+    def test_induction_over_the_integers_is_refused(self, checker: ProofChecker):
+        # A base case and a step say nothing below the base: this "proved"
+        # that every integer is non-negative.
+        src = """\
+Theorem: "Every integer is non-negative (false)"
+Claim: forall n : Int, n >= 0
+Proof:
+    Base case n = 0:
+        Therefore 0 >= 0
+    Inductive step:
+        Given k : Int
+        Assume ih: k >= 0
+        Therefore k + 1 >= 0
+    Therefore forall n : Int, n >= 0
+QED
+"""
+        report = checker.check_source(src)[0]
+        assert not report.is_valid, report.format_report()
+        refusal = next(r for r in report.results if r.backend == "Induction")
+        assert "natural numbers only" in refusal.message
+
 
 class TestDefinitionsAndLemmaReuse:
     def test_custom_predicate_definition(self, checker: ProofChecker):
