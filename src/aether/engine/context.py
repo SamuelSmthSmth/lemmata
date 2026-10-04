@@ -97,6 +97,26 @@ def combine_chain_relations(rel1: str, rel2: str) -> str:
     )
 
 
+def binding_call(expr: FunctionCallNode) -> Optional[tuple[str, list[ExprNode], list[ExprNode]]]:
+    """The variable a call binds, if it binds one: ``(index, bound_args, free_args)``.
+
+    ``sum(r, 1, n, r^2)`` binds r in its body (and r means nothing outside it),
+    as do a definite ``integrate(f, x, a, b)`` and ``lim(f, x, a)``.  Treating
+    that variable as free made the solver pick a value for it and report it as
+    a counterexample ("r=0").  ``diff(f, x)`` binds nothing: the derivative is
+    a function of x.
+    """
+    fn = expr.func.lower()
+    args = expr.args
+    if fn == "sum" and len(args) == 4 and isinstance(args[0], (SymbolNode, GreekSymbolNode)):
+        return args[0].name, [args[3]], [args[1], args[2]]
+    if fn == "integrate" and len(args) == 4 and isinstance(args[1], (SymbolNode, GreekSymbolNode)):
+        return args[1].name, [args[0]], [args[2], args[3]]
+    if fn == "lim" and len(args) >= 3 and isinstance(args[1], (SymbolNode, GreekSymbolNode)):
+        return args[1].name, [args[0]], list(args[2:])
+    return None
+
+
 def collect_free_symbols(expr: ExprNode, bound: Optional[set[str]] = None) -> set[str]:
     """Return the set of free variable/symbol names appearing in *expr*."""
     if bound is None:
@@ -114,6 +134,14 @@ def collect_free_symbols(expr: ExprNode, bound: Optional[set[str]] = None) -> se
         return collect_free_symbols(expr.left, bound) | collect_free_symbols(expr.right, bound)
     if isinstance(expr, FunctionCallNode):
         out: set[str] = set()
+        binder = binding_call(expr)
+        if binder is not None:
+            index, bound_args, free_args = binder
+            for arg in bound_args:
+                out |= collect_free_symbols(arg, bound | {index})
+            for arg in free_args:
+                out |= collect_free_symbols(arg, bound)
+            return out
         for arg in expr.args:
             out |= collect_free_symbols(arg, bound)
         return out

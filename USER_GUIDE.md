@@ -413,6 +413,9 @@ A `VALID` row checks out, and still does with **Strict Domain Checking** on. `IN
 | constant · `a structure's e stays its identity` | VALID |  |
 | expr · `abs / min / max` | VALID |  |
 | expr · `powers` | VALID |  |
+| expr · `chained inequality` | VALID |  |
+| expr · `a sum to k + 1 is the sum to k plus a term` | VALID |  |
+| expr · `Prime` | VALID |  |
 | expr · `sqrt` | VALID |  |
 | expr · `exp / ln` | VALID |  |
 | expr · `trig identity` | VALID |  |
@@ -461,6 +464,10 @@ A `VALID` row checks out, and still does with **Strict Domain Checking** on. `IN
 | structure · `scratchpad, no Theorem` | VALID |  |
 | structure · `cases` | VALID |  |
 | structure · `induction` | VALID |  |
+| structure · `induction from n = 1, when the claim holds at 0 too` | VALID |  |
+| structure · `induction from n = 1 does not cover n = 0` | INVALID | Nat starts at 0: a base case at 1 needs P(0) too, and 2^0 >= 2 is false |
+| structure · `induction over the integers is refused` | INVALID | a base case and a step say nothing below the base, so induction is accepted over Nat only |
+| structure · `divisibility induction with powers` | VALID |  |
 | structure · `Subproof` | VALID |  |
 | structure · `justification [by ...]` | VALID |  |
 | structure · `justification [using ...]` | VALID |  |

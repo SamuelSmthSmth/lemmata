@@ -22,7 +22,9 @@ from aether.core.ast import (
 from aether.core.types import MathType
 from aether.engine.context import (
     ProofContext,
+    binding_call,
     collect_free_symbols,
+    substitute_mapping,
     DomainObligation,
     canonical_rel,
 )
@@ -249,6 +251,7 @@ def expand_prelude_predicate(node: FunctionCallNode, witness_var: str = "_k") ->
     - ``Divides(a, b)``    -> ``exists _k : Int, b = a * _k``
     - ``Positive(x)``      -> ``x > 0``
     - ``NonNegative(x)``   -> ``x >= 0``
+    - ``Prime(p)``         -> ``p > 1 and forall _kd : Int, 1 < _kd < p => not Divides(_kd, p)``
     """
     fn = node.func.lower()
     k_sym = SymbolNode(name=witness_var)
@@ -299,6 +302,27 @@ def expand_prelude_predicate(node: FunctionCallNode, witness_var: str = "_k") ->
 
     if fn == "nonnegative" and len(node.args) == 1:
         return RelationNode(op=">=", left=node.args[0], right=NumberNode(value="0"))
+
+    if fn == "prime" and len(node.args) == 1:
+        # p > 1, and no d with 1 < d < p divides it.
+        p = node.args[0]
+        d = SymbolNode(name=f"{witness_var}d")
+        in_range = BinaryOpNode(
+            op="and",
+            left=RelationNode(op=">", left=d, right=NumberNode(value="1")),
+            right=RelationNode(op="<", left=d, right=p),
+        )
+        no_divisor = QuantifierNode(
+            quantifier="forall",
+            var=d.name,
+            var_type="Int",
+            formula=BinaryOpNode(
+                op="=>",
+                left=in_range,
+                right=UnaryOpNode(op="not", operand=FunctionCallNode(func="Divides", args=[d, p])),
+            ),
+        )
+        return BinaryOpNode(op="and", left=RelationNode(op=">", left=p, right=NumberNode(value="1")), right=no_divisor)
 
     if fn in ("cauchyriemann", "cauchy_riemann"):
         if len(node.args) == 2:
@@ -437,6 +461,18 @@ def ast_to_z3(
                     for _ in range(exp_int - 1):
                         acc = acc * left  # type: ignore[operator]
                     return acc
+            # Only for a power fixed in this proof: under `forall n`, `2^n` must
+            # stay a term in the bound n.  A constant standing for it would be
+            # one number for every n, and "forall n, 2^n = 1" would follow.
+            if (
+                extra_constraints is not None
+                and z3.is_arith(left)
+                and not _mentions_any(left, bound_vars)
+                and not _mentions_any(right, bound_vars)
+            ):
+                symbolic = _symbolic_power(left, right, extra_constraints)
+                if symbolic is not None:
+                    return symbolic
             return left ** right  # type: ignore[operator]
         if op in ("and", "\\land", "/\\"):
             return z3.And(left, right)
@@ -536,28 +572,52 @@ def ast_to_z3(
             for nxt in z3_args[1:]:
                 acc = z3.If(acc <= nxt, acc, nxt)  # type: ignore[operator]
             return acc
+        # Divisibility without a quantifier.  For whole numbers it is `%`.  For a
+        # term the solver holds as a real (a power like 3^k, whose wholeness is
+        # a separate fact), "a is a multiple of b" is exactly "a / b is a whole
+        # number" (b != 0): the same meaning as `exists k : Int, a = b * k`,
+        # without asking the solver to find k, which it rarely can.
         if fn == "even" and len(expr.args) == 1:
             arg = ast_to_z3(expr.args[0], ctx, bound_vars, extra_constraints)
             if z3.is_int(arg):
                 return (arg % 2) == 0  # type: ignore[operator]
+            if z3.is_arith(arg):
+                return z3.IsInt(arg / 2)  # type: ignore[operator]
         if fn == "odd" and len(expr.args) == 1:
             arg = ast_to_z3(expr.args[0], ctx, bound_vars, extra_constraints)
             if z3.is_int(arg):
                 return (arg % 2) == 1  # type: ignore[operator]
+            if z3.is_arith(arg):
+                return z3.IsInt((arg - 1) / 2)  # type: ignore[operator]
         if fn == "multipleof" and len(expr.args) == 2:
             a = ast_to_z3(expr.args[0], ctx, bound_vars, extra_constraints)
             b = ast_to_z3(expr.args[1], ctx, bound_vars, extra_constraints)
             if z3.is_int(a) and z3.is_int(b):
                 return z3.If(b == 0, a == 0, (a % b) == 0)  # type: ignore[operator]
+            if z3.is_arith(a) and z3.is_arith(b):
+                ra, rb = _as_real(a), _as_real(b)
+                return z3.If(rb == 0, ra == 0, z3.IsInt(ra / rb))  # type: ignore[operator]
         if fn == "divides" and len(expr.args) == 2:
             a = ast_to_z3(expr.args[0], ctx, bound_vars, extra_constraints)
             b = ast_to_z3(expr.args[1], ctx, bound_vars, extra_constraints)
             if z3.is_int(a) and z3.is_int(b):
                 return z3.If(a == 0, b == 0, (b % a) == 0)  # type: ignore[operator]
+            if z3.is_arith(a) and z3.is_arith(b):
+                ra, rb = _as_real(a), _as_real(b)
+                return z3.If(ra == 0, rb == 0, z3.IsInt(rb / ra))  # type: ignore[operator]
+
+        if fn == "prime" and len(expr.args) == 1:
+            # A number is settled outright (Prime(1681) is a fact, not a search).
+            value = z3.simplify(ast_to_z3(expr.args[0], ctx, bound_vars, extra_constraints))
+            if z3.is_int_value(value):
+                return z3.BoolVal(bool(sp.isprime(value.as_long())))
 
         expanded = expand_prelude_predicate(expr)
         if expanded is not None:
             return ast_to_z3(expanded, ctx, bound_vars, extra_constraints)
+
+        if binding_call(expr) is not None:
+            return _opaque_binding_call(expr, ctx, bound_vars, extra_constraints)
 
         arity = _LOGIC_CALL_ARITY.get(fn)
         if arity is not None:
@@ -636,6 +696,111 @@ def ast_to_z3(
     raise LogicConversionError(f"Cannot convert {type(expr).__name__} to Z3.")
 
 
+def _opaque_binding_call(
+    expr: FunctionCallNode,
+    ctx: ProofContext,
+    bound_vars: dict[str, z3.ExprRef],
+    extra_constraints: Optional[list] = None,
+) -> z3.ExprRef:
+    """A sum, definite integral or limit, as the solver sees it.
+
+    The solver has no theory of these, so the call becomes an uninterpreted
+    real function of the variables free in it, never of the variable it binds:
+    ``sum(r, 1, n, r * r!)`` is a function of n alone.  The function is named
+    by the call's shape with those variables as placeholders, so
+    ``sum(r, 1, k, r^2)`` and ``sum(r, 1, n, r^2)`` are the same function at k
+    and at n, which is what lets a fact about one be used for the other.
+    """
+    free = sorted(collect_free_symbols(expr))
+    placeholders = {name: SymbolNode(name=f"_a{i}") for i, name in enumerate(free)}
+    shape = substitute_mapping(expr, placeholders)
+    args = [ast_to_z3(SymbolNode(name=name), ctx, bound_vars, extra_constraints) for name in free]
+    uf = z3.Function(f"{expr.func.lower()}[{shape}]", *[a.sort() for a in args], z3.RealSort())
+    return uf(*args) if args else uf()
+
+
+def _mentions_any(term: z3.ExprRef, bound_vars: dict[str, z3.ExprRef]) -> bool:
+    """Whether *term* uses any variable a quantifier binds here."""
+    if not bound_vars:
+        return False
+    targets = list(bound_vars.values())
+    stack = [term]
+    while stack:
+        node = stack.pop()
+        if any(node.eq(t) for t in targets):
+            return True
+        stack.extend(node.children())
+    return False
+
+
+def _as_real(term: z3.ExprRef) -> z3.ExprRef:
+    return z3.ToReal(term) if z3.is_int(term) else term
+
+
+def _power_atom(base: z3.ExprRef, exponent: z3.ExprRef) -> z3.ExprRef:
+    """The solver's name for ``base ^ exponent``: one real constant per pair."""
+    return z3.Real(f"pow!{base.sexpr()}!{z3.simplify(exponent).sexpr()}")
+
+
+def _symbolic_power(
+    base: z3.ExprRef,
+    exponent: z3.ExprRef,
+    extra_constraints: list,
+) -> Optional[z3.ExprRef]:
+    """``base ^ exponent`` for a symbolic whole-number exponent, as a student uses it.
+
+    Z3's own power is a nonlinear term it can rarely reason about, so ``3^k``
+    in ``4 * (7 * m + 3^k)`` was not even known to be a whole number, and a
+    divisibility induction could not close.  Instead the power is a constant
+    carrying the facts that matter, each guarded by the exponent being
+    non-negative (``2^(k - 1)`` at k = 0 is not a whole number):
+
+    - an integer base to a non-negative power is an integer;
+    - ``b^0 = 1``, ``b^1 = b``, and a base of at least 1 gives at least 1;
+    - ``b^(e + c) = b^c * b^e`` for a constant shift c, which is exactly the
+      step an induction takes (``7^(k + 1) = 7 * 7^k``).
+    """
+    if not z3.is_int(exponent) or z3.is_int_value(z3.simplify(exponent)):
+        return None
+    exponent = z3.simplify(exponent)
+    atom = _power_atom(base, exponent)
+    integer_base = z3.is_int(base)
+    real_base = z3.ToReal(base) if integer_base else base
+
+    def facts(power: z3.ExprRef, e: z3.ExprRef) -> None:
+        nonneg = e >= 0  # type: ignore[operator]
+        if integer_base:
+            extra_constraints.append(z3.Implies(nonneg, z3.IsInt(power)))
+        extra_constraints.append(z3.Implies(e == 0, power == 1))  # type: ignore[operator]
+        extra_constraints.append(z3.Implies(e == 1, power == real_base))  # type: ignore[operator]
+        extra_constraints.append(z3.Implies(z3.And(nonneg, real_base >= 1), power >= 1))  # type: ignore[operator]
+        extra_constraints.append(z3.Implies(real_base > 0, power > 0))  # type: ignore[operator]
+
+    facts(atom, exponent)
+
+    # Split off a constant shift: k + 1 is k shifted by 1, k - 1 by -1.
+    shift = 0
+    rest = exponent
+    if z3.is_add(exponent):
+        constants = [a for a in exponent.children() if z3.is_int_value(a)]
+        others = [a for a in exponent.children() if not z3.is_int_value(a)]
+        if len(constants) == 1 and others:
+            shift = constants[0].as_long()
+            rest = z3.simplify(z3.Sum(others) if len(others) > 1 else others[0])
+    if shift and abs(shift) <= 6:
+        base_atom = _power_atom(base, rest)
+        facts(base_atom, rest)
+        factor = real_base
+        for _ in range(abs(shift) - 1):
+            factor = factor * real_base  # type: ignore[operator]
+        both_nonneg = z3.And(rest >= 0, exponent >= 0)  # type: ignore[operator]
+        if shift > 0:
+            extra_constraints.append(z3.Implies(both_nonneg, atom == factor * base_atom))  # type: ignore[operator]
+        else:
+            extra_constraints.append(z3.Implies(both_nonneg, base_atom == factor * atom))  # type: ignore[operator]
+    return atom
+
+
 def extract_z3_model_dict(model: z3.ModelRef, ctx: ProofContext) -> dict[str, str]:
     """Extract a dictionary of variable assignments from a Z3 counterexample model."""
     res: dict[str, str] = {}
@@ -649,7 +814,9 @@ def extract_z3_model_dict(model: z3.ModelRef, ctx: ProofContext) -> dict[str, st
             res[var_name] = str(val)
     if not res:
         for d in model.decls():
-            if d.arity() == 0:
+            # The solver's own stand-ins (a power's `pow!…`, a square root's
+            # `_sqrt_…`) are not anything the student named.
+            if d.arity() == 0 and not d.name().startswith(("pow!", "_")):
                 res[d.name()] = str(model[d])
     return res
 

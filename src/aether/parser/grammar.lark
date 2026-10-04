@@ -112,6 +112,9 @@ and_expr:  not_expr  (AND_OP  not_expr)*
 // and_expr/or_expr/etc. rule sees them directly. The transformer handles
 // RelationNode construction at the arith_expr level when REL_OP is present.
 ?rel_expr: arith_expr REL_OP arith_expr mod_spec? -> rel_expr_bin
+         // As the notes chain them: `-2 < k < 2`, `0 <= x <= 1`.  Each adjacent
+         // pair is one relation, and the chain is their conjunction.
+         | arith_expr REL_OP arith_expr (REL_OP arith_expr)+ -> rel_chain
          | arith_expr
 
 mod_spec: MOD_PAR_KW arith_expr ")"

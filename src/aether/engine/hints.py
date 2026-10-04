@@ -40,7 +40,7 @@ _GREEK_RE = re.compile(r"\\?\b(" + "|".join(sorted(GREEK, key=len, reverse=True)
 
 # What a student may call, as the Guide spells it.
 KNOWN_CALLS = (
-    "Even", "Odd", "Positive", "NonNegative", "MultipleOf", "Divides", "Congruent",
+    "Even", "Odd", "Positive", "NonNegative", "MultipleOf", "Divides", "Congruent", "Prime",
     "Group", "AbelianGroup", "Subgroup", "NormalSubgroup", "Ring", "Field",
     "sqrt", "abs", "exp", "ln", "log", "sin", "cos", "tan", "min", "max", "factorial",
     "gcd", "lcm", "lim", "sum", "diff", "integrate", "det", "inv",

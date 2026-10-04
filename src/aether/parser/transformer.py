@@ -5,6 +5,8 @@ Converts a raw Lark Tree into typed Aether AST nodes with source positions.
 
 from __future__ import annotations
 
+from typing import Optional
+
 from lark import Transformer, Token, v_args
 
 from aether.core.ast import (
@@ -317,6 +319,23 @@ class AetherASTTransformer(Transformer):
             line=getattr(left, "line", None),
             col=getattr(left, "col", None),
         )
+
+    def rel_chain(self, children: list) -> ExprNode:
+        # children: [a, op, b, op, c, …] -> (a op b) and (b op c) and …
+        result: Optional[ExprNode] = None
+        for i in range(0, len(children) - 2, 2):
+            left, op_tok, right = children[i], children[i + 1], children[i + 2]
+            rel = RelationNode(
+                op=_op(op_tok),
+                left=left,
+                right=right,
+                line=getattr(left, "line", None),
+                col=getattr(left, "col", None),
+            )
+            result = rel if result is None else BinaryOpNode(
+                op="and", left=result, right=rel, line=result.line, col=result.col
+            )
+        return result  # type: ignore[return-value]
 
     # -------------------------------------------------------------------
     # Logic connectives — children: [expr, OP_tok, expr, OP_tok, expr, …]
