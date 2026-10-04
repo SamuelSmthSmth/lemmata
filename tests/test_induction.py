@@ -199,6 +199,35 @@ QED
         assert report.is_valid, report.format_report()
 
 
+class TestDomainObligationsUnderAGuard:
+    def test_a_guard_discharges_a_division(self, checker: ProofChecker):
+        # 1/n inside `n >= 1 => …` needs n != 0 only where n >= 1.
+        report = check(checker, """\
+Theorem: "Sum of reciprocal squares is under 2"
+Claim: forall n : Nat, n >= 1 => sum(r, 1, n, 1 / r^2) <= 2 - 1 / n
+Proof:
+    Base case n = 1:
+        Step: sum(r, 1, 1, 1 / r^2) = 1
+        Step: <= 2 - 1 / 1
+    Inductive step:
+        Given k : Nat
+        Assume hk: k >= 1
+        Assume ih: sum(r, 1, k, 1 / r^2) <= 2 - 1 / k
+        Step: sum(r, 1, k + 1, 1 / r^2) = sum(r, 1, k, 1 / r^2) + 1 / (k + 1)^2
+        Step: <= 2 - 1 / k + 1 / (k + 1)^2
+        Step: <= 2 - 1 / (k + 1)
+    Therefore forall n : Nat, n >= 1 => sum(r, 1, n, 1 / r^2) <= 2 - 1 / n
+QED
+""")
+        assert report.is_valid, report.format_report()
+        assert not report.has_warnings, report.format_report()
+
+    def test_without_a_guard_the_division_is_still_flagged(self, checker: ProofChecker):
+        report = checker.check_source("Therefore forall n : Nat, 1 / (n + 1) > 0\nTherefore forall m : Nat, m * (1 / m) = 1\n")[0]
+        warned = [r for r in report.results if r.domain_warnings]
+        assert len(warned) == 1 and "m" in warned[0].domain_warnings[0], report.format_report()
+
+
 class TestWhatMustStillFail:
     def test_the_base_case_must_be_at_the_start(self, checker: ProofChecker):
         report = check(checker, """\

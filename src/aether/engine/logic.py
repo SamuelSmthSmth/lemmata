@@ -832,8 +832,8 @@ def extract_z3_model_dict(model: z3.ModelRef, ctx: ProofContext) -> dict[str, st
     if not res:
         for d in model.decls():
             # The solver's own stand-ins (a power's `pow!…`, a square root's
-            # `_sqrt_…`) are not anything the student named.
-            if d.arity() == 0 and not d.name().startswith(("pow!", "_")):
+            # `_sqrt_…`, an opaque sum's `sum[…]`) are not anything the student named.
+            if d.arity() == 0 and not d.name().startswith(("pow!", "_")) and "[" not in d.name():
                 res[d.name()] = str(model[d])
     return res
 

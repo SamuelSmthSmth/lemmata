@@ -69,6 +69,18 @@ def extract_domain_obligations(
     obligations: list[DomainObligation] = []
 
     def _walk(node: ExprNode, dest: list[DomainObligation]) -> None:
+        if isinstance(node, BinaryOpNode) and node.op.lower() in ("=>", "->", "implies", "\\implies", "and", "\\land", "/\\"):
+            # `n >= 1 => … 1/n …` (and `x != 0 and 1/x > 1`): the right side
+            # matters only where the left holds, so its obligations are
+            # conditional on it.  Unconditional, `1/n` asked for n != 0 at n = 0,
+            # which the guard excludes.
+            _walk(node.left, dest)
+            guarded: list[DomainObligation] = []
+            _walk(node.right, guarded)
+            for ob in guarded:
+                ob.condition = BinaryOpNode(op="=>", left=node.left, right=ob.condition)
+                dest.append(ob)
+            return
         if isinstance(node, BinaryOpNode):
             _walk(node.left, dest)
             _walk(node.right, dest)
@@ -137,7 +149,19 @@ def extract_domain_obligations(
             _walk(node.left, dest)
             _walk(node.right, dest)
         elif isinstance(node, QuantifierNode):
-            _walk(node.formula, dest)
+            # An obligation on the bound variable holds for each value it
+            # ranges over, not for one free variable of the same name.
+            inner: list[DomainObligation] = []
+            _walk(node.formula, inner)
+            for ob in inner:
+                if node.var in collect_free_symbols(ob.condition):
+                    ob.condition = QuantifierNode(
+                        quantifier="forall",
+                        var=node.var,
+                        var_type=node.var_type,
+                        formula=ob.condition,
+                    )
+                dest.append(ob)
         elif isinstance(node, IntegralNode):
             if node.lower is not None:
                 _walk(node.lower, dest)
