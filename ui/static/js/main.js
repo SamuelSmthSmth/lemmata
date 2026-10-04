@@ -58,6 +58,7 @@ let warnedAboutStorage = false;
 const editor = createEditor({
   parent: dom.editor,
   wrap: getPref("wrap") === "on",
+  visual: getPref("visual") === "on",
   onDocChanged: () => {
     scheduleCheck();
     scheduleSave();
@@ -998,6 +999,7 @@ function paletteItems() {
     { kind: "command", label: "Toggle strict domains", run: () => dom.strict.shadowRoot?.querySelector("label")?.click() },
     { kind: "command", label: "Switch light / dark theme", run: () => applyTheme(currentTheme() === "dark" ? "light" : "dark", { persist: true }) },
     { kind: "command", label: "Toggle syntax colours", run: () => applySyntax(currentSyntax() === "vivid" ? "mono" : "vivid", { persist: true }) },
+    { kind: "command", label: "Toggle typeset maths", keywords: "visual latex render preview", run: () => setVisual(getPref("visual") !== "on") },
     { kind: "command", label: "Export to LaTeX / PDF", run: openLatexDialog },
     { kind: "command", label: "Download this proof", run: () => dom.downloadProof.click() },
     { kind: "command", label: "Export the workspace as .zip", run: exportWorkspace },
@@ -1014,6 +1016,14 @@ function paletteItems() {
     }
   }
   return items;
+}
+
+// Typeset maths, from Settings or the palette; Settings re-renders so its
+// switch follows a change made from the palette.
+function setVisual(on) {
+  setPref("visual", on ? "on" : "off");
+  editor.setVisual(on);
+  renderSettings();
 }
 
 function problemsJump() {
@@ -1259,6 +1269,7 @@ initSettings({
   onTheme: (name) => applyTheme(name, { persist: true }),
   onSyntax: (name) => applySyntax(name, { persist: true }),
   onWrap: (on) => editor.setWrap(on),
+  onVisual: (on) => setVisual(on),
   onDesk: (on) => setDeskOpen(on),
   onExport: exportWorkspace,
   countFiles: async () => ws.model.files.size,

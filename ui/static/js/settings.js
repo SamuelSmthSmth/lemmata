@@ -155,6 +155,13 @@ export function renderSettings() {
           handlers.onWrap?.(on);
         },
       }),
+      toggle({
+        name: "visual",
+        label: "Typeset the maths",
+        hint: "Shows each expression as it prints: fractions, powers, roots. Move the caret into one to edit what you wrote.",
+        checked: getPref("visual") === "on",
+        onChange: (on) => handlers.onVisual?.(on),
+      }),
     ),
     group(
       "Checking",

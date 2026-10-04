@@ -134,6 +134,10 @@ typography:
     fontWeight: 400
     lineHeight: 1
     letterSpacing: "0"
+  stretch:
+    fontFamily: "Lemmata Stretch, JetBrains Mono, ui-monospace, monospace"
+    fontSize: "1em"
+    fontWeight: 400
 rounded:
   sm: "2px"
   md: "2px"
@@ -401,6 +405,7 @@ components:
 <!-- Hints, fixes and citations recorded from the shipped build (ui/static/js/audit.js, context.js, lint.js, fixes.js; ui/static/aether-language.js; styles.css .step-hint, .ctx-hint, .ctx-cite*, .cm-diagnosticAction, .statusbar .verdict-block; screenshots in .impeccable/review/hints/), after the impeccable finish review returned "ship" following two fix rounds. An ordinary extension of the Workspace: new entries are "Hints and Fixes" and "Cited Result" under Components, a sentence on the Status Bar, the Named Once Rule, and their Do's and Don'ts; nothing else changed. -->
 
 <!-- Wordmark and icon recorded from the shipped build (ui/static/fonts.css, ui/vendor_fonts.py, vendor/fonts/latinmodern-wordmark.woff2; ui/build_site.py wordmark(); web/partials/nav.html and footer.html; web/assets/site.css .wm*, site.js; ui/static/index.html, styles.css .rail-mark, js/site.js; ui/static/icon.svg, desktop/icon.svg; lemmata-packs web/shell.html; screenshots in .impeccable/review/wordmark/). An approved brand change requested by the user: there is no logo; the name, typeset as LaTeX sets it, is the mark. The icon is the open tombstone. -->
+<!-- Visual mode recorded from the shipped build (ui/static/visual-math.js, js/visual.js, js/settings.js; styles.css "Visual mode" block, .cm-math-open and the gutter rule; fonts.css "Lemmata Stretch"; ui/vendor_fonts.py vendor_stretch, vendor/fonts/firamath-stretch.woff2; screenshots in .impeccable/review/visual-mode/), after the impeccable finish review returned "fix" and its seven fixes were applied in one batch; the verdict pass on those fixes did not run (the review session hit its usage limit). User-approved direction: "keep using Monospace as much as possible", only the maths changes. An ordinary extension of the Workspace: "Stretch glyphs" under Typography, the Formal-Mono Rule's second scoped exception, "Visual Mode" under Components, and one Do and one Don't amended; nothing else changed. -->
 
 # Design System: Lemmata
 
@@ -474,6 +479,8 @@ The registry (the packs catalogue, a page per pack, the publishing guide) uses t
 
 **Wordmark.** "Lemmata Wordmark" is a 2.3 KB subset of Latin Modern Math (LaTeX's own face; GUST Font License), vendored by ui/vendor_fonts.py and declared in fonts.css, that holds only the glyphs of 𝐿emma𝑡𝛼: math-italic 𝐿, upright "emma", math-italic 𝑡 and 𝛼, as $L\text{emma}t\alpha$ sets them. It is set at 1.5em of its context, weight 400, no tracking, in ink. It sets the name and nothing else; a site.json name other than Lemmata is set plainly in the mono.
 
+**Stretch glyphs.** "Lemmata Stretch" is a 10 KB subset of Fira Math (a monoline sans whose strokes sit with the mono's; OFL; v0.3.4, pinned by sha256, cut by ui/vendor_fonts.py) holding ( ) [ ] { } | ‖ √ ∑ ∫ ⌊ ⌋ ⌈ ⌉ and the MATH table that says how each one grows. JetBrains Mono has no MATH table, so a browser can neither draw a radical with it nor grow a bracket round a fraction. The face is used only by the editor's visual mode, and only for the radical (`msqrt`, whose contents are handed back to the mono), brackets round something taller than a line (`vm-tall`) and ∑ ∫ (`vm-big`). Every letter, digit and other sign stays mono. Latin Modern's own hairline strokes were tried first and read as the faintest marks on the line; that is why it is Fira.
+
 ### Hierarchy
 - **Title** (600, 20px, 1.25, mono, no uppercase): page titles in the Library, Guide and Settings. A title, not a label: it outranks the uppercase section labels beneath it.
 - **Entry Title** (600, 14px, 1.35, mono): the title of a note open in the reading pane.
@@ -505,7 +512,7 @@ The registry is a reading surface a step quieter than the landing site: sans bod
 - Opened source is 13px mono at 1.6 with tab size 4 and ligatures off.
 
 ### Named Rules
-**The Formal-Mono Rule.** Anything the engine checks, and every piece of chrome, is set in the monospace; only sentences use the sans. No italics: the subsets ship none, and a synthesised slant on a mono face reads as a rendering fault. The wordmark's math italics are the one sanctioned exception, scoped to the name.
+**The Formal-Mono Rule.** Anything the engine checks, and every piece of chrome, is set in the monospace; only sentences use the sans. No italics: the subsets ship none, and a synthesised slant on a mono face reads as a rendering fault. There are two sanctioned exceptions, each scoped: the wordmark's math italics, to the name; and the Stretch glyphs, to the few marks visual mode must grow (radical, tall brackets, ∑, ∫). Typeset maths is otherwise the mono, upright: MathML's automatic italic is cancelled.
 
 **The Name Is The Mark Rule.** There is no logo. The name is set in the Wordmark face (𝐿emma𝑡𝛼) wherever the brand stands: the site's nav and footer, the registry's top bar, and, as its 𝐿 alone, the app rail's top. The face never sets any other text, and its italics never spread to it.
 
@@ -563,6 +570,15 @@ A flush grid row: right-aligned dim line number, then the statement in mono with
 
 ### Editor Gutter
 Diagnostics wear the auditor's rail: the lint gutter is 8px wide and each marker is a 2px bar (red for error, amber for warning, blue for info). The diagnostic tooltip speaks in prose with a 2px status rail. The placeholder and comments are Ink Dim.
+
+### Visual Mode (editor)
+Settings → Appearance → *Typeset the maths* (off by default; also the palette's "Toggle typeset maths"). The editor sets each statement's mathematics in place as inline MathML, as Overleaf's Visual Editor does; keywords, labels (`h1:`), `from h1`, justifications and comments stay as typed. The document never changes: the typeset form is a decoration.
+- **Open under the caret (signature):** the expression the caret or a selection touches, edges included, shows as source, with a 1px dotted rule in the operator colour 4px beneath it, so the unit being edited is visible against the line's own tint. Clicking, arrowing into or selecting across an expression opens it; leaving it sets it again.
+- **Type:** the mono, upright, at the editor's size; fraction terms at 0.86em; scripts (powers, limits, bounds) at max(10px, 0.8em). The Stretch glyphs only where the mono cannot draw (see Typography).
+- **Colour:** each mark keeps its syntax colour, so the typeset form reads as its source does in either scheme: names ink, numbers number, operators and relations operator, ∀ ∃ ∧ ∨ ¬ ⇒ ⇔ logic, ℝ ℤ ℕ and predicates type, √ ∑ ∫ lim and named functions (and an integral's d) math-fn, with the radicand handed back to ink.
+- **Failure stays the event:** a failing or warning step's typeset maths wears the same squiggle as the rest of its line (the widget carries the lint classes, because CodeMirror does not wrap a mark round a widget that ends where it does).
+- **Hover:** the active-line tint, 2px corners, 0.15s ease-out, marking the expression as one clickable unit.
+- **Limits:** with line wrapping on, a line too long for the editor keeps its source, because MathML does not break; with wrapping off, line numbers centre on a tall typeset line so they sit level with its keyword. Anything the parser cannot read stays source.
 
 ### Hints and Fixes
 What to try after a step fails or warns: a sentence and, when the engine has one, a fix.
@@ -671,13 +687,14 @@ The registry (repo lemmata-packs, rendered by tools/pages.py) is the app's Libra
 - **Do** keep the registry's entry keys in quiet ink until a search, the URL or the pointer lights them, and set every proof it shows as the app's editor sets it in the mono scheme.
 - **Do** give a hint's fix exactly one primary text button, labelled as the edit it makes, and set the hint itself as a sentence in ink after the quiet reason.
 - **Do** name a cited result once, as the notes name it, and use that name in the message, the Cited result label and the hypothesis label alike.
+- **Do** typeset only the mathematics in visual mode, in the mono and its syntax colours, and open it as source wherever the caret touches it.
 
 ### Don't:
 - **Don't** use green anywhere but a verdict.
 - **Don't** use red for anything that has not actually failed or will not actually destroy.
 - **Don't** draw a vertical coloured rule at the left of a row for anything but failure or caveat.
 - **Don't** wrap rows in cards, give passing steps badges, or use filled status pills.
-- **Don't** introduce a display face, italics, a second sans, or text below 11px; the Wordmark face and its italics set the name and nothing else.
+- **Don't** introduce a display face, italics, a second sans, or text below 11px; the Wordmark face and its italics set the name and nothing else, and the Stretch glyphs only the marks visual mode must grow.
 - **Don't** add drop shadows; floating layers separate by surface and border, and the selected-row inset ring is the only shadow.
 - **Don't** put a button inside an auditor row; the row is the button, and its fixes live in Context & State and the editor tooltip.
 - **Don't** fetch anything cross-origin (icons, fonts, scripts): the app makes no runtime network requests.

@@ -590,6 +590,7 @@ def run_checks() -> None:
     pack_checks()
     pack_author_checks()
     settings_checks()
+    visual_checks()
     zip_checks()
 
 
@@ -1208,6 +1209,59 @@ def settings_checks() -> None:
     ab("click", ".rail-button[data-view='workspace']")
     time.sleep(0.4)
     check(js("!!document.querySelector('.cm-editor .cm-lineWrapping')") is True, "line wrapping survives too")
+
+
+VISUAL_SOURCE = """Theorem: "Typeset"
+Proof:
+    Let x : Real
+    Assume h1: x > 2
+    Step: (x^2 - 4) / (x - 2) = x + 2
+    Step: (x + 1)^2 = x^2 + 2 * x + 2
+QED
+"""
+
+
+def visual_checks() -> None:
+    print("== visual mode typesets the maths and opens it under the caret ==")
+    fresh()
+    ab("click", ".rail-button[data-view='settings']")
+    time.sleep(0.4)
+    js("document.querySelector('#setting-visual').shadowRoot.querySelector('label').click(); 'ok'")
+    time.sleep(0.3)
+    check(js("localStorage.getItem('aether-visual')") == "on", "the Settings switch turns visual mode on")
+    ab("open", permalink(VISUAL_SOURCE))
+    settle()
+    time.sleep(0.4)
+    lines = [js(f"document.querySelectorAll('.cm-line')[{i}].querySelectorAll('.cm-math').length") for i in range(7)]
+    # The caret starts on line 1, so every expression below it is typeset;
+    # keywords and labels are not.
+    check(lines[2:6] == [1, 1, 1, 1], f"each line's expression is typeset ({lines})")
+    check(js("!!document.querySelector('.cm-math mfrac')") is True, "a fraction stacks")
+    check(
+        js("document.querySelectorAll('.cm-line')[3].textContent.startsWith('    Assume h1: ')") is True,
+        "the keyword and the label stay as text",
+    )
+    # The failing step keeps its squiggle under the typeset maths.
+    check(
+        js("!!document.querySelectorAll('.cm-line')[5].querySelector('.cm-math.cm-lintRange-error')") is True,
+        "a failing step's typeset maths is underlined like the rest of the line",
+    )
+    # Clicking an expression opens it as source; the document never changed.
+    ab("click", ".cm-line:nth-child(5) .cm-math")
+    time.sleep(0.3)
+    check(
+        js("document.querySelectorAll('.cm-line')[4].textContent") == "    Step: (x^2 - 4) / (x - 2) = x + 2",
+        "clicking an expression shows the source that was typed",
+    )
+    check(js("document.querySelectorAll('.cm-line')[2].querySelectorAll('.cm-math').length") == 1, "the other lines stay typeset")
+    # And off again, live; with the widgets gone the lines are the document
+    # itself, which the typesetting never touched.
+    ab("click", ".rail-button[data-view='settings']")
+    time.sleep(0.4)
+    js("document.querySelector('#setting-visual').shadowRoot.querySelector('label').click(); 'ok'")
+    time.sleep(0.3)
+    check(js("document.querySelectorAll('.cm-math').length") == 0, "turning it off sets every line back to source")
+    check(probe()["lines"][:7] == VISUAL_SOURCE.rstrip("\n").split("\n"), "the proof's text is untouched by the typesetting")
 
 
 def zip_checks() -> None:

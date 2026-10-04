@@ -728,6 +728,74 @@ console.log("registry checked");
   console.log("hint fixes and citations checked");
 }
 
+// --- typeset maths ------------------------------------------------------------
+//
+// Visual mode replaces each expression with its MathML, so two things must
+// hold: a span is the mathematics and nothing else (never a keyword, a label,
+// a justification), and what the editor cannot read stays as source.
+
+{
+  const { mathSpans, renderSpan, parseMath } = await moduleAt("visual-math.js");
+  const spans = (line) => mathSpans(line).map((s) => `${s.kind}:${s.text}`);
+  const SPANS = [
+    ["    Given n : Int", ["decl:n : Int"]],
+    ["    Assume h1: Even(n)", ["expr:Even(n)"]],
+    ["    Obtain k : Int such that n = 2 * k from h1", ["decl:k : Int", "expr:n = 2 * k"]],
+    ["    Step: = 4 * k^2 [by algebra]", ["chain:= 4 * k^2"]],
+    ["    Therefore exists m : Int, n^2 = 4 * m [witness: k^2]", ["expr:exists m : Int, n^2 = 4 * m", "expr:k^2"]],
+    ["    Since x > 2, x^2 > 4", ["expr:x > 2", "expr:x^2 > 4"]],
+    ["    Since forall x, x >= 0, y >= 0", ["expr:forall x, x >= 0", "expr:y >= 0"]],
+    ["    By Theorem 1.1, |a + b| <= |a| + |b|", ["expr:|a + b| <= |a| + |b|"]],
+    ["    Let ε > 0 be given", ["expr:ε > 0"]],
+    ["    Given ε : ℝ where ε > 0", ["decl:ε : ℝ", "expr:ε > 0"]],
+    ["    Step: sqrt(x^2) = abs(x)  # a comment", ["expr:sqrt(x^2) = abs(x)"]],
+    ["    Step: a⁻¹ * a = e using inverse law", ["expr:a⁻¹ * a = e"]],
+    ["    Case x >= 0:", ["expr:x >= 0"]],
+    ['Theorem: "Even square theorem"', []],
+    ["Proof:", []],
+    ['    import "lemmas"', []],
+  ];
+  for (const [line, want] of SPANS) {
+    const got = spans(line);
+    check(JSON.stringify(got) === JSON.stringify(want), `mathSpans(${JSON.stringify(line)}) is ${JSON.stringify(got)}, not ${JSON.stringify(want)}`);
+    // Offsets point at the text they claim to.
+    for (const s of mathSpans(line)) check(line.slice(s.from, s.to) === s.text, `a span of ${JSON.stringify(line)} does not cover its own text`);
+  }
+
+  const markup = (text, kind = "expr") => renderSpan({ text, kind }) ?? "";
+  check(markup("(x^2 - 4) / (x - 2) = x + 2").includes("<mfrac>") && !markup("(x^2 - 4) / (x - 2)").includes(">(<"), "a fraction stacks and drops the brackets that only grouped its terms");
+  check(markup("sqrt(x) >= 0").includes("<msqrt>") && markup("√x >= 0").includes("<msqrt>"), "sqrt(…) and √ both set as a radical");
+  check(markup("2 * k = n").includes("⁢") && markup("2 * 3 = 6").includes(">·<"), "2 * k prints as 2k, but 2 * 3 keeps its dot");
+  check(markup("x <= y").includes(">≤<") && markup("x != y").includes(">≠<") && markup("x in S").includes(">∈<"), "relations print as their signs");
+  check(markup("forall x : Real, x^2 >= 0").includes(">ℝ<") && markup("forall x in Real, x >= 0").includes(">ℝ<"), "a quantifier's type prints as its blackboard letter");
+  check(markup("x : Real", "decl").includes(">∈<") && markup("f : Real -> Real", "decl").includes(">→<"), "a declaration reads x ∈ ℝ, and a function type f : ℝ → ℝ");
+  check(markup("i = k (mod n)").includes(">mod<"), "k (mod n) is a congruence, not a call of k");
+  check(markup("(1/2)^k = 1").includes("vm-tall") && !markup("(x + 1)^2 = 1").includes("vm-tall"), "only brackets round something tall are set to grow");
+  check(markup("\\sum_{k=0}^{\\infty} r^k = 1") && markup("\\int_{1}^{2} 3*t^2 dt = 7") && markup("\\lim_{x \\to 0^+} 1/x = \\infty"), "the notes' sums, integrals and limits typeset");
+  check(markup("x_1 + epsilon").includes("<msub>") && markup("x_1 + epsilon").includes(">ϵ<"), "x_1 is a subscript and a spelled-out Greek name its letter");
+  check(markup("a < b").includes("&lt;"), "MathML text is escaped");
+  // What it cannot read, it leaves alone: half-typed and unknown input is source.
+  for (const text of ["x^2 = (", "x = $y$", "x y", "2 k = n", "f(x,", ""]) check(parseMath(text) === null, `parseMath(${JSON.stringify(text)}) should leave it as source`);
+  check(renderSpan({ text: "x", kind: "expr" }) === null && renderSpan({ text: "42", kind: "expr" }) === null, "a lone name or number is not worth a widget");
+
+  // Every proof the packs ship: nothing throws, and nearly every span typesets.
+  let total = 0;
+  let typeset = 0;
+  for (const name of readdirSync(new URL("../courses/", import.meta.url)).filter((f) => f.endsWith(".json") && !f.includes("schema"))) {
+    const course = JSON.parse(readFileSync(new URL(`../courses/${name}`, import.meta.url), "utf8"));
+    for (const entry of course.entries) {
+      for (const line of (entry.source ?? "").split("\n")) {
+        for (const s of mathSpans(line)) {
+          total++;
+          if (renderSpan(s)) typeset++;
+        }
+      }
+    }
+  }
+  check(total > 400 && typeset / total > 0.97, `visual mode typesets ${typeset} of ${total} spans in the course packs`);
+  console.log(`typeset maths checked (${typeset}/${total} pack spans)`);
+}
+
 console.log();
 if (failures.length) {
   console.log(`${failures.length} check(s) failed:`);

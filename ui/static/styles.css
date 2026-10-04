@@ -630,6 +630,99 @@ kbd {
   outline: none;
 }
 
+/* Visual mode (js/visual.js): each expression typeset in place, as MathML.
+   The face stays the editor's own mono, upright -- the Formal-Mono Rule holds
+   here too; what changes is only the layout: fractions stack, powers rise,
+   roots get their bar.  Each kind of mark keeps its syntax colour, so the
+   typeset form reads in the same colours as the source it replaces. */
+/* inline-block, so the box (and a failing step's squiggle along its foot)
+   takes the full height of a fraction rather than the line's text. */
+.cm-math {
+  display: inline-block;
+  border-radius: var(--radius-sm);
+  cursor: text;
+  transition: background-color 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* An expression opened for editing: a dotted rule beneath its source, so the
+   stretch that will be typeset again is visible.  The line's own tint is
+   already there, so a tint would not show it. */
+.cm-math-open {
+  text-decoration: underline dotted var(--cm-token-operator);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 4px;
+}
+
+.cm-math:hover {
+  background: var(--cm-active-line);
+  box-shadow: 0 0 0 2px var(--cm-active-line);
+}
+
+.cm-math math {
+  font-family: var(--font-mono);
+  font-size: 1em;
+  color: var(--cm-token-ink);
+}
+
+/* Inline maths sets a fraction's terms a script level down (71%), which at
+   the editor's 13px is too small to read; full size would double the line. */
+.cm-math mfrac > * {
+  font-size: 0.86em;
+}
+
+/* Scripts (powers, limits, bounds) likewise: MathML's 71% per level puts a
+   sum's `k = 0` at 9px and the `+` of `0⁺` below 7px.  10px is the floor. */
+.cm-math :is(msup, msub, msubsup, munder, munderover, mover) > :not(:first-child) {
+  font-size: max(10px, 0.8em);
+}
+
+/* The marks the mono cannot draw (see fonts.css).  A radical takes its glyph
+   from the msqrt's own face, so the face is set there and handed back to the
+   mono for what sits under the bar. */
+.cm-math msqrt,
+.cm-math .vm-tall,
+.cm-math .vm-big {
+  font-family: "Lemmata Stretch", var(--font-mono);
+}
+
+/* The radical is `sqrt`, a maths function in the source, so it takes that
+   colour; what sits under the bar is handed back its own. */
+.cm-math msqrt {
+  color: var(--cm-token-math-fn);
+}
+
+.cm-math msqrt > * {
+  font-family: var(--font-mono);
+  color: var(--cm-token-ink);
+}
+
+/* A typeset line is taller than a line of text, and CodeMirror sets its
+   line number at the top; centring keeps the number level with the line's
+   keyword, which sits on the maths axis.  Not when lines wrap: there a tall
+   gutter element is a wrapped statement, whose number belongs at its top. */
+.cm-visual:not(:has(.cm-lineWrapping)) .cm-lineNumbers .cm-gutterElement {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: flex-end;
+}
+
+/* Single letters are italic by default in MathML; the notes' upright mono is
+   what the student typed, so they stay upright. */
+.cm-math mi {
+  font-style: normal;
+  text-transform: none;
+}
+
+.cm-math .vm-var { color: var(--cm-token-ink); }
+.cm-math .vm-num { color: var(--cm-token-number); }
+.cm-math .vm-op,
+.cm-math .vm-rel { color: var(--cm-token-operator); }
+.cm-math .vm-logic { color: var(--cm-token-logic); }
+.cm-math .vm-type { color: var(--cm-token-type); }
+.cm-math .vm-fn { color: var(--cm-token-math-fn); }
+.cm-math .vm-str { color: var(--cm-token-string); }
+
 /* =========================================================================
    Auditor
 

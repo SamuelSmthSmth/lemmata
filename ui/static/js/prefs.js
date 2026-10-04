@@ -10,6 +10,7 @@ const SPEC = {
   syntax: { key: "aether-syntax", allowed: ["mono", "vivid"], fallback: "mono" },
   editorSize: { key: "aether-editor-size", allowed: ["12", "13", "14", "15", "16"], fallback: "13" },
   wrap: { key: "aether-wrap", allowed: ["on", "off"], fallback: "off" },
+  visual: { key: "aether-visual", allowed: ["on", "off"], fallback: "off" },
   debounce: { key: "aether-debounce", allowed: ["150", "300", "600", "1000"], fallback: "300" },
   strictDefault: { key: "aether-strict-default", allowed: ["on", "off"], fallback: "off" },
   desk: { key: "aether-desk", allowed: ["open", "closed"], fallback: "open" },

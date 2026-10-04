@@ -101,6 +101,51 @@ def vendor_wordmark() -> int:
     return size
 
 
+# The editor's visual mode sets its maths in JetBrains Mono, which has no MATH
+# table, so a browser can neither draw a radical with it nor grow a bracket
+# round a fraction.  These few glyphs -- and the MATH table that says how each
+# one stretches -- come from Fira Math, a monoline sans whose strokes sit with
+# the mono's (LaTeX's own hairline Latin Modern read faint beside it); the
+# letters, digits and every other sign stay mono.  OFL, pinned by sha256.
+STRETCH_URL = "https://github.com/firamath/firamath/releases/download/v0.3.4/FiraMath-Regular.otf"
+STRETCH_SHA256 = "2028cbd3dd4d8c0cf1608520eb4759956a83a67931d7b6d8e7c313520186e35b"
+STRETCH_LICENSE = "https://raw.githubusercontent.com/firamath/firamath/v0.3.4/LICENSE"
+STRETCH_TEXT = "()[]{}|‖√∑∫⌊⌋⌈⌉"
+STRETCH_FILE = "firamath-stretch.woff2"
+
+
+def vendor_stretch() -> int:
+    import hashlib
+
+    from fontTools import subset
+
+    with urllib.request.urlopen(STRETCH_URL, timeout=180) as resp:  # noqa: S310 - fixed host
+        blob = resp.read()
+    if hashlib.sha256(blob).hexdigest() != STRETCH_SHA256:
+        print("ERROR: Fira Math does not match its pinned sha256", file=sys.stderr)
+        return 0
+    source = DEST / "upstream.otf"
+    source.write_bytes(blob)
+    options = subset.Options()
+    options.flavor = "woff2"
+    options.layout_features = []
+    options.name_IDs = ["*"]
+    font = subset.load_font(str(source), options)
+    subsetter = subset.Subsetter(options)
+    subsetter.populate(text=STRETCH_TEXT)
+    subsetter.subset(font)
+    source.unlink()
+    if "MATH" not in font:
+        print("ERROR: the stretch subset lost its MATH table", file=sys.stderr)
+        return 0
+    subset.save_font(font, str(DEST / STRETCH_FILE), options)
+    with urllib.request.urlopen(STRETCH_LICENSE, timeout=60) as resp:  # noqa: S310 - fixed host
+        (DEST / "LICENSE-firamath.txt").write_bytes(resp.read())
+    size = (DEST / STRETCH_FILE).stat().st_size
+    print(f"  {STRETCH_FILE} ({size / 1024:.1f} KB, the glyphs visual mode stretches, from Fira Math)")
+    return size
+
+
 def vendor_math() -> int:
     import hashlib
 
@@ -161,6 +206,10 @@ def main() -> int:
     if not wordmark:
         return 1
     total += wordmark
+    stretch = vendor_stretch()
+    if not stretch:
+        return 1
+    total += stretch
 
     # OFL requires the licence to travel with the font.
     licence = members.get(f"{PREFIX}LICENSE")
