@@ -1472,8 +1472,23 @@ async function init() {
   if (params.get("view") === "guide" && params.get("page")) openGuidePage(params.get("page"), { push: false });
   if (params.get("install")) openPackLink(params.get("install"));
 
-  await showActive();
+  // The workspace is in place: show it now, and let the check (which in the
+  // static build may wait on the checker loading) say "Checking…" itself.
+  await showActive({ check: false });
+  finishBoot();
+  await runCheck();
   if (origin === "link") showToast("Loaded the proof from this link");
 }
 
-init();
+/** End the loading state (see .boot in styles.css); safe to call twice. */
+function finishBoot() {
+  const root = document.documentElement;
+  if (!("booting" in root.dataset)) return;
+  delete root.dataset.booting;
+  // The settle-in plays once, not on every later change of view.
+  root.dataset.booted = "";
+  setTimeout(() => delete root.dataset.booted, 400);
+}
+
+// A boot that fails still shows the app, with whatever it reached.
+init().finally(finishBoot);

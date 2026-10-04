@@ -11,6 +11,13 @@
         document.documentElement.dataset.theme = theme;
       })();
     </script>
+    <!-- The page's paper from the first frame: Firefox paints a new page
+         before its stylesheets arrive, so without this, moving between the
+         site and the app begins with a frame of white. -->
+    <style>
+      html { background: #ffffff; color-scheme: light; }
+      html[data-theme="dark"] { background: #0e1013; color-scheme: dark; }
+    </style>
     <link rel="stylesheet" href="{{ root }}app/static/fonts.css" />
     <link rel="stylesheet" href="{{ root }}assets/site.css" />
     <script type="module" src="{{ root }}assets/site.js"></script>

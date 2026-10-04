@@ -591,6 +591,7 @@ def run_checks() -> None:
     pack_checks()
     pack_author_checks()
     settings_checks()
+    boot_checks()
     visual_checks()
     zip_checks()
 
@@ -1239,6 +1240,21 @@ Proof:
     Step: (x + 1)^2 = x^2 + 2 * x + 2
 QED
 """
+
+
+def boot_checks() -> None:
+    print("== boot: the loading line gives way to the workspace ==")
+    fresh()
+    time.sleep(0.6)
+    state = js(
+        "({ booting: 'booting' in document.documentElement.dataset,"
+        " boot: getComputedStyle(document.querySelector('.boot')).display,"
+        " view: getComputedStyle(document.querySelector('#view-workspace')).visibility })"
+    )
+    check(state["booting"] is False, "the booting flag is cleared once the workspace is ready")
+    check(state["boot"] == "none" and state["view"] == "visible", f"the loading line is gone and the workspace shows ({state})")
+    paper = js("getComputedStyle(document.documentElement).backgroundColor")
+    check(paper in ("rgb(255, 255, 255)", "rgb(14, 16, 19)"), f"the page's paper is set before the stylesheets ({paper})")
 
 
 def visual_checks() -> None:
