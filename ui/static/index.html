@@ -29,8 +29,22 @@
         root.dataset.syntax = stored("aether-syntax", ["mono", "vivid"], "mono");
         root.style.setProperty("--editor-size", stored("aether-editor-size", ["12", "13", "14", "15", "16"], "13") + "px");
         root.dataset.desk = stored("aether-desk", ["open", "closed"], "open");
+        // Until main.js has the workspace ready the view shows a loading line,
+        // not an empty shell (see .boot in styles.css).  If the app never
+        // arrives, show what there is rather than nothing.
+        root.dataset.booting = "";
+        setTimeout(function () {
+          delete root.dataset.booting;
+        }, 10000);
       })();
     </script>
+    <!-- The page's paper from the first frame.  The stylesheets below set it
+         too, but Firefox paints a new page before they arrive, so without this
+         every visit from the site begins with a frame of white. -->
+    <style>
+      html { background: #ffffff; color-scheme: light; }
+      html[data-theme="dark"] { background: #0e1013; color-scheme: dark; }
+    </style>
     <!-- Vendored Web Awesome (see ui/vendor_webawesome.py).
          Deliberately NOT styles/webawesome.css: that file also pulls in
          styles/native.css, a global reset that restyles every native element
@@ -318,6 +332,15 @@
         <form id="settings-form" class="settings" onsubmit="return false"></form>
       </div>
     </main>
+
+    <!-- While the workspace opens (html[data-booting]): a layer of paper over
+         everything, with the loading line on it. -->
+    <div class="boot" role="status">
+      <div class="boot-mark">
+        <span class="boot-label">Loading</span>
+        <span class="boot-rule" aria-hidden="true"></span>
+      </div>
+    </div>
 
     <!-- The status bar: the verdict, where you are, and whether work is kept. -->
     <footer class="statusbar">
