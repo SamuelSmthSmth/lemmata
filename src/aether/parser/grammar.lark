@@ -46,8 +46,8 @@ simple_stmt: var_decl
 
 import_stmt: IMPORT_KW STRING
 
-var_decl: VAR_INTRO var_list ":" type_name (("with"i | SUCH_THAT) expr)?        -> var_decl_typed
-        | (VAR_INTRO | DEFINE_KW) CNAME "(" var_list ")" (REL_OP | IFF_OP) expr -> func_def
+var_decl: VAR_INTRO var_list ":" decl_type (("with"i | SUCH_THAT) expr)?        -> var_decl_typed
+        | (VAR_INTRO | DEFINE_KW | DEFINITION_HEAD) CNAME "(" var_list ")" (REL_OP | IFF_OP) expr -> func_def
         | VAR_INTRO var_ident REL_OP arith_expr BE_GIVEN?                       -> var_decl_cond
 
 assume_stmt: ASSUME_KW (CNAME ":")? expr
@@ -78,6 +78,10 @@ var_list:  var_ident ("," var_ident)*
 type_name: CNAME
          | "\\" "mathbb" "{" CNAME "}"
          | TYPE_SET
+
+// `Given f : Real -> Real`, `Let g : ℤ → ℤ`: a function between number types.
+?decl_type: type_name
+          | type_name ((IMPL_OP | TO_OP) type_name)+ -> function_type
 
 // -----------------------------------------------------------------------
 // Expression / proposition hierarchy
@@ -214,6 +218,8 @@ VAR_INTRO.2:    /let/i | /given/i | /fix/i | /take/i
                 | /(set|put)(?=\s+\S+\s*=)/i
 BE_GIVEN.2:     /be\s+given(?![a-zA-Z0-9_])/i
 DEFINE_KW.2:    /define/i | /definition/i
+// The notes' heading: `Definition:`, `Definition 2.6:`, `Definition 2.6 (Continuity):`.
+DEFINITION_HEAD.3: /definition(\s+\d+(\.\d+)*[a-z]?)?(\s*\([^)\n]*\))?\s*:/i
 ASSUME_KW.2:    /assume/i | /suppose/i | /hypothesize/i
 OBTAIN_KW.2:    /obtain/i | /choose/i | /pick/i
 SUCH_THAT.2:    /such that/i | /where/i | /satisfying/i

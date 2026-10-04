@@ -1,0 +1,27 @@
+<h1>From here to Lean</h1>
+<p class="lede">Lean is a proof assistant: it checks a proof down to the axioms, with no solver to trust. <strong>Show in Lean</strong>, at the end of the tool strip, states your proof in Lean&nbsp;4 with Mathlib, side by side with your own lines, so you can see what each line becomes and take it from there.</p>
+
+<h2>What each line becomes</h2>
+<table class="guide-table">
+  <thead><tr><th>You write</th><th>Lean says</th></tr></thead>
+  <tbody>
+    <tr><td><code>Claim: ∀ n : ℤ, Even(n) ⇒ …</code></td><td><code>theorem name : ∀ n : ℤ, Even n → … := by</code></td></tr>
+    <tr><td><code>Given n : Int</code> · <code>Assume h1: Even(n)</code></td><td><code>intro n</code> · <code>intro h1</code></td></tr>
+    <tr><td><code>Let δ = ε / 3</code></td><td><code>set δ : ℝ := ε / 3 with h</code></td></tr>
+    <tr><td><code>Obtain k : Int such that n = 2·k from h1</code></td><td><code>obtain ⟨k, hk⟩ : ∃ k : ℤ, n = 2 * k</code></td></tr>
+    <tr><td>a <code>Step:</code> chain</td><td>one <code>calc</code>, a line per step</td></tr>
+    <tr><td><code>Therefore</code> · <code>Since</code> · <code>By</code></td><td><code>have</code>, with your witness as <code>⟨w, _⟩</code></td></tr>
+    <tr><td><code>Case</code> blocks · <code>Base case</code> / <code>Inductive step</code></td><td>a split with a bullet per case · Lean&rsquo;s <code>induction … with</code></td></tr>
+    <tr><td><code>Define</code> · <code>Definition:</code></td><td><code>def</code>; a function argument is typed <code>ℝ → ℝ</code></td></tr>
+    <tr><td><code>Assume Group(G, op, e, inv)</code></td><td><code>{G : Type*} [Group G]</code>, with <code>*</code>, <code>1</code> and <code>⁻¹</code></td></tr>
+  </tbody>
+</table>
+<p>Limits become <code>Filter.Tendsto</code>, derivatives <code>deriv</code>, definite integrals <code>intervalIntegral</code>, sums <code>∑ k ∈ Finset.Icc a b</code>, and matrices <code>!![…]</code>. <span data-site-name>Lemmata</span>&rsquo;s <code>/</code> is exact division, so a fraction of integers is written in <code>ℝ</code>, where Lean&rsquo;s agrees.</p>
+
+<h2>Every gap is a sorry</h2>
+<p>Nothing is proved for you. Each step&rsquo;s proof is <code>sorry</code>: a gap Lean accepts with a warning, for its tactics to fill. The comment beside it says how <span data-site-name>Lemmata</span> checked the step and the tactic most likely to do the same in Lean: <code>ring</code> for algebra, <code>linarith</code> or <code>nlinarith</code> for inequalities, <code>omega</code> for divisibility, <code>group</code> in a group. A step that did not check keeps its red rail and says so: its Lean states what you claimed, which is not true.</p>
+<p>What has no faithful Lean, such as arithmetic with <code>∞</code> or an indefinite integral, is left as <code>sorry</code> too and named above the table. It is never guessed.</p>
+
+<h2>Taking it further</h2>
+<p><strong>Open in Lean&rsquo;s web editor</strong> loads the skeleton in Lean&rsquo;s own editor in your browser, Mathlib included: replace a <code>sorry</code> with the tactic its comment suggests and watch the gap close. <strong>Download .lean</strong> gives you the file for a Lean project of your own. Every example, every pack entry and every example in this Guide is compiled against Mathlib whenever the checker changes, so the skeleton compiles as given.</p>
+<p>Lean is a trademark of the Lean FRO; <span data-site-name>Lemmata</span> is not affiliated with it.</p>

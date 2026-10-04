@@ -12,6 +12,7 @@ So this module must stay importable without the server's machinery: no
 
 from __future__ import annotations
 
+import re
 import time
 from typing import Any, Mapping, Optional
 
@@ -181,6 +182,20 @@ class Engine:
 
             options = dict(payload)
             return export_report_latex(options.pop("source"), **options)
+        if kind == "lean":
+            from aether.core.lean_export import export_to_lean
+
+            from .site import NAME
+
+            # The skeleton's namespace is the product's name, as a Lean identifier.
+            namespace = re.sub(r"[^A-Za-z0-9_]", "", NAME.title().replace(" ", "")) or "Proof"
+            return export_to_lean(
+                payload["source"],
+                sources=payload.get("files"),
+                file_path=payload.get("path"),
+                citations=payload.get("citations"),
+                namespace=namespace if namespace[0].isalpha() else f"P{namespace}",
+            ).to_dict()
         if kind == "validate_pack":
             from aether.packs import validate_pack
 

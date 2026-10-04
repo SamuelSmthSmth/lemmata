@@ -15,6 +15,7 @@ export const GUIDE_PAGES = [
   { id: "notation", title: "Notation" },
   { id: "analysis", title: "Real analysis" },
   { id: "algebra", title: "Algebra" },
+  { id: "lean", title: "From here to Lean" },
   { id: "limits", title: "What the checker can decide" },
   { id: "keys", title: "Keyboard" },
 ];

@@ -17,7 +17,8 @@
     <tr><td><code>Case x &gt;= 0:</code></td><td>One case of a split; the cases must cover every possibility.</td></tr>
     <tr><td><code>Base case n = 0:</code> · <code>Inductive step:</code></td><td>A proof by induction.</td></tr>
     <tr><td><code>Subproof:</code></td><td>A nested scope: what is assumed inside is discharged at its end.</td></tr>
-    <tr><td><code>Define P(x) &lt;=&gt; …</code></td><td>A reusable predicate.</td></tr>
+    <tr><td><code>Define P(x) &lt;=&gt; …</code> · <code>Definition 2.6 (Name): …</code></td><td>A reusable predicate or function, headed as the notes head it. It may take a function: <code>Continuous(f, a)</code>.</td></tr>
+    <tr><td><code>Given f : ℝ → ℝ</code></td><td>An abstract function. Nothing is known about it but what you assume.</td></tr>
     <tr><td><code>import "lemmas.aether"</code></td><td>Use the theorems of another proof in your workspace.</td></tr>
   </tbody>
 </table>

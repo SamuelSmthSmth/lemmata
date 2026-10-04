@@ -19,7 +19,7 @@ from aether.core.ast import (
     LimitNode,
     NumberNode,
 )
-from aether.core.types import MathType, normalize_type_name
+from aether.core.types import MathType, normalize_type_name, split_function_type
 
 
 class ContextError(Exception):
@@ -171,8 +171,14 @@ def substitute_mapping(
             col=expr.col,
         )
     if isinstance(expr, FunctionCallNode):
+        # A parameter that is *called* (`f(x)` in `Continuous(f, a) <=> …`) and
+        # is bound to a function's name calls that function instead.
+        func = expr.func
+        target = mapping.get(func) if func not in bound else None
+        if isinstance(target, (SymbolNode, GreekSymbolNode)):
+            func = target.name
         return FunctionCallNode(
-            func=expr.func,
+            func=func,
             args=[substitute_mapping(a, mapping, bound) for a in expr.args],
             line=expr.line,
             col=expr.col,
@@ -218,10 +224,15 @@ class VarInfo:
     condition: Optional[ExprNode] = None
     #: The structure an ``Element`` belongs to (``G`` in ``Given a : G``).
     carrier: Optional[str] = None
+    #: A ``Function``'s argument types and result type (``Real -> Real``).
+    signature: Optional[tuple[tuple[MathType, ...], MathType]] = None
 
     @property
     def type_label(self) -> str:
-        """What the variable is declared as, for display: ``Int``, ``G``, ..."""
+        """What the variable is declared as, for display: ``Int``, ``G``, ``Real -> Real``."""
+        if self.signature is not None:
+            args, result = self.signature
+            return " -> ".join([t.value for t in args] + [result.value])
         return self.carrier or self.math_type.value
 
 
@@ -483,6 +494,16 @@ class ProofContext:
                 names.add(v.name)
         return names
 
+    def resolve_number_type(self, raw_type: str) -> MathType:
+        """A function type's part: a number type, or ``ValueError``."""
+        math_type = normalize_type_name(raw_type)
+        if math_type not in (MathType.Nat, MathType.Int, MathType.Rat, MathType.Real, MathType.Complex, MathType.Bool):
+            raise ValueError(
+                f"A function's argument and result types are number types (Nat, Int, Rat, Real, Complex), "
+                f"not {raw_type!r}."
+            )
+        return math_type
+
     def resolve_type(self, raw_type: str | MathType) -> tuple[MathType, Optional[str]]:
         """``(math_type, carrier)`` for a declared type name.
 
@@ -665,7 +686,15 @@ class ProofContext:
                 f"symbol '{name}' ({existing.math_type.value}) declared at scope depth {existing.scope_depth}."
             )
 
-        math_type, carrier = self.resolve_type(raw_type)
+        signature = None
+        parts = split_function_type(raw_type) if isinstance(raw_type, str) else None
+        if parts is not None:
+            *args, result = (self.resolve_number_type(p) for p in parts)
+            math_type, carrier, signature = MathType.Function, None, (tuple(args), result)
+        else:
+            math_type, carrier = self.resolve_type(raw_type)
+            if math_type == MathType.Function:
+                signature = ((MathType.Real,), MathType.Real)
         if carrier is not None and condition is None:
             # `Given a : G` says a is in G; Subgroup/NormalSubgroup reasoning uses it.
             condition = RelationNode(op="in", left=SymbolNode(name=name), right=SymbolNode(name=carrier))
@@ -676,6 +705,7 @@ class ProofContext:
             is_witness=is_witness,
             condition=condition,
             carrier=carrier,
+            signature=signature,
         )
         self.current_frame.variables[name] = info
 

@@ -796,6 +796,26 @@ console.log("registry checked");
   console.log(`typeset maths checked (${typeset}/${total} pack spans)`);
 }
 
+// --- Show in Lean (js/lean.js) --------------------------------------------------
+{
+  const { leanTokens, leanTokenLines, sourceTokens, leanEditorUrl, leanFilename, untranslatedNote } = await import(new URL("./static/js/lean.js", import.meta.url));
+  const tokens = leanTokens("  have s6 : n ^ 2 = 4 := by sorry  -- SymPy: try ring");
+  check(tokens.map((t) => t.text).join("") === "  have s6 : n ^ 2 = 4 := by sorry  -- SymPy: try ring", "Lean tokens rebuild the line exactly");
+  check(tokens.find((t) => t.text === "have")?.kind === "kw" && tokens.find((t) => t.text === "sorry")?.kind === "sorry", "Lean's keywords and sorry are told apart");
+  check(tokens[tokens.length - 1].kind === "comment" && tokens[tokens.length - 1].text.startsWith("-- SymPy"), "a -- comment runs to the end of the line");
+  check(!leanTokens("  intro ε hε").some((t) => t.kind === "kw" && t.text !== "intro"), "names are not keywords");
+  const block = leanTokenLines(["/-! Written by Lemmata.", "    the comment says -/", "namespace Lemmata"]);
+  check(block[0].every((t) => t.kind === "comment") && block[1].every((t) => t.kind === "comment"), "a block comment spans its lines, keywords and all");
+  check(block[2][0].kind === "kw", "and code resumes after it");
+  const src = sourceTokens("    Obtain k : Int such that n = 2 * k from h1");
+  check(src[1]?.kind === "kw" && src[1].text === "Obtain" && src.map((t) => t.text).join("") === "    Obtain k : Int such that n = 2 * k from h1", "a source line's keyword is marked and the line kept whole");
+  check(leanEditorUrl("theorem t : 1 = 1 := rfl").startsWith("https://live.lean-lang.org/#code=theorem%20t"), "the web editor link carries the code");
+  check(leanFilename("even-square.aether") === "even_square.lean" && leanFilename("") === "Proof.lean", "the download is named after the proof");
+  check(untranslatedNote([{ line: 2, what: "∞, which is not a real number" }]) === "Not translated, so left as sorry: ∞, which is not a real number (line 2).", "what was not translated is named with its line");
+  check(untranslatedNote([]) === "", "and nothing is said when everything translated");
+  console.log("Show in Lean checked");
+}
+
 console.log();
 if (failures.length) {
   console.log(`${failures.length} check(s) failed:`);

@@ -17,6 +17,30 @@ Proof:
     Therefore ∃ δ > 0, ∀ x ∈ ℝ, |x − 2| < δ ⇒ |3·x − 6| < ε [witness: ε / 3]
 QED</pre>
 
+<h2>Definitions about functions</h2>
+<p>State a definition the way the notes do, function argument and all, and use it both ways: assumed, it gives you its inside; claimed, it is proved by its definition, so <code>Given ε</code> and <code>Assume ε &gt; 0</code> are exactly what it licenses.</p>
+<pre class="try" data-expect="VALID">Definition 2.6 (Continuity): Continuous(f, a) <=> ∀ ε > 0, ∃ δ > 0, ∀ x ∈ ℝ, |x − a| < δ ⇒ |f(x) − f(a)| < ε
+Let g(x) = 3·x
+Theorem: "3x is continuous at 2"
+Claim: Continuous(g, 2)
+Proof:
+    Given ε : ℝ
+    Assume ε > 0
+    Subproof:
+        Given x : ℝ
+        Assume |x − 2| < ε / 3
+        Step: |g(x) − g(2)| = 3·|x − 2|
+        Step: < ε
+    Therefore ∃ δ > 0, ∀ x ∈ ℝ, |x − 2| < δ ⇒ |g(x) − g(2)| < ε [witness: ε / 3]
+QED</pre>
+<p>An abstract function is any function: only what you assume about it holds.</p>
+<pre class="try" data-expect="VALID">Definition: Bounded(f) <=> ∀ x ∈ ℝ, |f(x)| ≤ 1
+Given h : ℝ → ℝ
+Assume Bounded(h)
+Therefore |h(5)| ≤ 1</pre>
+<pre class="try" data-expect="INVALID">Given h : ℝ → ℝ
+Therefore |h(5)| ≤ 1</pre>
+
 <h2>Limits</h2>
 <p><code>lim(f, x, a)</code> or <code>\lim_{x \to a} (f)</code>; add <code>"+"</code> or <code>"-"</code> for one side, and use <code>oo</code> or <code>\infty</code> for limits at infinity. A limit that does not exist is refused with the reason: the one-sided limits differ, the expression oscillates, or it tends to +∞ on one side and −∞ on the other.</p>
 <pre class="try" data-expect="VALID">Step: lim((9 - x^2)/(x + 1), x, 2) = 5/3

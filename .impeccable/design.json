@@ -438,6 +438,14 @@
       "css": ".ds-cite-name{margin:0 0 4px;font:600 12px 'JetBrains Mono',ui-monospace,monospace;color:#16181d}.ds-cite-claim{display:block;margin-bottom:6px;font:12px 'JetBrains Mono',ui-monospace,monospace;color:#555b6a;word-break:break-word}.ds-cite-open{height:24px;margin-left:-8px;padding:0 8px;border:0;border-radius:2px;background:none;color:#16181d;font:12px 'JetBrains Mono',ui-monospace,monospace;cursor:pointer}.ds-cite-open:hover{background:#eff1f4}.ds-cite-open:focus-visible{outline:2px solid #0a5fbf;outline-offset:-2px}"
     },
     {
+      "name": "Show in Lean",
+      "kind": "custom",
+      "refersTo": "lean-row",
+      "description": "The proof beside its Lean 4 skeleton, read straight across: source lines on the dialog's raised surface, the Lean on paper, hairline-divided rows with no hover, and the auditor's rail on a line that did not check.",
+      "html": "<div class=\"ds-lean\" role=\"table\" tabindex=\"0\"><div class=\"ds-lean-row ds-lean-head\" role=\"row\"><span class=\"ds-lean-cell\">Your proof</span><span class=\"ds-lean-cell ds-lean-out\">Lean 4 · Mathlib</span></div><div class=\"ds-lean-row\" role=\"row\"><div class=\"ds-lean-cell\"><span class=\"ds-lean-line\"><span class=\"ds-lean-n\">5</span><code><span class=\"ds-kw\">Obtain</span> k : Int such that n = 2 * k from h1</code></span></div><div class=\"ds-lean-cell ds-lean-out\"><span class=\"ds-lean-line\"><span class=\"ds-lean-n\">13</span><code>  <span class=\"ds-kw\">obtain</span> ⟨k, h5⟩ : ∃ k : ℤ, n = 2 * k := <span class=\"ds-kw\">by</span></code></span><span class=\"ds-lean-line\"><span class=\"ds-lean-n\">14</span><code>    <span class=\"ds-sorry\">sorry</span>  <span class=\"ds-cm\">-- from h1</span></code></span></div></div><div class=\"ds-lean-row ds-lean-row--invalid\" role=\"row\"><div class=\"ds-lean-cell\"><span class=\"ds-lean-line\"><span class=\"ds-lean-n\">8</span><code><span class=\"ds-kw\">Step</span>: = 2 * (2 * k^2) + 1</code></span></div><div class=\"ds-lean-cell ds-lean-out\"><span class=\"ds-lean-line\"><span class=\"ds-lean-n\">18</span><code>    _ = 2 * (2 * k ^ 2) + 1 := <span class=\"ds-kw\">by</span> <span class=\"ds-sorry\">sorry</span>  <span class=\"ds-cm\">-- did not check</span></code></span></div></div></div>",
+      "css": ".ds-lean{max-width:900px;background:#f7f8f9;border-top:1px solid #dde1e6;font:12px/1.5 'JetBrains Mono',ui-monospace,monospace;color:#16181d}.ds-lean:focus-visible{outline:2px solid #0a5fbf;outline-offset:-2px}.ds-lean-row{position:relative;display:grid;grid-template-columns:minmax(0,5fr) minmax(0,7fr);border-bottom:1px solid #eceef1}.ds-lean-row:last-child{border-bottom:0}.ds-lean-row--invalid::before{content:'';position:absolute;left:0;top:0;bottom:0;width:2px;background:#be1824}.ds-lean-head{border-bottom:1px solid #dde1e6}.ds-lean-head .ds-lean-cell{padding:6px 12px 6px 14px;font-size:11px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:#555b6a}.ds-lean-head .ds-lean-out{background:none;border-left:1px solid #eceef1}.ds-lean-cell{min-width:0;padding:5px 12px 5px 14px}.ds-lean-out{background:#fff;border-left:1px solid #eceef1}.ds-lean-line{display:grid;grid-template-columns:3.5ch minmax(0,1fr);gap:10px}.ds-lean-n{text-align:right;font-size:11px;line-height:18px;color:#666c7a;font-variant-numeric:tabular-nums;user-select:none}.ds-lean-line code{font:inherit;white-space:pre-wrap;overflow-wrap:anywhere}.ds-kw{color:#0a5fbf}.ds-sorry{font-weight:700}.ds-cm{color:#666c7a}"
+    },
+    {
       "name": "Pane Head",
       "kind": "nav",
       "refersTo": "pane-head",
@@ -690,7 +698,8 @@
       "Do let the name stand as the mark: 𝐿emma𝑡𝛼 in the Wordmark face at 1.5em, static everywhere but the site nav, and no logo on any page.",
       "Do keep the registry's entry keys in quiet ink until a search, the URL or the pointer lights them, and set every proof it shows as the app's editor sets it in the mono scheme.",
       "Do give a hint's fix exactly one primary text button, labelled as the edit it makes, and set the hint itself as a sentence in ink after the quiet reason.",
-      "Do name a cited result once, as the notes name it, and use that name in the message, the Cited result label and the hypothesis label alike."
+      "Do name a cited result once, as the notes name it, and use that name in the message, the Cited result label and the hypothesis label alike.",
+      "Do set a translation beside its source row by row, the source on the raised surface and the code on paper (stacked on phones, the source on Paper Lowered above its code), showing every source line and carrying the auditor's rail on a line that did not check."
     ],
     "donts": [
       "Don't use green anywhere but a verdict.",
@@ -700,6 +709,7 @@
       "Don't introduce a display face, italics, a second sans, or text below 11px; the Wordmark face and its italics set the name and nothing else.",
       "Don't add drop shadows; floating layers separate by surface and border, and the selected-row inset ring is the only shadow.",
       "Don't put a button inside an auditor row; the row is the button, and its fixes live in Context & State and the editor tooltip.",
+      "Don't give a row a hover unless the row is interactive; a read-only row, like Show in Lean's, stays still.",
       "Don't fetch anything cross-origin (icons, fonts, scripts): the app makes no runtime network requests."
     ]
   }

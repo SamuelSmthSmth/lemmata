@@ -585,6 +585,7 @@ def run_checks() -> None:
     migration_checks()
     lint_and_template_checks()
     hint_and_citation_checks()
+    lean_checks()
     palette_checks()
     library_checks()
     pack_checks()
@@ -924,6 +925,25 @@ def palette_checks() -> None:
     check("2.18" in workspace()["path"], f"as a copy of the entry ({workspace()['path']!r})")
     check("2.18" in js("document.querySelector('#notes').textContent"), "with the entry beside it in Notes")
     ab("press", "Escape")
+
+
+def lean_checks() -> None:
+    print("== Show in Lean: the proof beside its skeleton ==")
+    ab("open", permalink("Let x : Real\nAssume x > 2\nStep: x^2 > 4\nStep: (x + 1)^2 = x^2 + 1"))
+    settle()
+    js("(document.getElementById('show-lean').click(), 'ok')")
+    for _ in range(80):
+        if js("document.querySelectorAll('#lean-rows .lean-row').length") > 0:
+            break
+        time.sleep(0.25)
+    rows = js("[...document.querySelectorAll('#lean-rows .lean-row')].map(r => [r.querySelector('.lean-src .lean-n')?.textContent ?? '', r.querySelector('.lean-out').textContent, r.className])")
+    check(any(src == "1" and "intro x" in out for src, out, _ in rows), "the declaration's row holds its intro")
+    check(any(src == "4" and "is-invalid" in cls and "did not check" in out for src, out, cls in rows), "the failing step keeps its rail and says so")
+    check(not js("document.getElementById('copy-lean').disabled"), "the actions wake once there is Lean")
+    url = js("(() => { let u = ''; const o = window.open; window.open = (h) => { u = h; return null; }; document.getElementById('open-lean').click(); window.open = o; return u; })()")
+    check(url.startswith("https://live.lean-lang.org/#code=import%20Mathlib"), "Open in Lean's web editor carries the code")
+    js("(document.getElementById('lean-dialog').open = false, 'ok')")
+    time.sleep(0.3)
 
 
 def hint_and_citation_checks() -> None:
@@ -1625,6 +1645,7 @@ def static_main() -> int:
         EXAMPLES.update({e["id"]: e["source"] for e in examples["entries"]})
         STARTING_SOURCE = EXAMPLES["even-square"]
         static_checks()
+        lean_checks()
         static_registry_checks()
     finally:
         ab("close")

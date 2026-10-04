@@ -50,7 +50,7 @@ Here are the core keywords you will use:
 | `Base case` / `Inductive step` | `Base case n = 0:`<br>`Inductive step:` | Opens mathematical induction subproofs. |
 | `Case` | `Case x >= 0:`<br>`Case x < 0:` | Splits into exhaustive cases. |
 | `Subproof:` | `Subproof:` | Opens a general nested subproof (e.g., for universal generalization or implication). |
-| `Define` | `Define CongruentMod(a, b, m) <=> Divides(m, a - b)` | Defines a reusable custom predicate. |
+| `Define` / `Definition:` | `Define CongruentMod(a, b, m) <=> Divides(m, a - b)`<br>`Definition 2.6 (Continuity): Continuous(f, a) <=> ∀ ε > 0, ∃ δ > 0, ∀ x ∈ ℝ, abs(x - a) < δ => abs(f(x) - f(a)) < ε` | Defines a reusable predicate or function. The notes' own heading works, with or without its number and name. A definition may take a function as an argument (§3). |
 | `QED` | `QED` | Finishes the proof and verifies that the theorem's `Claim:` has been achieved. |
 
 ---
@@ -65,6 +65,7 @@ Here are the core keywords you will use:
 - `Complex` — Complex numbers
 - `Bool` — Booleans (`true`, `false`)
 - The blackboard letters work too: `Let x : ℝ`, `Let n ∈ ℕ` (also `ℤ`, `ℚ`, `ℂ`).
+- **Functions are a type too.** `Given f : Real -> Real` (or `ℝ → ℝ`, `Int -> Int`, `Real -> Real -> Real` for two arguments) declares an abstract function: nothing is known about it but what you assume, so `Assume ∀ x ∈ ℝ, f(x) > 0` then `Therefore f(2) > 0` checks, and `Therefore f(2) > 0` alone does not. A definition can take one as an argument: with `Continuous(f, a)` defined as above, `Assume Continuous(h, 0)` is usable, `Let g(x) = 3 * x` then `Therefore Continuous(g, 2)` checks, and a theorem whose `Claim:` is `Continuous(g, 2)` is proved by its definition: `Given ε`, `Assume ε > 0`, then the `∃ δ`.
 - **A structure's carrier is a type.** After `Assume Group(G, op, e, inv)`, `Given a, b : G` (or `Let g ∈ G`) declares elements of `G`, and `forall x : G, ...` / `∀ x ∈ G, ...` quantify over it. `Subgroup(H, G, ...)` makes `H` a carrier as well. Any other unknown type name is still refused.
 
 ### Greek Letters & Variables
@@ -337,7 +338,7 @@ QED
 
 ---
 
-## 7. Web UI & Exporting to LaTeX / PDF
+## 7. Web UI, Exporting to LaTeX / PDF, and Lean
 
 Run `uv run python -m ui` and open `http://localhost:8000`. The rail on the left switches between four views — **Proofs**, **Library**, **Guide** and **Settings** — and the status bar at the foot always shows the verdict for the open proof. `Ctrl/Cmd+K` opens a command palette that finds commands, your files, and any Library entry by its reference (`2.18`).
 
@@ -371,6 +372,13 @@ Run `uv run python -m ui` and open `http://localhost:8000`. The rail on the left
    - **Copy LaTeX** / **Download .tex**: Copies or downloads clean, human-readable LaTeX markup, named after the theorem. This is always the sober `article` presentation, so it is the thing to paste into a paper.
    - **Download PDF**: The server compiles the proof in the background and delivers a ready-to-print `.pdf` directly to your browser. The PDF is a **designed** document: a full-bleed cover carrying the verdict, a findings section for every statement that failed (with its counterexample), the auditor as a step list, then the proof state, the session and the source. It is the one you would hand out.
    - The subtlety between the two: only the PDF is designed. The `.tex` you download stays the plain article, so what you edit is never a designed file.
+
+6. **Show in Lean:**
+   - The **Show in Lean** button at the end of the tool strip (or *Show in Lean* in the command palette) states your proof in **Lean 4 with Mathlib**, side by side with your own lines, each step beside the Lean it became.
+   - `Given` and `Assume` become `intro`, a `Step:` chain a `calc`, `Therefore` a `have`, `Obtain` an `obtain`, cases a split with one bullet each, and induction Lean's `induction`. Your definitions become Lean `def`s, a function argument typed `ℝ → ℝ`; a group becomes Mathlib's `Group` with `*`, `1` and `⁻¹`; limits, derivatives, integrals and matrices use Mathlib's `Filter.Tendsto`, `deriv`, `intervalIntegral` and `!![…]`.
+   - **Nothing is proved for you.** Each step's proof is `sorry`, a gap for Lean's tactics to fill; the comment beside it says how Lemmata checked the step and the tactic most likely to do the same (`ring`, `linarith`, `nlinarith`, `omega`, `group`). A step that did not check keeps its red rail and says so.
+   - What has no faithful Lean (arithmetic with `∞`, an indefinite integral, an unknown type) is left as `sorry` and named above the table, rather than guessed.
+   - **Copy Lean**, **Download .lean**, or **Open in Lean's web editor**, which has Mathlib, to start filling the gaps. Every example, pack entry and Guide example is compiled against Mathlib whenever the engine changes, so the skeleton you get compiles.
 
 For how each of these is put together — and the checks that keep them honest — see [`ui/README.md`](ui/README.md).
 
@@ -477,6 +485,13 @@ A `VALID` row checks out, and still does with **Strict Domain Checking** on. `IN
 | phrasing · `By h1, B` | VALID |  |
 | phrasing · `We have / Note that / Now / Clearly` | VALID |  |
 | phrasing · `It follows that / We get` | VALID |  |
+| function · `Given f : Real -> Real` | VALID |  |
+| function · `ℝ → ℝ, and other number types` | VALID |  |
+| function · `nothing is known about f unassumed` | INVALID | an abstract function is any function, so f(2) could be anything |
+| function · `Definition 2.6 (Name): heading` | VALID |  |
+| function · `a definition about a function, assumed` | VALID |  |
+| function · `a defined function as the argument` | VALID |  |
+| function · `Claim: a defined property, proved by its definition` | VALID |  |
 | grammar · `hash comments` | VALID |  |
 | grammar · `slash slash comments` | PARSE_ERROR | `#` and `--` each start a comment; `//` does not |
 | grammar · `CRLF line endings` | VALID |  |

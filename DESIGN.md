@@ -395,6 +395,25 @@ components:
   cited-result-claim:
     textColor: "{colors.ink-quiet}"
     typography: "{typography.control}"
+  lean-dialog:
+    backgroundColor: "{colors.paper-raised}"
+    width: "min(1180px, calc(100vw - 32px))"
+  lean-head:
+    backgroundColor: "{colors.paper-raised}"
+    textColor: "{colors.ink-quiet}"
+    typography: "{typography.label}"
+    padding: "6px 12px 6px 14px"
+  lean-row:
+    backgroundColor: "{colors.paper-raised}"
+    textColor: "{colors.ink}"
+    padding: "5px 12px 5px 14px"
+  lean-code:
+    backgroundColor: "{colors.paper}"
+    textColor: "{colors.ink}"
+    padding: "5px 12px 5px 14px"
+  lean-source-stacked:
+    backgroundColor: "{colors.paper-lowered}"
+    textColor: "{colors.ink}"
 ---
 
 <!-- Recorded from the shipped build at commit cdd8ca2 (ui/static/styles.css, index.html, js/). Verification at that commit: axe-core reports zero violations on every view, in both themes and at phone width; the impeccable finish review returned "pass with fixes", and all fixes are applied in cdd8ca2. -->
@@ -406,6 +425,8 @@ components:
 
 <!-- Wordmark and icon recorded from the shipped build (ui/static/fonts.css, ui/vendor_fonts.py, vendor/fonts/latinmodern-wordmark.woff2; ui/build_site.py wordmark(); web/partials/nav.html and footer.html; web/assets/site.css .wm*, site.js; ui/static/index.html, styles.css .rail-mark, js/site.js; ui/static/icon.svg, desktop/icon.svg; lemmata-packs web/shell.html; screenshots in .impeccable/review/wordmark/). An approved brand change requested by the user: there is no logo; the name, typeset as LaTeX sets it, is the mark. The icon is the open tombstone. -->
 <!-- Visual mode recorded from the shipped build (ui/static/visual-math.js, js/visual.js, js/settings.js; styles.css "Visual mode" block and .cm-math-open; fonts.css "Lemmata Stretch"; ui/vendor_fonts.py vendor_stretch, vendor/fonts/firamath-stretch.woff2; screenshots in .impeccable/review/visual-mode/), after the impeccable finish review returned "fix" and its seven fixes were applied in one batch; its verdict pass resolved six and returned "fix" for exact gutter alignment, a wrapped line's number, and a 10px script floor that contradicted the 11px minimum, all three then fixed (measured line-number markers; an 11px floor). No further review ran. User-approved direction: "keep using Monospace as much as possible", only the maths changes. An ordinary extension of the Workspace: "Stretch glyphs" under Typography, the Formal-Mono Rule's second scoped exception, "Visual Mode" under Components, and one Do and one Don't amended; nothing else changed. -->
+
+<!-- Show in Lean recorded from the shipped build (ui/static/styles.css "Show in Lean" block through its 760px media rules; index.html #show-lean and #lean-dialog; js/lean.js; js/main.js "Show in Lean"; screenshots in .impeccable/review/lean/). Verification: axe-core reports zero violations with the dialog open at 1440px in both themes (the one phone violation, .cm-scroller, predates the view and occurs with the dialog closed); the impeccable finish review returned "pass with fixes", and all fixes are applied. An ordinary extension of the Workspace: new entries are "Show in Lean" under Components, its lean-* component tokens, and one Do and one Don't; nothing else changed. -->
 
 # Design System: Lemmata
 
@@ -631,6 +652,17 @@ The open pack's head is its title in Entry Title type, a 12px mono meta line in 
 ### Pack Dialog
 A pack's details open in a paper dialog up to 760px wide. Fields sit in a two-column grid (one column on phones) under 11px uppercase legends; each entry is a hairline-divided row of its file name and the cells it is listed under. All inputs share the One Boundary. The footer sits below a 1px Rule edge and holds a prose status line (quiet while checking, red for problems, green for an export whose entries all checked) above the secondary install and primary export buttons. In the explorer, a folder that is a pack shows the word "pack" in 11px dim ink after its name, and its row actions gain a "Pack details" box icon drawn in the same 16px stroke family as rename and delete.
 
+### Show in Lean
+The proof beside the Lean 4 skeleton it states, read straight across, row by row.
+- **Entry:** a tool-strip icon button (a page split down the middle, drawn as a 14px inline SVG in the icon buttons' stroke family) with the tooltip "Show in Lean", and the same command in the palette.
+- **Dialog:** Web Awesome's dialog at up to 1180px (32px clear of the viewport), on its raised surface with a flush body. A prose lede in quiet ink at 13px, held to 78ch, names `sorry` in mono 600 ink and states the product name through `[data-site-name]`; when something was not translated, one sentence in ink says what and where.
+- **Table:** a focusable region (the 2px Proof Blue focus outline inset) under a 1px Rule edge. A sticky head row on the raised surface carries the two column labels ("Your proof", "Lean 4 · Mathlib") as 11px uppercase tracked labels in quiet ink, divided by a hairline. Columns run 5:7.
+- **Rows:** flush and hairline-divided like the auditor's, mono at 1.5 line height, each line a right-aligned dim tabular line number (unselectable) in a 3.5ch column, 10px from its text, which wraps rather than scrolls. The student's lines sit on the dialog's raised surface; the Lean is the code surface, on paper, behind a hairline. Every source line is shown: lines that became no Lean (`Proof:`, a blank) follow the line before them in Ink Dim, a line whose Lean is split around others appears again in Ink Dim, and Lean's own scaffolding (the header, `namespace`, a closing line) has an empty source cell. A row whose line did not check carries the auditor's 2px rail, red for invalid and amber for a caveat. Rows are not interactive and take no hover.
+- **Syntax:** both columns in the mono scheme: keywords in Proof Blue (the editor's CNL keywords on the left, Lean's declarations and tactics on the right), `sorry` in weight 700 ink, comments in Ink Dim, everything else ink.
+- **Messages:** while translating, one quiet prose line ("Translating to Lean…") stands in the rows; when there is no Lean, the line says why in red.
+- **Footer:** below a 1px Rule edge, the trademark line in 12px dim prose across the full width, then the actions: Copy Lean and Download .lean as secondary buttons and "Open in Lean's web editor" as the primary. All three are disabled until there is Lean.
+- **Phones (below 760px):** the columns stack: the head row is hidden, each source line sits on Paper Lowered above its Lean with a hairline between, scaffolding rows show only their Lean, the table drops its own scroll so the dialog scrolls as one, and the actions wrap and stretch to fill their rows.
+
 ### Notes Entry
 The reading pane's Notes tab: a dim source reference, the entry title in 14px mono 600, the statement in 13px prose, then the student's answer as a rail and a sentence (green when right, red when wrong).
 
@@ -688,6 +720,7 @@ The registry (repo lemmata-packs, rendered by tools/pages.py) is the app's Libra
 - **Do** give a hint's fix exactly one primary text button, labelled as the edit it makes, and set the hint itself as a sentence in ink after the quiet reason.
 - **Do** name a cited result once, as the notes name it, and use that name in the message, the Cited result label and the hypothesis label alike.
 - **Do** typeset only the mathematics in visual mode, in the mono and its syntax colours, and open it as source wherever the caret touches it.
+- **Do** set a translation beside its source row by row, the source on the raised surface and the code on paper (stacked on phones, the source on Paper Lowered above its code), showing every source line and carrying the auditor's rail on a line that did not check.
 
 ### Don't:
 - **Don't** use green anywhere but a verdict.
@@ -697,4 +730,5 @@ The registry (repo lemmata-packs, rendered by tools/pages.py) is the app's Libra
 - **Don't** introduce a display face, italics, a second sans, or text below 11px; the Wordmark face and its italics set the name and nothing else, and the Stretch glyphs only the marks visual mode must grow.
 - **Don't** add drop shadows; floating layers separate by surface and border, and the selected-row inset ring is the only shadow.
 - **Don't** put a button inside an auditor row; the row is the button, and its fixes live in Context & State and the editor tooltip.
+- **Don't** give a row a hover unless the row is interactive; a read-only row, like Show in Lean's, stays still.
 - **Don't** fetch anything cross-origin (icons, fonts, scripts): the app makes no runtime network requests.

@@ -1,0 +1,10 @@
+# Compiles every "Show me in Lean" skeleton Lemmata writes, against pinned
+# Mathlib.  `uv run python lean/generate.py` writes Generated.lean; CI then runs
+# `lake env lean Generated.lean`.  Raise Mathlib's rev and lean-toolchain together.
+name = "LemmataSkeletons"
+defaultTargets = []
+
+[[require]]
+name = "mathlib"
+scope = "leanprover-community"
+rev = "v4.34.1"

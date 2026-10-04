@@ -238,6 +238,14 @@
             </svg>
           </button>
           <wa-tooltip for="export-latex" placement="bottom">Export to LaTeX / PDF</wa-tooltip>
+          <button id="show-lean" class="icon-button-native" type="button" aria-label="Show this proof in Lean, side by side">
+            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <rect x="3" y="4" width="18" height="16" rx="2"></rect>
+              <path d="M12 4v16"></path>
+              <path d="M6 9h3M6 13h3M15 9h3M15 13h3"></path>
+            </svg>
+          </button>
+          <wa-tooltip for="show-lean" placement="bottom">Show in Lean</wa-tooltip>
         </div>
 
         <div class="layout">
@@ -345,6 +353,26 @@
         <wa-button id="copy-latex" size="s" appearance="filled-outlined">Copy LaTeX</wa-button>
         <wa-button id="download-tex" size="s" appearance="filled-outlined">Download .tex</wa-button>
         <wa-button id="download-pdf" size="s" variant="brand">Download PDF</wa-button>
+      </div>
+    </wa-dialog>
+
+    <wa-dialog id="lean-dialog" class="lean-dialog" label="Show in Lean" light-dismiss>
+      <div class="lean-body">
+        <p class="lean-lede">Your proof stated in Lean&nbsp;4 with Mathlib, line by line. Each <code>sorry</code> is a step left for Lean&rsquo;s tactics; the comment beside it says how <span data-site-name>Lemmata</span> checked it.</p>
+        <p id="lean-untranslated" class="lean-untranslated" hidden></p>
+        <div id="lean-table" class="lean-table" role="table" aria-label="Your proof beside its Lean" aria-busy="false" tabindex="0">
+          <div class="lean-row lean-row--head" role="row">
+            <span class="lean-cell" role="columnheader">Your proof</span>
+            <span class="lean-cell" role="columnheader">Lean 4 &middot; Mathlib</span>
+          </div>
+          <div id="lean-rows" role="rowgroup"></div>
+        </div>
+      </div>
+      <div slot="footer" class="dialog-actions lean-actions">
+        <p class="lean-legal">Lean is a trademark of the Lean FRO; <span data-site-name>Lemmata</span> is not affiliated with it.</p>
+        <wa-button id="copy-lean" size="s" appearance="filled-outlined">Copy Lean</wa-button>
+        <wa-button id="download-lean" size="s" appearance="filled-outlined">Download .lean</wa-button>
+        <wa-button id="open-lean" size="s" variant="brand">Open in Lean&rsquo;s web editor</wa-button>
       </div>
     </wa-dialog>
 
