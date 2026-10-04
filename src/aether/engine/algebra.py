@@ -245,7 +245,7 @@ _KNOWN_CALLABLES: frozenset[str] = frozenset(
         "conj", "conjugate", "re", "realpart", "im", "imagpart",
         "det", "determinant", "tr", "trace", "transpose", "dot", "norm",
         "inv", "inverse",
-        "even", "odd", "multipleof", "divides", "positive", "nonnegative",
+        "even", "odd", "multipleof", "divides", "positive", "nonnegative", "prime",
         "congruent", "cauchyriemann", "cauchy_riemann", "orthogonal",
     }
 )
@@ -591,7 +591,7 @@ def ast_to_sympy(
             s_lower = ast_to_sympy(lower_node, ctx, bound_symbols)
             s_upper = ast_to_sympy(upper_node, ctx, bound_symbols)
             s_body = ast_to_sympy(body_node, ctx, inner_bound)
-            return _refine_with_context(sp.Sum(s_body, (idx_sym, s_lower, s_upper)).doit(), ctx)
+            return _refine_with_context(_peel_shifted_sums(sp.Sum(s_body, (idx_sym, s_lower, s_upper)).doit()), ctx)
 
         if fn_name == "diff" and len(expr.args) >= 2:
             s_target = ast_to_sympy(expr.args[0], ctx, bound_symbols)
@@ -675,6 +675,47 @@ def ast_to_sympy(
         return sym_fn(*args)
 
     raise AlgebraConversionError(f"Cannot convert {type(expr).__name__} to SymPy expression.")
+
+
+def _shifted(upper: sp.Expr) -> Optional[tuple[sp.Expr, int]]:
+    """``k + c`` as ``(k, c)`` for a small positive whole c; None otherwise."""
+    shift, rest = sp.sympify(upper).as_coeff_Add()
+    if shift.is_Integer and 0 < shift <= 12 and not rest.is_number:
+        return rest, int(shift)
+    return None
+
+
+def _peel_shifted_sums(value: sp.Expr) -> sp.Expr:
+    """Write a sum to ``k + c`` as the sum to k plus its last c terms.
+
+    An inductive step says "the sum to k + 1 is the sum to k plus the next
+    term".  SymPy evaluates Σ 1/r² to ``harmonic(k + 1, 2)``, a special function
+    it never relates back to ``harmonic(k, 2)``, so that true step was refused.
+    Peeling the shift off both harmonic numbers and unevaluated sums puts the
+    two sides in the same terms, and the difference then cancels.
+    """
+    def peel_harmonic(h: sp.Expr) -> sp.Expr:
+        n, order = h.args[0], (h.args[1] if len(h.args) > 1 else sp.Integer(1))
+        base, c = _shifted(n)  # type: ignore[misc]
+        return sp.harmonic(base, order) + sp.Add(*[1 / (base + j) ** order for j in range(1, c + 1)])
+
+    def peel_sum(s: sp.Sum) -> sp.Expr:
+        body, (idx, lower, upper) = s.function, s.limits[0]
+        base, c = _shifted(upper)  # type: ignore[misc]
+        return sp.Sum(body, (idx, lower, base)) + sp.Add(*[body.subs(idx, base + j) for j in range(1, c + 1)])
+
+    try:
+        value = value.replace(
+            lambda e: isinstance(e, sp.harmonic) and _shifted(e.args[0]) is not None,
+            peel_harmonic,
+        )
+        value = value.replace(
+            lambda e: isinstance(e, sp.Sum) and len(e.limits) == 1 and _shifted(e.limits[0][2]) is not None,
+            peel_sum,
+        )
+    except Exception:
+        return value
+    return value
 
 
 def _refine_with_context(value: sp.Expr, ctx: ProofContext) -> sp.Expr:
