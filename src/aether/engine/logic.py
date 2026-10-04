@@ -950,6 +950,20 @@ def verify_induction_schema(
 ) -> Optional[LogicResult]:
     """Check whether a universal claim ``forall n : Nat, P(n)`` is established by
     a verified base case ``P(0)`` (or ``P(1)``) and inductive step ``forall k, P(k) => P(k + 1)``.
+
+    Returns None when the proof is not an induction at all (no base case or no
+    matching step), a valid result when the induction establishes the claim,
+    and an invalid one when it is an induction that does not, saying why:
+
+    - Induction is a rule about the natural numbers.  Over the integers or the
+      reals, a base case and a step leave everything below the base unproved
+      ("every integer is non-negative" has both), so the claim must range over
+      Nat.
+    - Nat starts at 0.  A base case at n = 1 leaves P(0) open, so it must hold
+      too: established in the proof, or provable directly (the sum of the first
+      0 squares is 0, so a base case at 1 still proves that formula for every
+      natural number).  Otherwise the claim is refused ("2^n >= 2 for every
+      natural n" has a base case at 1 and a valid step, and is false at 0).
     """
     expanded_claim = ctx.expand_user_functions(claim) or claim
     if not (isinstance(expanded_claim, QuantifierNode) and expanded_claim.quantifier == "forall"):
@@ -959,17 +973,17 @@ def verify_induction_schema(
     p_n = expanded_claim.formula
     hyps = ctx.all_hypotheses()
 
-    # 1. Check base case P(0) or P(1) in hypotheses
-    base_matched = False
-    for base_str in ("0", "1"):
-        p_base = substitute_expr(p_n, n_var, NumberNode(value=base_str))
-        if any(_exprs_match(h.proposition, p_base, ctx) for h in hyps):
-            base_matched = True
-            break
-    if not base_matched:
+    def established(prop: ExprNode) -> bool:
+        return any(_exprs_match(h.proposition, prop, ctx) for h in hyps)
+
+    # 1. The base case, P(0) or P(1), among the established facts.
+    p_zero = substitute_expr(p_n, n_var, NumberNode(value="0"))
+    base_zero = established(p_zero)
+    if not base_zero and not established(substitute_expr(p_n, n_var, NumberNode(value="1"))):
         return None
 
-    # 2. Check inductive step forall k, P(k) => P(k + 1) in hypotheses
+    # 2. The inductive step, forall k, P(k) => P(k + 1), among the established facts.
+    step_found = False
     for h in hyps:
         prop = h.proposition
         if (
@@ -985,13 +999,43 @@ def verify_induction_schema(
             k_plus_1 = BinaryOpNode(op="+", left=SymbolNode(name=k_var), right=NumberNode(value="1"))
             expected_step = substitute_expr(p_n, n_var, k_plus_1)
             if _exprs_match(ih_part, expected_ih, ctx) and _exprs_match(step_part, expected_step, ctx):
-                return LogicResult(
-                    valid=True,
-                    message=f"Verified by Mathematical Induction on {n_var} (base case + inductive step).",
-                    backend="Induction",
-                )
+                step_found = True
+                break
+    if not step_found:
+        return None
 
-    return None
+    # 3. It is an induction: is it one that proves this claim?
+    if _quantifier_type(expanded_claim.var_type, ctx, MathType.Real) != MathType.Nat:
+        return LogicResult(
+            valid=False,
+            message=(
+                f"Induction proves a claim about the natural numbers only, but this one is "
+                f"over {expanded_claim.var_type or 'an unstated type'}: a base case and an inductive "
+                f"step say nothing about the numbers below the base. State it as "
+                f"'forall {n_var} : Nat, …'."
+            ),
+            backend="Induction",
+        )
+    if not base_zero:
+        zero = verify_entailment(p_zero, ctx)
+        if not zero.valid:
+            return LogicResult(
+                valid=False,
+                message=(
+                    f"The base case is {n_var} = 1, but the claim is for every natural number, "
+                    f"and 0 is one: '{p_zero}' is not established. Prove it as a base case "
+                    f"{n_var} = 0; if it is false at 0, the claim itself needs changing."
+                ),
+                counterexample=zero.counterexample,
+                counterexample_dict=zero.counterexample_dict,
+                backend="Induction",
+            )
+
+    return LogicResult(
+        valid=True,
+        message=f"Verified by Mathematical Induction on {n_var} (base case + inductive step).",
+        backend="Induction",
+    )
 
 
 def _eliminate_divisibility_witnesses(
@@ -1167,6 +1211,7 @@ def verify_entailment(
     ctx: ProofContext,
     witness: Optional[ExprNode] = None,
     timeout_ms: int = 2500,
+    _induction: bool = True,
 ) -> LogicResult:
     """Verify whether *claim* follows logically from active hypotheses in *ctx*."""
     claim = ctx.expand_user_functions(claim) or claim
@@ -1179,10 +1224,25 @@ def verify_entailment(
             backend="Z3",
         )
 
-    # 0. Check Mathematical Induction schema for universal claims
-    ind_res = verify_induction_schema(claim, ctx)
+    # 0. Check Mathematical Induction schema for universal claims.  An
+    # induction the schema refuses may still hold for another reason (a claim
+    # over the integers the solver proves outright), so the claim gets the
+    # usual checks; if those fail too, the student hears why the induction did
+    # not prove it, not only that the solver could not.
+    ind_res = verify_induction_schema(claim, ctx) if _induction else None
     if ind_res is not None and ind_res.valid:
         return ind_res
+    if ind_res is not None:
+        fallback = verify_entailment(claim, ctx, witness=witness, timeout_ms=timeout_ms, _induction=False)
+        if fallback.valid:
+            return fallback
+        return LogicResult(
+            valid=False,
+            message=ind_res.message,
+            counterexample=ind_res.counterexample or fallback.counterexample,
+            counterexample_dict=ind_res.counterexample_dict or fallback.counterexample_dict,
+            backend="Induction",
+        )
 
     # Conjunction decomposition: A and B holds if both A and B hold
     if (
