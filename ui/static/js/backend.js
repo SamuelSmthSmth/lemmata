@@ -134,10 +134,10 @@ function timeoutResponse(strictDomains, started) {
 // ---------------------------------------------------------------------------
 
 export const browser = {
-  async check({ source, strictDomains, files, path, citations, signal }) {
+  async check({ source, strictDomains, showWorking = false, files, path, citations, signal }) {
     const started = performance.now();
     try {
-      return await job("check", { source, strict_domains: strictDomains, files, path, citations }, { signal });
+      return await job("check", { source, strict_domains: strictDomains, show_working: showWorking, files, path, citations }, { signal });
     } catch (error) {
       if (error instanceof Overran) return timeoutResponse(strictDomains, started);
       throw error;

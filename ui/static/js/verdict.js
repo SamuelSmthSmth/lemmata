@@ -1,7 +1,7 @@
 // The verdict pill in the topbar.
 
 import { dom } from "./dom.js";
-import { el, verdictClass } from "./format.js";
+import { el, verdictClass, verdictLabel } from "./format.js";
 
 // The pill keeps showing the previous verdict for the length of the debounce,
 // which for 300 ms is actively misleading: the proof on screen is no longer the
@@ -19,7 +19,7 @@ export function markStale() {
 export function renderVerdict(data) {
   clearStale();
   dom.verdict.className = `verdict ${verdictClass(data.verdict, data.parse_error)}`;
-  dom.verdict.textContent = data.verdict;
+  dom.verdict.textContent = verdictLabel(data.verdict, data.reports);
 
   const bits = [];
   if (data.verdict === "TIMEOUT") {

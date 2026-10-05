@@ -592,6 +592,7 @@ def run_checks() -> None:
     pack_author_checks()
     settings_checks()
     boot_checks()
+    working_checks()
     visual_checks()
     zip_checks()
 
@@ -1240,6 +1241,18 @@ Proof:
     Step: (x + 1)^2 = x^2 + 2 * x + 2
 QED
 """
+
+
+def working_checks() -> None:
+    print("== show your working: the switch re-checks with the option ==")
+    ab("open", permalink("Let x : Real\nStep: diff(x^2 * sin(x), x) = 2 * x * sin(x) + x^2 * cos(x)\n"))
+    state = settle()
+    check(state["verdict"] == "VALID", f"the product rule in one jump is valid by default ({state['verdict']})")
+    js("document.querySelector('#working').shadowRoot.querySelector('label').click(); 'ok'")
+    time.sleep(0.4)
+    state = settle()
+    check(state["verdict"] == "VALID (with warnings)", f"switching on Show working makes it a warning, not a domain one ({state['verdict']})")
+    check("product rule" in state["ctxHas"] or "product rule" in js("document.querySelector('#audit').textContent"), "the warning names the product rule")
 
 
 def boot_checks() -> None:

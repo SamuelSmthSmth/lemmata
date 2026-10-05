@@ -244,6 +244,15 @@ def main() -> int:
         check(step["source_line"] is not None, "steps carry source_line")
         check(step.get("diagnostic_range") is not None, "steps carry diagnostic_range")
 
+        print("== POST /api/check (show your working) ==")
+        jump = "Let x : Real\nStep: diff(x^2 * sin(x), x) = 2 * x * sin(x) + x^2 * cos(x)\n"
+        _, _, body = server.request("/api/check", "POST", {"source": jump, "strict_domains": False})
+        check(json.loads(body)["verdict"] == "VALID", "the product rule in one jump is valid by default")
+        _, _, body = server.request("/api/check", "POST", {"source": jump, "strict_domains": False, "show_working": True})
+        data = json.loads(body)
+        step = data["reports"][0]["results"][-1]
+        check(step["status"] == "WARNING" and "product rule" in step["message"], f"with show_working it is a warning naming the rule ({step['status']})")
+
         print("== POST /api/export/lean ==")
         _, _, body = server.request("/api/export/lean", "POST", {"source": by_id["even-square"]["source"]})
         lean = json.loads(body)

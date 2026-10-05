@@ -129,9 +129,10 @@ async function saveActive() {
   if (!file) return;
   const source = currentSource();
   const strict = dom.strict.checked;
-  if (file.source !== source || file.strict !== strict) {
+  const working = dom.working.checked;
+  if (file.source !== source || file.strict !== strict || Boolean(file.working) !== working) {
     try {
-      await ws.updateFile(file.id, { source, strict });
+      await ws.updateFile(file.id, { source, strict, working });
     } catch (error) {
       if (!warnedAboutStorage) {
         warnedAboutStorage = true;
@@ -207,6 +208,7 @@ async function runCheck() {
     const data = await checkProof({
       source,
       strictDomains: dom.strict.checked,
+      showWorking: dom.working.checked,
       files,
       path: file.path,
       citations,
@@ -296,6 +298,7 @@ async function showActive({ check = true } = {}) {
   }
   if (editor.getSource() !== file.source) editor.setContent(file.source);
   dom.strict.checked = file.strict;
+  dom.working.checked = Boolean(file.working);
   dom.editorPath.textContent = file.path;
   dom.statusFile.textContent = file.path;
   writePermalink(file.source, file.strict);
@@ -395,12 +398,16 @@ function strictDefault() {
   return getPref("strictDefault") === "on";
 }
 
+function workingDefault() {
+  return getPref("workingDefault") === "on";
+}
+
 async function newProof({ path = null, source = null, origin = null, exercise = null, open = true } = {}) {
   await saveActive();
   const folder = active() ? ws.dirname(active().path) : "";
   const finalPath = path ?? ws.freePath("Untitled", folder);
   const text = source ?? 'Theorem: "Untitled"\nProof:\n    \nQED\n';
-  const file = await ws.createFile({ path: finalPath, source: text, strict: strictDefault(), open });
+  const file = await ws.createFile({ path: finalPath, source: text, strict: strictDefault(), working: workingDefault(), open });
   // `initial` is what "Reset to its start" goes back to.
   await ws.updateFile(file.id, { initial: text, ...(origin ? { origin } : {}), ...(exercise ? { exercise } : {}) });
   setView("workspace");
@@ -701,13 +708,13 @@ async function importFiles(fileList) {
           if (!ACCEPTED_EXTENSIONS.test(entry.path)) continue;
           let path = ws.normalizePath(entry.path.replace(/\.(txt|md|proof)$/i, ".aether"));
           if (ws.pathProblem(ws.withExtension(path))) path = ws.freePath(`${ws.basename(path).replace(/\.aether$/, "")} (imported)`, ws.dirname(path));
-          added.push(await ws.createFile({ path, source: entry.text, strict: strictDefault(), open: false }));
+          added.push(await ws.createFile({ path, source: entry.text, strict: strictDefault(), working: workingDefault(), open: false }));
         }
       } else if (ACCEPTED_EXTENSIONS.test(file.name)) {
         const text = await readTextFile(file);
         const stem = file.name.replace(/\.(aether|txt|md|proof)$/i, "");
         const path = ws.pathProblem(`${stem}.aether`) ? ws.freePath(stem) : `${stem}.aether`;
-        added.push(await ws.createFile({ path, source: text, strict: strictDefault(), open: false }));
+        added.push(await ws.createFile({ path, source: text, strict: strictDefault(), working: workingDefault(), open: false }));
       } else {
         showToast(`“${file.name}” is not a proof file (.aether, .txt, .md), a .zip or a .pack.json`, { tone: "warning" });
       }
@@ -869,6 +876,11 @@ dom.templatesMenu.addEventListener("wa-select", (event) => {
 });
 
 dom.strict.addEventListener("change", () => {
+  saveActive();
+  runCheck();
+});
+
+dom.working.addEventListener("change", () => {
   saveActive();
   runCheck();
 });
@@ -1078,6 +1090,7 @@ function paletteItems() {
     { kind: "command", label: "Go to Settings", shortcut: "Alt+4", run: () => setView("settings") },
     { kind: "command", label: "Show or hide the reading pane", shortcut: "Alt+B", run: () => setDeskOpen(document.documentElement.dataset.desk !== "open") },
     { kind: "command", label: "Toggle strict domains", run: () => dom.strict.shadowRoot?.querySelector("label")?.click() },
+    { kind: "command", label: "Toggle show your working", keywords: "steps working product rule exam", run: () => dom.working.shadowRoot?.querySelector("label")?.click() },
     { kind: "command", label: "Switch light / dark theme", run: () => applyTheme(currentTheme() === "dark" ? "light" : "dark", { persist: true }) },
     { kind: "command", label: "Toggle syntax colours", run: () => applySyntax(currentSyntax() === "vivid" ? "mono" : "vivid", { persist: true }) },
     { kind: "command", label: "Toggle typeset maths", keywords: "visual latex render preview", run: () => setVisual(getPref("visual") !== "on") },
@@ -1458,7 +1471,7 @@ async function init() {
     // First visit: the starting example, beside its notes and the welcome card.
     const found = findEntry(STARTING_ENTRY);
     if (found) {
-      const file = await ws.createFile({ path: `Examples/${found.entry.title}.aether`, source: found.entry.source, strict: strictDefault(), open: true });
+      const file = await ws.createFile({ path: `Examples/${found.entry.title}.aether`, source: found.entry.source, strict: strictDefault(), working: workingDefault(), open: true });
       await ws.updateFile(file.id, { initial: found.entry.source, origin: STARTING_ENTRY });
       setDeskPanel("notes");
     }
