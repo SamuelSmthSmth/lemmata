@@ -2,6 +2,18 @@
 
 What changed between releases of Lemmata, newest first. The engine is the `aether` Python package; its public API (`ProofChecker`, `ProofReport`, `StepResult`, `StepStatus`, `ParseError`) stays backward compatible within these releases.
 
+## Unreleased
+
+### Proofs you can now write
+
+- **Several names in one quantifier**, as the notes write them: `forall a, b : Int, …`, `∀ a, b ∈ ℤ, …` and `∀ ε, δ > 0, …`. Each name gets the type or bound. The User Guide already used the first form, and it didn't parse.
+
+### Documentation
+
+- **The README** is a front door: what Lemmata is, a checked example, who it's for, and how to run it.
+- **The User Guide** has a new *Proof methods* section: deduction, cases, contradiction (√2), counterexample, and induction from a starting value and with recurrences, each with a proof that checks as written. *Checking options* brings Strict domains and Show your working together, and the app section covers the typeset view. The capability matrix is now §9.
+- **The AI reference** matches the 0.2 grammar and engine: the real grammar, the AST as it is, number theory, induction, case coverage, Show your working, and the current HTTP API.
+
 ## 0.2.0 (2026-10-06)
 
 The A Level release: induction as it's taught, number theory to go with it, and a mode that asks for the working an exam question wants. Undergraduate proofs keep working as before.

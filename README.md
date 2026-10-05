@@ -1,127 +1,115 @@
-# Lemmata — The Mathematical Proof Intern
+# Lemmata
 
-> Lemmata is the working name (formerly Aether). The engine ships as the `aether` Python package, and proofs are still `.aether` files.
+**A proof intern.** Write a proof the way your lecture notes write it, and Lemmata checks every line. When a step fails, it says why, and where it can, gives a counterexample.
 
-**Lemmata** is a lightweight, Controlled Natural Language (CNL) step-by-step mathematical proof checker designed for undergraduate pure mathematics (Real Analysis, Abstract Algebra, Number Theory, and Combinatorics).
+[Open it in your browser](https://lemmata.sous.systems/app/) · [Download for Linux, Windows or macOS](https://lemmata.sous.systems/download/) · [What's new](CHANGELOG.md)
 
-Instead of requiring formal type-theory compilers (like Lean 4 or Coq), Lemmata lets users write structured, human-readable mathematical proofs using natural deduction keywords (`Let`, `Given`, `Assume`, `Obtain`, `Step:`, `Therefore`, `Hence`, `Base case:`, `Inductive step:`, `QED`) paired with standard algebraic and logic expressions.
+```text
+Theorem: "A slip in the algebra"
+Proof:
+    Let x : Real
+    Step: (x + 1)^2 = x^2 + 2*x + 1
+    Step: (x + 3)^2 = x^2 + 6*x + 6
+QED
+```
 
-Behind the scenes, Lemmata orchestrates:
-- **SymPy**: Algebraic equivalence verification, pre-simplification domain obligation extraction (denominators $\neq 0$, radicands $\ge 0$), and concrete numeric counterexample search.
-- **Z3 SMT Solver**: Inequality verification, propositional and predicate logic, existential witness checks, exhaustiveness of case splits, and refutation models.
-- **Scope & Context Guardrails**: Enforcing strict monotonicity in inequality chains, preventing implicit existential variable capture, and forbidding illegal universal generalization over undischarged hypotheses.
+```text
+  L3   ✓ Let x : Real  [Context]
+  L4   ✓ Step: ((x + 1) ^ 2) = (((x ^ 2) + (2 * x)) + 1)  [SymPy]
+  L5   ❌ Step: ((x + 3) ^ 2) = (((x ^ 2) + (6 * x)) + 6)  [SymPy]
+         ↳ Counterexample at x=3: LHS = 36, RHS = 33
+Result: INVALID
+```
 
----
+## Who it's for
 
-## 📚 Documentation
+Students writing proofs, from A Level and Further Maths to undergraduate pure mathematics (Real Analysis, Algebra, number theory). You write in plain proof language, with the notes' own symbols:
 
-Guides for different audiences:
+- **Structure:** `Let`, `Given`, `Assume`, `Obtain`, `Step:`, `Since`, `By`, `Therefore`, `Base case`, `Inductive step`, `Case`, `QED`.
+- **Notation:** `∀ ε > 0, ∃ δ > 0`, `|x − 2|`, `n!`, `a⁻¹`, `-2 < k < 2`.
 
-1. **[User Guide & Cheat Sheet (`USER_GUIDE.md`)](USER_GUIDE.md)**
-   - **For Humans**: Designed for students and mathematicians writing proofs.
-   - Contains the 30-second mental model, keyword cheat sheet, notation reference, top 6 copy-paste proof templates (direct proof, mathematical induction, $\varepsilon$-$\delta$ continuity, proof by contradiction, cases, custom predicates), and common gotchas.
+There's no type theory to learn first, unlike Lean or Coq. When you're ready for those, *Show in Lean* turns your proof into a Lean 4 skeleton.
 
-2. **[AI & System Architecture Reference (`AI_REFERENCE.md`)](AI_REFERENCE.md)**
-   - **For AI & Engine Developers**: Exhaustive technical documentation.
-   - Complete formal grammar (Lark EBNF), AST dataclass taxonomy, scope manager mechanics, SymPy & Z3 solver algorithms, error taxonomy, Python public API, and REST API JSON schemas.
+## What it checks
 
-3. **[Browser Tooling (`TOOLING.md`)](TOOLING.md)**
-   - **For Contributors**: What the `agent-browser` CLI can and cannot do, established by sweeping it, plus the recipes used to verify this UI (screenshots, axe-core audits, HARs, layout diffs).
+- **Algebra** with SymPy, and **logic and inequalities** with Z3. A failing step comes back with its reason and, where one exists, a concrete counterexample.
+- **Every proof method A Level and the notes use:** deduction, cases (it checks they cover everything), contradiction (√2 is irrational, as the textbook writes it), counterexample, and induction. Induction works from any starting value, and with recurrences that use several earlier terms.
+- **Domains:** a division or square root that nothing rules out is flagged.
+- **Show your working (optional):** a step that skips what an exam question wants to see, like the product rule or a sum's closed form, gets a warning naming it.
+- **The proof state at every line:** the variables, the hypotheses, and what each step relied on.
 
----
+What it can and can't do is listed exactly, and checked on every change, in the [capability matrix](USER_GUIDE.md#9-capability-matrix-what-parses-verifies-and-refuses).
 
-## 🚀 Quick Start
+## The app
 
-### Installation & Environment Setup
-Lemmata uses `uv` for Python virtual environment management:
+- **Proofs:** a workspace of proofs, kept in your browser, with `import` between them. The editor has completion, templates, a symbol strip, and an optional typeset view of the maths.
+- **Library:** course packs (MTH2008 Real Analysis, MTH2010 Algebra, the notation set), installed and updated like packages. Anyone can publish one to the [pack registry](https://samuelsmthsmth.github.io/lemmata-packs/).
+- **Guide:** the handbook, with a *Try it* button on every example.
+- **Export** to LaTeX, PDF or Lean.
+
+It runs in the browser with nothing to install, as a desktop app that works offline, or self-hosted. There are no accounts, and your work stays on your machine.
+
+## Documentation
+
+| For | Read |
+| --- | --- |
+| Writing proofs | [`USER_GUIDE.md`](USER_GUIDE.md): the language, proof methods, templates and the capability matrix. The same material is in the app's Guide. |
+| What changed | [`CHANGELOG.md`](CHANGELOG.md) |
+| The engine's internals | [`AI_REFERENCE.md`](AI_REFERENCE.md): grammar, AST, how each kind of step is verified, the Python and HTTP APIs |
+| Contributing | [`AGENTS.md`](AGENTS.md): the rules, the API contract and every verification script. [`ui/README.md`](ui/README.md): how the app is built. [`desktop/README.md`](desktop/README.md): the desktop app. [`TOOLING.md`](TOOLING.md): driving a browser in tests. |
+| Design | [`PRODUCT.md`](PRODUCT.md) and [`DESIGN.md`](DESIGN.md) |
+
+## Running it from source
+
+Lemmata uses [`uv`](https://docs.astral.sh/uv/) and Python 3.12.
 
 ```bash
-# Clone the repository
-git clone https://github.com/username/aether.git
-cd aether
-
-# Verify dependencies (Python 3.12, lark, sympy, z3-solver, fastapi, uvicorn)
+git clone https://github.com/SamuelSmthSmth/lemmata.git
+cd lemmata
 uv sync
 ```
 
-### Running the CLI
-Verify a `.aether` proof file directly:
+Check a proof from the command line (`aether` and `lemmata` are the same command):
 
 ```bash
-uv run aether examples/sequence_bounds.aether
+uv run lemmata examples/sequence_bounds.aether
+uv run lemmata --help
 ```
 
-Or pass a proof via standard input:
-
-```bash
-uv run aether << 'EOF'
-Let x : Real
-Assume h: x > 2
-Step: (x^2 - 4) / (x - 2) = x + 2
-Step: > 4
-EOF
-```
-
-### Running the Web UI
-Lemmata includes a study app that runs locally in your browser:
+Run the app locally, at <http://127.0.0.1:8000>:
 
 ```bash
 uv run python -m ui
 ```
-Open your browser at `http://127.0.0.1:8000`.
 
-- **Proofs** — a workspace of many proofs in folders and tabs, kept in your browser (IndexedDB), with `import` between them. A CodeMirror 6 editor with completion, proof templates, a symbol strip, and failing steps marked in the gutter; the step auditor and the context inspector beside it.
-- **Library** — a pack manager for course packs: MTH2008 (Real Analysis) and MTH2010 (Algebra) transcribed from the lecture notes and keyed to their own numbering, the notes' notation and its traps, and the worked examples. Install, uninstall, update and export packs, install one from a `.pack.json`, or make a folder of your own proofs into a pack. Open an entry beside your own copy of its proof, open a trap as an exercise, or import a proved theorem into your own proof.
-- **Packs from the registry** — search the public [pack registry](https://github.com/SamuelSmthSmth/lemmata-packs) from the Library and install what others have published; every entry there is checked before it is listed.
-- **Guide** — the handbook in the app, with a *Try it* button on every example and the live capability matrix.
-- **Settings**, a command palette (`Ctrl/Cmd+K`), LaTeX/PDF export, and a `.zip` backup of the whole workspace.
+Every check runs in a worker process under a time budget. A step the solver cannot settle reports `TIMEOUT` instead of hanging.
 
-Every check runs in a worker process under a hard time budget, so a step the solver cannot settle reports `TIMEOUT` instead of hanging. Nothing leaves your machine. See [`ui/README.md`](ui/README.md) for how it is built.
-
-The same app also builds as a **static site** with the checker running in the browser (Pyodide), with no server, for hosting anywhere:
+Build the static site, with the checker running in the browser via Pyodide, to host anywhere:
 
 ```bash
 uv run python ui/vendor_pyodide.py && uv run python ui/build_static.py
 python -m http.server --directory dist
 ```
 
-The public site, [lemmata.sous.systems](https://lemmata.sous.systems), is that build at `/app/` inside a landing page, downloads, and the privacy, terms and cookies pages (`web/`; `uv run python ui/build_site.py` writes all of it to `dist/`). The command-line checker installs with `curl -fsSL https://lemmata.sous.systems/install.sh | sh` (or `lemmata` from a checkout: `uv run lemmata proof.aether`).
+The public site is `uv run python ui/build_site.py`: the app at `/app/` inside the landing, download and legal pages from `web/`. The desktop app is the same build in a Tauri window. See [`desktop/README.md`](desktop/README.md).
 
-**Download:** [lemmata.sous.systems/download](https://lemmata.sous.systems/download/), or the [latest release](https://github.com/SamuelSmthSmth/lemmata/releases/latest) (Linux, Windows, macOS).
+## Checks
 
-And as a **desktop app** (Tauri; the same static build in a native window,
-offline from the first launch). See [`desktop/README.md`](desktop/README.md):
-
-```bash
-uv run python desktop/build.py      # installers for this OS (needs Rust and Node)
-```
-
----
-
-## 🧪 Verification & Testing
-
-Run all automated test suites:
+Every claim the repo makes is checked by a script. The main ones:
 
 ```bash
-# Run engine unit and integration tests, including the lecture-note corpora
-uv run pytest -v
-
-# Verify bundled UI examples match engine verdicts (19 examples)
-uv run python ui/verify_examples.py
-
-# Verify the documented CNL capability matrix (88 claims)
-uv run python ui/verify_capabilities.py
-
-# Verify FastAPI server and export endpoints (including PDF compilation)
-uv run python ui/verify_server.py
-
-# Verify CodeMirror tokenizer and frontend assets
-node ui/verify_frontend.mjs
-
-# Verify real-browser behaviour (editor, workspace, Library, palette, settings)
-uv run python ui/verify_browser.py
+uv run pytest -q                         # the engine and the lecture-note corpora
+uv run python ui/verify_examples.py      # each bundled example gives its advertised verdict
+uv run python ui/verify_capabilities.py  # the capability matrix, and that USER_GUIDE.md's copy matches it
+uv run python ui/verify_server.py        # the HTTP API, exports and the Guide's examples
+node ui/verify_frontend.mjs              # the editor's tokenizer, module graph and frontend rules
+uv run python ui/verify_browser.py       # the app in a real browser
 ```
+
+The full table, including the static build, the public site, the desktop app and Pyodide, is in [`AGENTS.md`](AGENTS.md#5-verification--tooling). CI also compiles every Lean skeleton the repo pins.
 
 ## Licence
 
-The code is licensed under [Apache-2.0](LICENSE). The course packs in `courses/` are under CC BY-SA 4.0 (see [`courses/LICENSE.md`](courses/LICENSE.md)). They are our own transcriptions; the original lecture notes are not distributed.
+The code is [Apache-2.0](LICENSE). The course packs in `courses/` are CC BY-SA 4.0 (see [`courses/LICENSE.md`](courses/LICENSE.md)). They are our own transcriptions; the original lecture notes are not distributed.
+
+The engine is the `aether` Python package and proofs are `.aether` files. Those names are kept for compatibility; *Lemmata* is the product name.

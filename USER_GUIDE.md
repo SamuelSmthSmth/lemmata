@@ -1,8 +1,19 @@
 # Lemmata Proof Author's Handbook & Cheat Sheet
 
-Welcome to **Lemmata**, the lightweight, step-by-step mathematical proof intern designed for undergraduate pure mathematics (Real Analysis, Calculus & ODEs, Abstract Algebra, Number Theory, and Linear Algebra).
+Welcome to **Lemmata**, a step-by-step proof checker for students writing proofs: from A Level Maths and Further Maths (proof by deduction, contradiction, counterexample and induction) to undergraduate pure mathematics (Real Analysis, Calculus & ODEs, Abstract Algebra, Number Theory, and Linear Algebra).
 
-Instead of requiring you to learn arcane type theory or complex interactive theorem provers (like Lean 4 or Coq), Lemmata lets you write **Controlled Natural Language (CNL)** proofs using familiar English keywords (`Given`, `Assume`, `Obtain`, `Step:`, `Therefore`, `QED`) paired with standard mathematical notation.
+You don't need to learn type theory or an interactive theorem prover like Lean 4 or Coq first. You write the proof in **Controlled Natural Language (CNL)**: familiar English keywords (`Given`, `Assume`, `Obtain`, `Step:`, `Therefore`, `QED`) with ordinary mathematical notation. Lemmata checks every line, and says why a line fails.
+
+**Contents:**
+1. Quick Start
+2. The Keyword Cheat Sheet
+3. Mathematical Notation
+4. Step Justifications & Proof Libraries
+5. Proof Methods: deduction, cases, contradiction, counterexample, induction
+6. Proof Templates
+7. What It Checks, Checking Options, and Common Traps
+8. The App, and Exporting to LaTeX / PDF and Lean
+9. Capability Matrix
 
 ---
 
@@ -136,7 +147,8 @@ Type standard LaTeX Greek letters:
 - Quantifiers:
   - Universal: `forall x : Real, ...` (or `∀ x ∈ ℝ, ...`)
   - Existential: `exists k : Int, ...` (or `∃ k ∈ ℤ, ...`)
-  - **Bounded, as the notes write them:** `forall \epsilon > 0, ...` means `forall \epsilon, \epsilon > 0 => ...`, and `exists \delta > 0, ...` means `exists \delta, \delta > 0 and ...`. So Definition 2.6 reads `∀ ε > 0, ∃ δ > 0, ∀ x ∈ ℝ, |x − x0| < δ ⇒ |f(x) − L| < ε`.
+  - Several names at once: `forall a, b : Int, ...` (or `∀ a, b ∈ ℤ, ...`) means `forall a : Int, forall b : Int, ...`
+  - **Bounded, as the notes write them:** `forall \epsilon > 0, ...` means `forall \epsilon, \epsilon > 0 => ...`, and `exists \delta > 0, ...` means `exists \delta, \delta > 0 and ...`. So Definition 2.6 reads `∀ ε > 0, ∃ δ > 0, ∀ x ∈ ℝ, |x − x0| < δ ⇒ |f(x) − L| < ε`. A bound after several names bounds each: `∀ ε, δ > 0, ...`.
 - Unicode from typeset notes is accepted throughout: `−` (minus), `·` and `×`, `∈ ∉ ⊂ ⊆ ∪ ∩ ∅`, `≡`, `√`, `∞`, superscripts `x²` and `a⁻¹`.
 - Built-in Number Theory Predicates:
   - `Even(x)` $\iff \exists k \in \mathbb{Z}, x = 2k$
@@ -152,17 +164,6 @@ Type standard LaTeX Greek letters:
 - `Obtain p, q : Int such that … from h` unpacks several witnesses at once.
 
 ---
-
-### Show your working
-
-The checker can do a lot in one line. `diff(x^2 * sin(x), x) = 2*x*sin(x) + x^2*cos(x)` checks, and so do a series in closed form and `MultipleOf(n^3 - n, 6)`. That is right, but an exam question wants the working. With **Show your working** on (`ProofChecker(show_working=True)`), such a step is a warning that says what is expected:
-
-- a derivative or integral that needs the product, quotient or chain rule, or integration by parts or substitution, done in one step;
-- a sum to a variable bound written in closed form, which needs induction or the method of differences;
-- a limit evaluated straight from an indeterminate form, which needs the algebra first;
-- a divisibility settled only by checking every remainder, which needs the cases.
-
-Writing the working out passes: `diff(x^2 * sin(x), x) = diff(x^2, x) * sin(x) + x^2 * diff(sin(x), x)`, then `= 2*x*sin(x) + x^2*cos(x)`. Standard results, including linear insides like `sin(3x)` and `e^(2x)`, may be written straight down. The option is off by default and then changes nothing.
 
 ## 4. Step Justifications & Proof Libraries
 
@@ -228,7 +229,133 @@ Where the file is looked for: in the web app, first among the proofs in your wor
 
 ---
 
-## 5. Top Proof Templates (Copy & Adapt)
+## 5. Proof Methods
+
+These are the methods A Level and Further Maths name, and that undergraduate proofs are built from. Each example here checks as written; paste it into the app and change a line to see what a mistake looks like.
+
+### Proof by deduction
+
+Start from what you are given and work forward to the claim. Name the general objects with `Given`, state what you know with `Assume`, unpack a definition with `Obtain`, and do the algebra in `Step:` lines:
+
+```text
+Theorem: "The sum of two odd numbers is even"
+Claim: forall m, n : Int, Odd(m) and Odd(n) => Even(m + n)
+Proof:
+    Given m, n : Int
+    Assume hm: Odd(m)
+    Assume hn: Odd(n)
+    Obtain a : Int such that m = 2 * a + 1 from hm
+    Obtain b : Int such that n = 2 * b + 1 from hn
+    Step: m + n = (2 * a + 1) + (2 * b + 1)
+    Step: = 2 * (a + b + 1)
+    Therefore Even(m + n)
+QED
+```
+
+`QED` checks that what you reached is the `Claim:`. Here, the `Given` and `Assume` lines discharge the `forall` and the `=>`.
+
+### Proof by exhaustion (cases)
+
+Split with `Case`, one indented block per case, and draw the conclusion after the last one. The cases must cover every possibility between them: `Even(n)` and `Odd(n)`, `x >= 0` and `x < 0`, or `n = 0`, `n = 1` and `n >= 2` for a natural number.
+
+```text
+Theorem: "n^2 + n is even"
+Claim: forall n : Int, Even(n^2 + n)
+Proof:
+    Given n : Int
+    Case Even(n):
+        Obtain k : Int such that n = 2 * k
+        Step: n^2 + n = 2 * (2 * k^2 + k)
+        Therefore Even(n^2 + n)
+    Case Odd(n):
+        Obtain k : Int such that n = 2 * k + 1
+        Step: n^2 + n = 2 * (2 * k^2 + 3 * k + 1)
+        Therefore Even(n^2 + n)
+    Therefore Even(n^2 + n)
+QED
+```
+
+Leave out the odd case and the conclusion is a **warning**, even though it is true: "the cases (Even(n)) do not cover every possibility (n=3 is in none of them) … Add the missing case." A mark scheme would mark that proof down, so the checker does too.
+
+### Proof by contradiction
+
+Open a `Subproof:`, assume the opposite, and reach `Contradiction`. Afterwards, the negation of what you assumed holds. Here is the textbook proof that √2 is irrational, written as the textbook writes it:
+
+```text
+Theorem: "The square root of 2 is irrational"
+Claim: Irrational(sqrt(2))
+Proof:
+    Subproof:
+        Assume h: Rational(sqrt(2))
+        Obtain p, q : Int such that q > 0 and Coprime(p, q) and sqrt(2) = p / q from h
+        Step: p^2 = 2 * q^2
+        Therefore Even(p^2)
+        Therefore Even(p)
+        Obtain k : Int such that p = 2 * k
+        Step: 4 * k^2 = 2 * q^2
+        Step: q^2 = 2 * k^2
+        Therefore Even(q^2)
+        Therefore Even(q)
+        Therefore not Coprime(p, q)
+        Therefore Contradiction
+    Therefore not Rational(sqrt(2))
+    Hence Irrational(sqrt(2))
+QED
+```
+
+`Rational(x)` means $x = p/q$ in lowest terms (`Coprime(p, q)`, $q > 0$), which is exactly what the argument contradicts. Every step is still checked. Skip straight to `Therefore Contradiction` and the proof is refused. Run the same argument for √4 and it fails at the line that is false ($q^2 = 2k^2$).
+
+### Disproof by counterexample
+
+To show a statement is false, exhibit one case where it fails. Name the value with `Let`, and show it breaks the claim:
+
+```text
+Theorem: "n^2 + n + 41 is not always prime"
+Proof:
+    Let n = 40
+    Step: n^2 + n + 41 = 41 * 41
+    Therefore Divides(41, n^2 + n + 41)
+    Hence not Prime(n^2 + n + 41)
+QED
+```
+
+Lemmata finds counterexamples itself as well. A false `Step:` or `Therefore` comes back with values that break it (`Counterexample at x=3: LHS = 36, RHS = 33`), so trying to *prove* a false claim is often the quickest way to find the case that disproves it.
+
+### Proof by induction
+
+`Base case n = …:` and `Inductive step:` each open a block. The inductive step introduces `k`, assumes the claim for `k` (the inductive hypothesis), and proves it for `k + 1`. The conclusion after both is the `forall`. [Template 2](#template-2-mathematical-induction-3n---1-is-divisible-by-2) is a complete divisibility proof.
+
+#### Induction from a starting value, and recurrences
+
+A claim for "every positive integer" or "every $n \ge 5$" puts the start in the claim, as a guard: `forall n : Nat, n >= 5 => P(n)`. The base case is then `n = 5`. The inductive step may assume anything that follows from $k \ge 5$ (`Assume hk: k >= 5`, or `Given k : Nat where k >= 5`) alongside the hypothesis, in any order. Over the integers, induction needs a starting value (`forall n : Int, n >= -2 => …`). Without one, the base case and the step say nothing about the numbers below it.
+
+A sequence the question defines is declared as a function. Its first values and recurrence are its definition, and the verdict names them. Here the recurrence uses one earlier term, so one base case does; a recurrence that uses two earlier terms (`u(n + 2) = u(n + 1) + u(n)`) needs two base cases, and an inductive step that assumes the claim for both `k` and `k + 1`.
+
+```text
+Theorem: "A recurrence"
+Claim: forall n : Nat, n >= 1 => u(n) = 2^(n - 1) + 1
+Proof:
+    Given u : Nat -> Int
+    Assume u1: u(1) = 2
+    Assume rec: forall n : Nat, n >= 1 => u(n + 1) = 2 * u(n) - 1
+    Base case n = 1:
+        Step: u(1) = 2^0 + 1
+    Inductive step:
+        Given k : Nat
+        Assume hk: k >= 1
+        Assume ih: u(k) = 2^(k - 1) + 1
+        Step: u(k + 1) = 2 * u(k) - 1
+        Step: = 2 * (2^(k - 1) + 1) - 1
+        Step: = 2^k + 1
+    Therefore forall n : Nat, n >= 1 => u(n) = 2^(n - 1) + 1
+QED
+```
+
+State a recurrence from where the sequence starts (`n >= 1` above). Stated for every natural number, it also applies at $n = 0$, where $u(1) = 2u(0) - 1$ forces $u(0) = \tfrac32$. Definitions that contradict each other are refused.
+
+---
+
+## 6. Proof Templates (Copy & Adapt)
 
 ### Template 1: Direct Algebraic Proof (Even Square Theorem)
 ```text
@@ -270,34 +397,6 @@ Proof:
     Therefore forall n : Nat, MultipleOf(3^n - 1, 2)
 QED
 ```
-
-#### Induction from a starting value, and recurrences
-
-A claim for "every positive integer" or "every $n \ge 5$" puts the start in the claim, as a guard: `forall n : Nat, n >= 5 => P(n)`. The base case is then `n = 5`. The inductive step may assume anything that follows from $k \ge 5$ (`Assume hk: k >= 5`, or `Given k : Nat where k >= 5`) alongside the hypothesis, in any order. Over the integers, induction needs a starting value (`forall n : Int, n >= -2 => …`). Without one, the base case and the step say nothing about the numbers below it.
-
-A sequence the question defines is declared as a function. Its first values and recurrence are its definition, and the verdict names them. A recurrence that uses two earlier terms needs two base cases:
-
-```text
-Theorem: "A recurrence"
-Claim: forall n : Nat, n >= 1 => u(n) = 2^(n - 1) + 1
-Proof:
-    Given u : Nat -> Int
-    Assume u1: u(1) = 2
-    Assume rec: forall n : Nat, n >= 1 => u(n + 1) = 2 * u(n) - 1
-    Base case n = 1:
-        Step: u(1) = 2^0 + 1
-    Inductive step:
-        Given k : Nat
-        Assume hk: k >= 1
-        Assume ih: u(k) = 2^(k - 1) + 1
-        Step: u(k + 1) = 2 * u(k) - 1
-        Step: = 2 * (2^(k - 1) + 1) - 1
-        Step: = 2^k + 1
-    Therefore forall n : Nat, n >= 1 => u(n) = 2^(n - 1) + 1
-QED
-```
-
-State a recurrence from where the sequence starts (`n >= 1` above). Stated for every natural number, it also applies at $n = 0$, where $u(1) = 2u(0) - 1$ forces $u(0) = \tfrac32$. Definitions that contradict each other are refused.
 
 ### Template 3: Real Analysis $\varepsilon$-$\delta$ Continuity Proof
 ```text
@@ -359,7 +458,7 @@ QED
 
 ---
 
-## 6. What the Proof Intern Checks (and Common Traps)
+## 7. What It Checks, Checking Options, and Common Traps
 
 1. **Equational & Inequality Chaining Rules:**
    - In a chain (`Step: a <= b`, `Step: = c`, `Step: < d`), directions must remain strictly monotonic.
@@ -367,7 +466,7 @@ QED
 2. **Domain Obligations:**
    - Dividing by an expression $B$ requires $B \neq 0$.
    - Square rooting $\sqrt{A}$ requires $A \ge 0$.
-   - If not guarded by an active assumption (`Assume x != 2`), Lemmata emits a domain warning (or a hard error if **Strict Domain Checking** is enabled).
+   - If not guarded by an active assumption (`Assume x != 2`), Lemmata emits a domain warning (or a hard error with [Strict domains](#checking-options) on).
    - Each distinct obligation is reported once, however many times the offending sub-expression occurs.
 3. **Implicit Variable Capture Guard:**
    - `Obtain k : Int ...` will be rejected if variable `k` is already in scope. Always pick a fresh witness name!
@@ -377,12 +476,31 @@ QED
    - When an algebraic or inequality step is wrong, Lemmata calculates an exact numeric counterexample (e.g. `Counterexample at x=3: LHS = 16, RHS = 10`), displayed in the auditor.
 6. **What the Solver Cannot Decide:**
    - The SMT backend has no theory of `exp`, `log`, `sin`, `cos` or `tan`. It is given only true facts about their *ranges* — `-1 <= sin, cos <= 1`, `exp(t) > 0` and `exp(t) >= 1 + t`, `log(t) <= t - 1` for `t > 0`, `cosh >= 1`, `|tanh| < 1` — so `Step: exp(x) > 0` and `Step: |x * sin(1/x)| <= |x|` are proved, but an inequality needing more than that (`exp(x) >= 1 + x + x^2/2`) cannot be decided. The message says as much rather than presenting a misleading counterexample. Equalities (`Step: sin(x)^2 + cos(x)^2 = 1`) are settled by SymPy instead, and do work.
-   - A logarithm's argument is **not** subject to a domain obligation, since the check would have to be discharged by that same solver. See §8 for the reasoning.
+   - A logarithm's argument is **not** subject to a domain obligation, since the check would have to be discharged by that same solver. See §9 for the reasoning.
    - A function name the engine does not know is reported as such — `fact(5)` will suggest `factorial` rather than claiming the arithmetic is wrong.
+7. **Cases Must Cover Everything:**
+   - A conclusion drawn after `Case` blocks is a warning when the cases leave a possibility out, with a value that is in none of them. See [Proof by exhaustion](#proof-by-exhaustion-cases).
+8. **Induction Is Checked as Induction:**
+   - The base case must be the claim's starting value, the inductive step must reach `k + 1` (or `k + 2`, … for a recurrence) from what it assumed, and a claim over `Int` needs a starting value. A proof that only *looks* like induction is refused.
+
+### Checking options
+
+Two switches change how strict the checking is. Both are off by default, each proof keeps its own setting, and both travel with the proof's link.
+
+**Strict domains** (`ProofChecker(strict_domains=True)`) makes an unguarded division or square root an error instead of a warning. Turn it on when the proof should rule out every `x - 2 = 0` itself.
+
+**Show your working** (`ProofChecker(show_working=True)`) is for practising exam-style answers. The checker can do a lot in one line: `diff(x^2 * sin(x), x) = 2*x*sin(x) + x^2*cos(x)` checks, and so do a series in closed form and `MultipleOf(n^3 - n, 6)`. That is right, but an exam question wants the working. With this on, such a step is a warning that says what is expected:
+
+- a derivative or integral that needs the product, quotient or chain rule, or integration by parts or substitution, done in one step;
+- a sum to a variable bound written in closed form, which needs induction or the method of differences;
+- a limit evaluated straight from an indeterminate form, which needs the algebra first;
+- a divisibility settled only by checking every remainder, which needs the cases.
+
+Writing the working out passes: `diff(x^2 * sin(x), x) = diff(x^2, x) * sin(x) + x^2 * diff(sin(x), x)`, then `= 2*x*sin(x) + x^2*cos(x)`. Standard results, including linear insides like `sin(3x)` and `e^(2x)`, may be written straight down. With the option off, nothing changes.
 
 ---
 
-## 7. Web UI, Exporting to LaTeX / PDF, and Lean
+## 8. The App, and Exporting to LaTeX / PDF and Lean
 
 Run `uv run python -m ui` and open `http://localhost:8000`. The rail on the left switches between four views — **Proofs**, **Library**, **Guide** and **Settings** — and the status bar at the foot always shows the verdict for the open proof. `Ctrl/Cmd+K` opens a command palette that finds commands, your files, and any Library entry by its reference (`2.18`).
 
@@ -405,8 +523,9 @@ Run `uv run python -m ui` and open `http://localhost:8000`. The rail on the left
    - **Check all entries** re-checks every entry of a pack and flags any that no longer gives the verdict the pack records.
    - **Use in a proof** puts `import "@core/mth2010/<entry>"` at the top of the open proof, so you can cite that theorem. It arrives with its assumptions: it applies where they hold (see §4).
    - **Make your own pack.** *New pack…* (or the pack button on a folder in the Files tab) turns a folder of your proofs into a pack. Give it a name, a version and, if you like, a course code; give each proof a reference, title and chapter, and mark traps with what is wrong. **Export .pack.json** checks every proof on its own and records the verdict it gives, so anyone who installs your pack sees exactly what you saw. **Share to the registry…** shows how to publish it for everyone: upload the file to the registry on GitHub and open a pull request, and its checks run every entry again.
-4. **Strict Domains, Arrangement and Appearance:**
-   - The **Strict domains** switch in the tool strip makes unguarded divisions and square roots errors instead of warnings. Each proof keeps its own setting; Settings chooses the default for new ones.
+4. **Checking Options, Arrangement and Appearance:**
+   - The **Strict domains** and **Show working** switches in the tool strip are the two [checking options](#checking-options). Each proof keeps its own settings, its link and History snapshots carry them, and Settings chooses the defaults for new proofs.
+   - **Typeset the maths** (in Settings, or *Toggle typeset maths* in the command palette) shows each expression as it would print: fractions, powers and roots. The keywords stay as you wrote them. Move the caret into an expression to edit its source.
    - The **Panel arrangement** button offers four presets, each drawn as a miniature of itself: **Columns**, **Stack**, **Split** (the default) and **Focus**. Drag a panel's grip onto another panel to swap the two, or focus a grip and press an arrow key.
    - The sun/moon on the rail flips light / dark; the three-dot button flips the editor between near-monochrome and colourised syntax. **Settings** also holds the editor text size, line wrapping, how long to wait after typing before checking, and storage use. All of it is remembered.
 5. **Exporting to LaTeX & PDF:**
@@ -428,7 +547,7 @@ For how each of these is put together — and the checks that keep them honest �
 
 ---
 
-## 8. Capability Matrix: What Parses, Verifies, and Refuses
+## 9. Capability Matrix: What Parses, Verifies, and Refuses
 
 The tables above advertise what an Lemmata proof may contain, and where the engine stops. This is that surface in one place: every row is a snippet plus the verdict it must still produce. It is generated from the pins themselves —
 
@@ -558,6 +677,8 @@ A `VALID` row checks out, and still does with **Strict Domain Checking** on. `IN
 | grammar · `slash slash comments` | PARSE_ERROR | `#` and `--` each start a comment; `//` does not |
 | grammar · `CRLF line endings` | VALID |  |
 | grammar · `unicode quantifier` | VALID |  |
+| grammar · `several names in one quantifier` | VALID |  |
+| grammar · `several names under one bound` | VALID |  |
 | grammar · `unicode comparison` | VALID |  |
 | grammar · `reason: instead of by:` | PARSE_ERROR | the bracket takes [by ...] or [using ...] |
 | grammar · `indentation is load-bearing` | PARSE_ERROR |  |

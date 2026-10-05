@@ -210,6 +210,8 @@ PROBES: list[Probe] = [
           gap="`#` and `--` each start a comment; `//` does not"),
     Probe("grammar", "CRLF line endings", "Let x : Real\r\nStep: x + 0 = x\r\n", "VALID"),
     Probe("grammar", "unicode quantifier", "Therefore \u2200 x : Real, x = x", "VALID"),
+    Probe("grammar", "several names in one quantifier", "Therefore \u2200 a, b \u2208 \u2124, a + b = b + a", "VALID"),
+    Probe("grammar", "several names under one bound", "Therefore \u2200 \u03b5, \u03b4 > 0, \u03b5 * \u03b4 > 0", "VALID"),
     Probe("grammar", "unicode comparison", "Let x : Real\nAssume h: x \u2264 2\nStep: x < 3", "VALID"),
     Probe("grammar", "reason: instead of by:", "Let k : Int\nStep: 2 * k + 2 * k = 4 * k [reason: algebra]", "PARSE_ERROR",
           gap="the bracket takes [by ...] or [using ...]"),
