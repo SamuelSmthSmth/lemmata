@@ -93,6 +93,13 @@ type_name: CNAME
 
 ?quant_expr: QUANT_EXISTS var_ident (":" type_name)? "," quant_expr -> exists_expr
            | QUANT_FORALL var_ident (":" type_name)? "," quant_expr -> forall_expr
+           // Several names under one type, as the notes write them: `forall a, b : Int, ...`.
+           // QUANT_NAMES is the whole list, so the parser never has to guess whether
+           // `b` in `forall a, b` is a second name or the start of the body.
+           | QUANT_EXISTS QUANT_NAMES ":" type_name "," quant_expr -> exists_many
+           | QUANT_FORALL QUANT_NAMES ":" type_name "," quant_expr -> forall_many
+           | QUANT_EXISTS QUANT_NAMES REL_OP arith_expr "," quant_expr -> exists_many_bounded
+           | QUANT_FORALL QUANT_NAMES REL_OP arith_expr "," quant_expr -> forall_many_bounded
            // Bounded forms, as the notes write them: `forall \epsilon > 0, ...`,
            // `exists x in S, ...`, `∀ x ∈ ℝ, ...`.  The transformer decides whether
            // the bound names a type (`in Real`) or is a guard (`> 0`).
@@ -251,6 +258,10 @@ STRING:       /\"[^\"]*\"/
 GREEK_LETTER: /\\(alpha|beta|gamma|delta|epsilon|varepsilon|zeta|eta|theta|iota|kappa|lambda|mu|nu|xi|pi|rho|sigma|tau|upsilon|phi|varphi|chi|psi|omega|Delta|Gamma|Theta|Lambda|Xi|Pi|Sigma|Phi|Psi|Omega)(?![a-zA-Z])/
             | /[α-ωϵϕΓΔΘΛΞΠΣΦΨΩ]/
 CNAME:        /[a-zA-Z_][a-zA-Z0-9_]*/
+// `a, b, c` before the `:` of a type, `∈ ℤ,` or a bound like `> 0,`: only ever
+// offered after a quantifier.  The bound's trailing comma keeps `∀ x, x ∈ A => …`
+// (one name, then the body) out.
+QUANT_NAMES.3: /(?:[a-zA-Z_][a-zA-Z0-9_]*|\\[a-zA-Z]+|[α-ωϵϕΓΔΘΛΞΠΣΦΨΩ])(?:[ \t]*,[ \t]*(?:[a-zA-Z_][a-zA-Z0-9_]*|\\[a-zA-Z]+|[α-ωϵϕΓΔΘΛΞΠΣΦΨΩ]))+(?=[ \t]*(?::|(?:∈|\\in(?![a-zA-Z])|in\b)[ \t]*(?:[ℝℤℕℚℂ]|\\mathbb\{[RZNQC]\}|[a-zA-Z_][a-zA-Z0-9_]*)[ \t]*,|(?:<=|>=|<|>|≤|≥|\\[lg]eq?(?![a-zA-Z]))[^,\n\[\]]*,))/
 
 _NL:    /(\r?\n[\t ]*)+/
 %declare _INDENT _DEDENT

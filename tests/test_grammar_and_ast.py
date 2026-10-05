@@ -71,6 +71,40 @@ class TestArithmeticExpressions:
         assert expr.var_type == "Int"
         assert isinstance(expr.formula, RelationNode)
 
+    @pytest.mark.parametrize("src", [
+        "Step: forall a, b : Int, a + b = b + a\n",
+        "Step: ∀ a, b ∈ ℤ, a + b = b + a\n",
+        "Step: forall a, b in Int, a + b = b + a\n",
+    ])
+    def test_several_names_under_one_type(self, src):
+        # `forall a, b : Int, P` is `forall a : Int, forall b : Int, P`.
+        outer = parse(src).statements[0].rhs
+        assert isinstance(outer, QuantifierNode) and outer.var == "a" and outer.var_type == "Int"
+        inner = outer.formula
+        assert isinstance(inner, QuantifierNode) and inner.var == "b" and inner.var_type == "Int"
+        assert isinstance(inner.formula, RelationNode)
+
+    def test_several_names_under_one_bound(self):
+        # `∀ ε, δ > 0, P` guards each name: `∀ ε, ε > 0 ⇒ ∀ δ, δ > 0 ⇒ P`.
+        outer = parse("Step: ∀ ε, δ > 0, ε * δ > 0\n").statements[0].rhs
+        assert outer.var == "epsilon" and outer.var_type is None
+        assert isinstance(outer.formula, BinaryOpNode) and outer.formula.op == "=>"
+        inner = outer.formula.right
+        assert isinstance(inner, QuantifierNode) and inner.var == "delta"
+        assert isinstance(inner.formula.left.left, GreekSymbolNode)
+
+    @pytest.mark.parametrize("src", [
+        "Step: forall x, x in A => x in B\n",
+        "Step: exists n, n > 5\n",
+        "Step: forall x, exists y : Real, y > x\n",
+    ])
+    def test_one_untyped_name_then_the_body(self, src):
+        # A list needs a type or a bound followed by a comma; otherwise the
+        # second name is where the body starts, as before.
+        outer = parse(src).statements[0].rhs
+        assert isinstance(outer, QuantifierNode) and outer.var_type is None
+        assert not (isinstance(outer.formula, QuantifierNode) and outer.formula.var == outer.var)
+
 
 # ---------------------------------------------------------------------------
 # Statement-level tests

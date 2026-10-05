@@ -396,6 +396,39 @@ class AetherASTTransformer(Transformer):
         return QuantifierNode(quantifier=q, var=var, var_type=type_name,
                               formula=formula, line=ln, col=col)
 
+    def exists_many(self, children: list) -> QuantifierNode:
+        return self._quantifier_many("exists", children)
+
+    def forall_many(self, children: list) -> QuantifierNode:
+        return self._quantifier_many("forall", children)
+
+    def _quantifier_many(self, q: str, children: list) -> QuantifierNode:
+        """`forall a, b : Int, P` is `forall a : Int, forall b : Int, P`."""
+        names_tok = next(c for c in children if _is_token(c) and c.type == "QUANT_NAMES")
+        ln, col = _pos(names_tok)
+        type_name = next(c for c in children if isinstance(c, str) and not _is_token(c))
+        node = next(c for c in reversed(children) if _is_expr(c))
+        for raw in reversed(str(names_tok).split(",")):
+            node = QuantifierNode(quantifier=q, var=_ident(raw), var_type=type_name,
+                                  formula=node, line=ln, col=col)
+        return node
+
+    def exists_many_bounded(self, children: list) -> QuantifierNode:
+        return self._bounded_many("exists", children)
+
+    def forall_many_bounded(self, children: list) -> QuantifierNode:
+        return self._bounded_many("forall", children)
+
+    def _bounded_many(self, q: str, children: list) -> QuantifierNode:
+        """`∀ a, b ∈ ℤ, P` and `∀ ε, δ > 0, P`: the bound applies to each name."""
+        kw, names_tok, op_tok, bound, node = children
+        for raw in reversed(str(names_tok).split(",")):
+            raw = raw.strip()
+            kind = "GREEK_LETTER" if raw.startswith("\\") or raw in _UNICODE_GREEK else "CNAME"
+            var_tok = Token.new_borrow_pos(kind, raw, names_tok)
+            node = self._bounded_quantifier(q, [kw, var_tok, op_tok, bound, node])
+        return node
+
     def exists_bounded(self, children: list) -> QuantifierNode:
         return self._bounded_quantifier("exists", children)
 
