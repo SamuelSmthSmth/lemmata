@@ -153,6 +153,17 @@ Type standard LaTeX Greek letters:
 
 ---
 
+### Show your working
+
+The checker can do a lot in one line. `diff(x^2 * sin(x), x) = 2*x*sin(x) + x^2*cos(x)` checks, and so do a series in closed form and `MultipleOf(n^3 - n, 6)`. That is right, but an exam question wants the working. With **Show your working** on (`ProofChecker(show_working=True)`), such a step is a warning that says what is expected:
+
+- a derivative or integral that needs the product, quotient or chain rule, or integration by parts or substitution, done in one step;
+- a sum to a variable bound written in closed form, which needs induction or the method of differences;
+- a limit evaluated straight from an indeterminate form, which needs the algebra first;
+- a divisibility settled only by checking every remainder, which needs the cases.
+
+Writing the working out passes: `diff(x^2 * sin(x), x) = diff(x^2, x) * sin(x) + x^2 * diff(sin(x), x)`, then `= 2*x*sin(x) + x^2*cos(x)`. Standard results, including linear insides like `sin(3x)` and `e^(2x)`, may be written straight down. The option is off by default and then changes nothing.
+
 ## 4. Step Justifications & Proof Libraries
 
 ### Citing Reasons on Steps

@@ -393,6 +393,9 @@ class ProofContext:
     def __init__(self) -> None:
         self._frames: list[_ScopeFrame] = [_ScopeFrame(depth=0)]
         self.obligations: list[DomainObligation] = []
+        # Show your working (ProofChecker(show_working=True)): shortcuts that
+        # settle a claim without the student's argument are held back.
+        self.show_working = False
 
     @property
     def scope_depth(self) -> int:

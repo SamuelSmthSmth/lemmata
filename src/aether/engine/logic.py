@@ -1886,8 +1886,10 @@ def verify_entailment(
         return sym_res
 
     # 2b. A polynomial's divisibility by a number is decided by its remainders.
+    # With show_working on, the student's own argument is tried first (below):
+    # the remainders only settle what that argument did not.
     residue_res = _try_residue_divisibility(claim, ctx)
-    if residue_res is not None:
+    if residue_res is not None and (not ctx.show_working or not residue_res.valid):
         return residue_res
 
     # 2c. "a and b are not coprime": find the common divisor, as a student would.
@@ -1903,6 +1905,8 @@ def verify_entailment(
     try:
         z3_claim = ast_to_z3(claim, ctx, extra_constraints=extra)
     except LogicConversionError as exc:
+        if residue_res is not None and residue_res.valid:
+            return residue_res
         return LogicResult(valid=False, message=str(exc), backend="Z3")
 
     for c in extra:
@@ -1934,6 +1938,10 @@ def verify_entailment(
             backend="Z3",
         )
 
+    # Show your working: the student's argument did not settle it, the
+    # remainders do; the checker reports that as a shortcut, not a proof.
+    if residue_res is not None and residue_res.valid:
+        return residue_res
     return LogicResult(
         valid=False,
         message=_explain_solver_limits(f"Solver inconclusive (unknown) for '{claim}'.", claim, ctx),
