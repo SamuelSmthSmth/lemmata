@@ -75,6 +75,22 @@ Proof:
         Step: = (n + 1)^2
     Therefore forall n : Nat, sum(k, 1, n, 2 * k - 1) = n^2
 QED</pre>
+<p>A claim for "every n ≥ 5" puts the start in the claim, <code>forall n : Nat, n &gt;= 5 =&gt; …</code>, with the base case there. The inductive step may assume anything that follows from <code>k &gt;= 5</code> alongside the hypothesis, in any order. A sequence the question defines is declared as a function (<code>Given u : Nat -&gt; Int</code>), with its first values and recurrence as its definition. A recurrence that uses two earlier terms needs two base cases.</p>
+<pre class="try" data-expect="VALID">Theorem: "2^n beats n^2 from 5 on"
+Claim: forall n : Nat, n &gt;= 5 =&gt; 2^n &gt; n^2
+Proof:
+    Base case n = 5:
+        Step: 2^5 = 32
+        Step: &gt; 25
+    Inductive step:
+        Given k : Nat
+        Assume hk: k &gt;= 5
+        Assume ih: 2^k &gt; k^2
+        Step: 2^(k + 1) = 2 * 2^k
+        Step: &gt; 2 * k^2
+        Step: &gt;= (k + 1)^2
+    Therefore forall n : Nat, n &gt;= 5 =&gt; 2^n &gt; n^2
+QED</pre>
 
 <h2>Several files</h2>
 <p>A proof can <code>import</code> another file in your workspace. The path is relative to the importing file's folder, falling back to the top of the workspace; the imported file's theorems become facts you can use.</p>
