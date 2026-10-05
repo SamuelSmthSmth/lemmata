@@ -115,6 +115,10 @@ const PREDICATES = [
   ["Positive", "Positive(x)", "x > 0"],
   ["NonNegative", "NonNegative(x)", "x ≥ 0"],
   ["Congruent", "Congruent(a, b, m)", "a ≡ b (mod m)"],
+  ["Prime", "Prime(p)", "p > 1 with no divisor strictly between 1 and p"],
+  ["Coprime", "Coprime(a, b)", "every common divisor is ±1"],
+  ["Rational", "Rational(x)", "x = p/q in lowest terms, q > 0"],
+  ["Irrational", "Irrational(x)", "not Rational(x)"],
 ];
 
 const STRUCTURES = [

@@ -30,8 +30,13 @@ QED</pre>
   <li><code>gcd(a, b)</code> and <code>lcm(a, b)</code> are computed for numbers (<code>gcd(8, 6) = 2</code>); for symbols they stay unevaluated, because <code>gcd(n, k)</code> has no closed form.</li>
   <li>Constants: <code>pi</code>, <code>e</code> and <code>oo</code> (∞). Declaring one of these names makes it an ordinary variable again.</li>
   <li>Congruence: <code>a = b (mod m)</code>, <code>a \equiv b \pmod{m}</code> or <code>Congruent(a, b, m)</code>.</li>
-  <li>Predicates: <code>Even</code>, <code>Odd</code>, <code>MultipleOf(a, b)</code>, <code>Divides(b, a)</code>, <code>Positive</code>, <code>NonNegative</code>.</li>
+  <li>Predicates: <code>Even</code>, <code>Odd</code>, <code>MultipleOf(a, b)</code>, <code>Divides(b, a)</code>, <code>Positive</code>, <code>NonNegative</code>, <code>Prime(p)</code>, <code>Coprime(a, b)</code>, <code>Rational(x)</code> (<code>p/q</code> in lowest terms) and <code>Irrational(x)</code>.</li>
+  <li>Chained relations: <code>-2 &lt; k &lt; 2</code> means both <code>-2 &lt; k</code> and <code>k &lt; 2</code>.</li>
+  <li>A polynomial's divisibility by a number, like <code>MultipleOf(n^3 - n, 6)</code>, is decided by checking every remainder.</li>
 </ul>
+<pre class="try" data-expect="VALID">Let n : Int
+Therefore MultipleOf(n^3 - n, 6)
+Therefore Prime(41) and not Prime(1681)</pre>
 <pre class="try" data-expect="VALID">Let n : ℕ
 Assume n ≥ 1
 Step: n! = n·(n − 1)!
