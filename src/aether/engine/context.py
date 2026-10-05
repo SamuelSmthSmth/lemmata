@@ -381,6 +381,10 @@ class _ScopeFrame:
     hypotheses: list[HypothesisInfo] = field(default_factory=list)
     chain: Optional[ChainState] = None
     cases: list[tuple[ExprNode, ExprNode]] = field(default_factory=list)
+    # Whether the cases so far cover every possibility, and whether a
+    # conclusion after them has already been told when they do not.
+    cases_exhaustive: bool = False
+    cases_reviewed: bool = False
 
 
 class ProofContext:

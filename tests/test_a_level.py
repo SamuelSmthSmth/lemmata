@@ -184,6 +184,40 @@ class TestRationals:
         assert report.is_valid, report.format_report()
 
 
+CASES = """\
+Theorem: "n^2 + n is even"
+Proof:
+    Given n : Int
+    Case Even(n):
+        Obtain k : Int such that n = 2 * k
+        Step: n^2 + n = 2 * (2 * k^2 + k)
+        Therefore Even(n^2 + n)
+{odd}    Therefore Even(n^2 + n)
+QED
+"""
+
+ODD_CASE = """\
+    Case Odd(n):
+        Obtain k : Int such that n = 2 * k + 1
+        Step: n^2 + n = 2 * (2 * k^2 + 3 * k + 1)
+        Therefore Even(n^2 + n)
+"""
+
+
+class TestCaseCoverage:
+    def test_complete_cases_are_plainly_valid(self, checker: ProofChecker):
+        report = check(checker, CASES.format(odd=ODD_CASE))
+        assert report.is_valid and not report.has_warnings, report.format_report()
+
+    def test_a_missing_case_is_flagged_though_the_conclusion_holds(self, checker: ProofChecker):
+        # The conclusion is true (the solver proves it outright), so the proof
+        # is not invalid; the case analysis is incomplete, and the student hears so.
+        report = check(checker, CASES.format(odd=""))
+        assert report.is_valid, report.format_report()
+        flagged = [r for r in report.results if "do not cover every possibility" in r.message]
+        assert flagged and flagged[0].status.value == "WARNING"
+
+
 class TestSums:
     def test_the_last_term_peels_off(self, checker: ProofChecker):
         # SymPy writes these as harmonic numbers it never related back.

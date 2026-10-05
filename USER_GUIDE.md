@@ -450,6 +450,7 @@ A `VALID` row checks out, and still does with **Strict Domain Checking** on. `IN
 | expr · `a sum to k + 1 is the sum to k plus a term` | VALID |  |
 | expr · `polynomial divisibility, by remainders` | VALID |  |
 | expr · `a false divisibility names a remainder` | INVALID | n^2 + 1 at n = 0 is 1: a polynomial's divisibility by a number depends only on the remainders, so they decide it |
+| structure · `a missing case is flagged` | WARN | the conclusion holds, but Case Even(n) alone does not cover every n, so it is not proved by this case analysis |
 | logic · `√2 is irrational, by contradiction` | VALID |  |
 | logic · `a contradiction needs its argument` | INVALID | that √2 is irrational is not taken as known: the contradiction has to be derived |
 | expr · `Prime` | VALID |  |

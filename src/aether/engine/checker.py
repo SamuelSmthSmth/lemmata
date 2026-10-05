@@ -672,6 +672,33 @@ class ProofChecker:
     # -------------------------------------------------------------------
 
     @staticmethod
+    def _review_case_coverage(result: StepResult, ctx: ProofContext) -> StepResult:
+        """Warn when a conclusion follows case blocks that do not cover every possibility.
+
+        A proof by cases is only an argument if the cases are exhaustive.  When
+        the conclusion holds anyway (the solver proves `Even(n^2 + n)` outright),
+        a missing `Case Odd(n)` went unnoticed: true, but not by this argument.
+        The conclusion stands, as a warning that names a value no case covers.
+        """
+        frame = ctx.current_frame
+        if result.status != StepStatus.VALID or not frame.cases or frame.cases_exhaustive or frame.cases_reviewed:
+            return result
+        frame.cases_reviewed = True
+        conds = [c for c, _ in frame.cases]
+        coverage = verify_case_exhaustiveness(conds, ctx)
+        if coverage.valid:
+            frame.cases_exhaustive = True
+            return result
+        uncovered = f" ({coverage.counterexample} is in none of them)" if coverage.counterexample else ""
+        covered = " or ".join(str(c) for c in conds)
+        result.status = StepStatus.WARNING
+        result.message = (
+            f"{result.message} But the cases ({covered}) do not cover every possibility{uncovered}: "
+            f"the conclusion holds, but not by this case analysis. Add the missing case."
+        )
+        return result
+
+    @staticmethod
     def _defines_declared_function(prop: ExprNode, ctx: ProofContext) -> bool:
         """Whether *prop* only says something about functions the proof declared.
 
@@ -862,7 +889,7 @@ class ProofChecker:
         if isinstance(stmt, StepNode):
             return self._check_step(stmt, ctx)
         if isinstance(stmt, DeduceNode):
-            return self._check_deduce(stmt, ctx)
+            return self._review_case_coverage(self._check_deduce(stmt, ctx), ctx)
         if isinstance(stmt, SubProofNode):
             return self._check_subproof(stmt, ctx)
         vars_snap, hyps_snap = self._snapshot(ctx)
@@ -1493,6 +1520,7 @@ class ProofChecker:
                         conds = [c for c, _ in ctx.current_frame.cases]
                         ex_res = verify_case_exhaustiveness(conds, ctx)
                         if ex_res.valid:
+                            ctx.current_frame.cases_exhaustive = True
                             # Add the exhaustive disjunction C_1 or C_2 or ... to ctx
                             disj = conds[0]
                             for c in conds[1:]:
