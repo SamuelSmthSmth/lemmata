@@ -82,6 +82,18 @@ def _is_stmt(obj) -> bool:
     return isinstance(obj, StatementNode)
 
 
+def _stmts(children: list) -> list:
+    """The statements among *children*; a line that stands for several
+    (``Obtain p, q : Int such that …``) arrives as a list and is spliced in."""
+    out: list = []
+    for c in children:
+        if isinstance(c, list):
+            out.extend(s for s in c if _is_stmt(s))
+        elif _is_stmt(c):
+            out.append(c)
+    return out
+
+
 def _is_token(obj) -> bool:
     return isinstance(obj, Token)
 
@@ -494,21 +506,35 @@ class AetherASTTransformer(Transformer):
     # Obtain
     # -------------------------------------------------------------------
 
-    def obtain_stmt(self, children: list) -> ObtainNode:
-        # [OBTAIN_KW, CNAME|GREEK_LETTER, ?type_name_str, SUCH_THAT, expr, ?from_CNAME]
+    def obtain_stmt(self, children: list):
+        # [OBTAIN_KW, var, (var…), ?type_name_str, SUCH_THAT, expr, ?from_CNAME]
         kw = children[0]
         ln, col = _pos(kw)
 
-        # var name is the first CNAME/GREEK_LETTER token (not OBTAIN_KW)
-        ident_toks = [c for c in children[1:] if _is_token(c) and c.type in ("CNAME", "GREEK_LETTER")]
-        var = _ident(ident_toks[0])
-        source_label = _tok(ident_toks[1]) if len(ident_toks) > 1 else None
+        # The variables are the names before the condition; a name after it
+        # is the source label (`from h1`).
+        at = next(i for i, c in enumerate(children) if _is_expr(c))
+        names = [_ident(c) for c in children[1:at] if _is_token(c) and c.type in ("CNAME", "GREEK_LETTER")]
+        after = [c for c in children[at + 1:] if _is_token(c) and c.type in ("CNAME", "GREEK_LETTER")]
+        source_label = _tok(after[0]) if after else None
 
         type_name = next((c for c in children if isinstance(c, str) and not _is_token(c)), None)
-        condition = next(c for c in children if _is_expr(c))
+        condition = children[at]
 
-        return ObtainNode(variable=var, type_name=type_name, condition=condition,
-                          source_label=source_label, line=ln, col=col)
+        if len(names) == 1:
+            return ObtainNode(variable=names[0], type_name=type_name, condition=condition,
+                              source_label=source_label, line=ln, col=col)
+        # `Obtain p, q : Int such that φ from h` is the witnesses one at a time:
+        # p such that `exists q : Int, φ` (from h), then q such that φ.
+        nodes = []
+        for i, name in enumerate(names):
+            rest = condition
+            for later in reversed(names[i + 1:]):
+                rest = QuantifierNode(quantifier="exists", var=later, var_type=type_name,
+                                      formula=rest, line=ln, col=col)
+            nodes.append(ObtainNode(variable=name, type_name=type_name, condition=rest,
+                                    source_label=source_label if i == 0 else None, line=ln, col=col))
+        return nodes
 
     # -------------------------------------------------------------------
     # Steps (step_binary is gone; step_single handles both forms via expr)
@@ -631,38 +657,38 @@ class AetherASTTransformer(Transformer):
         return children[0]
 
     def block_stmt(self, children: list) -> SubProofNode:
-        stmts = [c for c in children if _is_stmt(c)]
+        stmts = _stmts(children)
         return SubProofNode(statements=stmts)
 
     def case_block(self, children: list) -> SubProofNode:
         kw = children[0]
         ln, col = _pos(kw)
         cond = next(c for c in children if _is_expr(c))
-        stmts = [c for c in children if _is_stmt(c)]
+        stmts = _stmts(children)
         return SubProofNode(statements=stmts, case_condition=cond, label="Case", line=ln, col=col)
 
     def base_case_block(self, children: list) -> SubProofNode:
         kw = children[0]
         ln, col = _pos(kw)
         cond = next((c for c in children if _is_expr(c)), None)
-        stmts = [c for c in children if _is_stmt(c)]
+        stmts = _stmts(children)
         return SubProofNode(statements=stmts, case_condition=cond, label="Base case", line=ln, col=col)
 
     def ind_step_block(self, children: list) -> SubProofNode:
         kw = children[0]
         ln, col = _pos(kw)
         cond = next((c for c in children if _is_expr(c)), None)
-        stmts = [c for c in children if _is_stmt(c)]
+        stmts = _stmts(children)
         return SubProofNode(statements=stmts, case_condition=cond, label="Inductive step", line=ln, col=col)
 
     def named_block(self, children: list) -> SubProofNode:
         lbl_tok = children[0]
         ln, col = _pos(lbl_tok)
-        stmts = [c for c in children if _is_stmt(c)]
+        stmts = _stmts(children)
         return SubProofNode(statements=stmts, label=_tok(lbl_tok), line=ln, col=col)
 
     def proof_stmt(self, children: list) -> ProofNode:
-        stmts = [c for c in children if _is_stmt(c)]
+        stmts = _stmts(children)
         return ProofNode(statements=stmts)
 
     def theorem_stmt(self, children: list) -> TheoremNode:
@@ -689,6 +715,5 @@ class AetherASTTransformer(Transformer):
     def start(self, children: list) -> DocumentNode:
         imports = [c for c in children if isinstance(c, ImportNode)]
         theorems = [c for c in children if isinstance(c, TheoremNode)]
-        statements = [c for c in children
-                      if _is_stmt(c) and not isinstance(c, TheoremNode)]
+        statements = [c for c in _stmts(children) if not isinstance(c, TheoremNode)]
         return DocumentNode(theorems=theorems, statements=statements, imports=imports)

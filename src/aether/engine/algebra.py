@@ -270,6 +270,7 @@ _KNOWN_CALLABLES: frozenset[str] = frozenset(
         "det", "determinant", "tr", "trace", "transpose", "dot", "norm",
         "inv", "inverse",
         "even", "odd", "multipleof", "divides", "positive", "nonnegative", "prime",
+        "coprime", "rational", "irrational",
         "congruent", "cauchyriemann", "cauchy_riemann", "orthogonal",
     }
 )

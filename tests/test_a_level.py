@@ -127,6 +127,63 @@ class TestPolynomialDivisibility:
         assert counterexample and int(counterexample.split("=")[1]) % 2 == 0, counterexample
 
 
+ROOT_2 = """\
+Theorem: "The square root of {n} is irrational"
+Claim: Irrational(sqrt({n}))
+Proof:
+    Subproof:
+        Assume h: Rational(sqrt({n}))
+        Obtain p, q : Int such that q > 0 and Coprime(p, q) and sqrt({n}) = p / q from h
+{body}    Therefore not Rational(sqrt({n}))
+    Hence Irrational(sqrt({n}))
+QED
+"""
+
+ARGUMENT = """\
+        Step: (p / q)^2 = sqrt({n})^2
+        Step: = {n}
+        Step: p^2 = {n} * q^2
+        Therefore Even(p^2)
+        Therefore Even(p)
+        Obtain k : Int such that p = 2 * k
+        Step: 4 * k^2 = {n} * q^2
+        Step: q^2 = 2 * k^2
+        Therefore Even(q^2)
+        Therefore Even(q)
+        Therefore not Coprime(p, q)
+        Therefore Contradiction
+"""
+
+
+class TestRationals:
+    def test_root_two_is_irrational(self, checker: ProofChecker):
+        report = check(checker, ROOT_2.format(n=2, body=ARGUMENT.format(n=2)))
+        assert report.is_valid, report.format_report()
+
+    def test_the_argument_cannot_be_skipped(self, checker: ProofChecker):
+        report = check(checker, ROOT_2.format(n=2, body="        Therefore Contradiction\n"))
+        assert not report.is_valid
+
+    def test_the_same_argument_fails_for_root_four(self, checker: ProofChecker):
+        # 4k^2 = 4q^2 gives q^2 = k^2, not 2k^2: the step that is false fails.
+        report = check(checker, ROOT_2.format(n=4, body=ARGUMENT.format(n=4)))
+        assert not report.is_valid
+        assert "q ^ 2" in report.format_report()
+
+    def test_coprime_is_decided_for_numbers(self, checker: ProofChecker):
+        assert check(checker, "Given p, q : Int\nAssume h: p = 4\nAssume h2: q = 9\nTherefore Coprime(p, q)\n").is_valid
+        assert not check(checker, "Given p, q : Int\nAssume h: p = 6\nAssume h2: q = 9\nTherefore Coprime(p, q)\n").is_valid
+
+    def test_obtain_several_witnesses_at_once(self, checker: ProofChecker):
+        from aether.core.ast import ObtainNode
+
+        doc = checker._parser.parse("Assume h: exists a : Int, exists b : Int, a + b = 3\nObtain a, b : Int such that a + b = 3 from h\nStep: a + b = 3\n")
+        obtains = [s for s in doc.statements if isinstance(s, ObtainNode)]
+        assert [o.variable for o in obtains] == ["a", "b"]
+        report = check(checker, "Assume h: exists a : Int, exists b : Int, a + b = 3\nObtain a, b : Int such that a + b = 3 from h\nStep: a + b = 3\n")
+        assert report.is_valid, report.format_report()
+
+
 class TestSums:
     def test_the_last_term_peels_off(self, checker: ProofChecker):
         # SymPy writes these as harmonic numbers it never related back.
