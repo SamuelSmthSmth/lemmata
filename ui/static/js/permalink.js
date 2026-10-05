@@ -1,7 +1,8 @@
 // Shareable links: the proof travels in the URL fragment, so a link reproduces
 // a document without the server storing anything.
 //
-//   #p=<base64url of the UTF-8 source>&s=1     (s = strict domain checking)
+//   #p=<base64url of the UTF-8 source>&s=1&w=1  (s = strict domain checking,
+//                                               w = show your working)
 //
 // base64url over TextEncoder bytes rather than btoa(source): btoa() throws on
 // any code point above U+00FF, which a proof hits immediately with "≤", "∀" or
@@ -9,6 +10,7 @@
 
 const PARAM = "p";
 const STRICT_PARAM = "s";
+const WORKING_PARAM = "w";
 
 function bytesToBase64Url(bytes) {
   let binary = "";
@@ -40,7 +42,11 @@ export function readPermalink() {
   const token = params.get(PARAM);
   if (!token) return null;
   try {
-    return { source: decodeSource(token), strict: params.get(STRICT_PARAM) === "1" };
+    return {
+      source: decodeSource(token),
+      strict: params.get(STRICT_PARAM) === "1",
+      working: params.get(WORKING_PARAM) === "1",
+    };
   } catch (error) {
     // A mangled fragment is not worth failing over; fall back to saved work.
     return null;
@@ -53,10 +59,11 @@ export function readPermalink() {
  * replaceState, not pushState: the fragment tracks the current proof, so it
  * must not fill the back stack with one entry per keystroke pause.
  */
-export function writePermalink(source, strict) {
+export function writePermalink(source, strict, working = false) {
   const params = new URLSearchParams();
   params.set(PARAM, encodeSource(source));
   if (strict) params.set(STRICT_PARAM, "1");
+  if (working) params.set(WORKING_PARAM, "1");
   const url = `${window.location.pathname}${window.location.search}#${params.toString()}`;
   try {
     window.history.replaceState(null, "", url);
@@ -66,9 +73,10 @@ export function writePermalink(source, strict) {
 }
 
 /** The URL that reproduces the current buffer. */
-export function permalinkFor(source, strict) {
+export function permalinkFor(source, strict, working = false) {
   const params = new URLSearchParams();
   params.set(PARAM, encodeSource(source));
   if (strict) params.set(STRICT_PARAM, "1");
+  if (working) params.set(WORKING_PARAM, "1");
   return `${window.location.origin}${window.location.pathname}#${params.toString()}`;
 }

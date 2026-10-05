@@ -371,6 +371,7 @@ export async function addSnapshot(fileId, { name, auto = false } = {}) {
     ts: Date.now(),
     source: file.source,
     strict: file.strict,
+    working: Boolean(file.working),
     auto,
   };
   await db.snapshots.put(snap);

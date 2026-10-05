@@ -140,7 +140,7 @@ async function saveActive() {
       }
     }
   }
-  writePermalink(source, strict);
+  writePermalink(source, strict, working);
 }
 
 /** Snapshot the active proof before an action is allowed to replace it. */
@@ -301,7 +301,7 @@ async function showActive({ check = true } = {}) {
   dom.working.checked = Boolean(file.working);
   dom.editorPath.textContent = file.path;
   dom.statusFile.textContent = file.path;
-  writePermalink(file.source, file.strict);
+  writePermalink(file.source, file.strict, Boolean(file.working));
   renderNotesPanel();
   renderHistory();
   const cached = lastResponse.get(file.id);
@@ -908,7 +908,7 @@ async function exportSession() {
     timeline: ws.model.timeline
       .filter((e) => !e.fileId || e.fileId === file?.id)
       .map(({ verdict, n, ts }) => ({ verdict, n, ts })),
-    snapshots: snaps.map(({ name, ts, strict, auto }) => ({ name, ts, strict: Boolean(strict), auto: Boolean(auto) })),
+    snapshots: snaps.map(({ name, ts, strict, working, auto }) => ({ name, ts, strict: Boolean(strict), working: Boolean(working), auto: Boolean(auto) })),
   };
 }
 
@@ -1262,6 +1262,7 @@ initHistory({
     await snapshotBefore(`Before restoring “${snapshot.name}”`);
     editor.setContent(snapshot.source);
     dom.strict.checked = snapshot.strict;
+    dom.working.checked = Boolean(snapshot.working);
     await saveActive();
     renderHistory();
     runCheck();
@@ -1282,7 +1283,7 @@ initHistory({
   },
   async onCopyLink() {
     await saveActive();
-    const ok = await copyText(permalinkFor(currentSource(), dom.strict.checked));
+    const ok = await copyText(permalinkFor(currentSource(), dom.strict.checked, dom.working.checked));
     showToast(ok ? "Link copied — it reproduces this exact proof" : "Could not reach the clipboard; copy the address bar instead", { tone: ok ? "info" : "warning" });
   },
   async onClearSnapshots() {
@@ -1463,7 +1464,7 @@ async function init() {
     const match = ws.filesSorted().find((f) => f.source === shared.source);
     if (match) ws.openFile(match.id);
     else {
-      const file = await ws.createFile({ path: ws.freePath("Shared proof"), source: shared.source, strict: shared.strict, open: true });
+      const file = await ws.createFile({ path: ws.freePath("Shared proof"), source: shared.source, strict: shared.strict, working: shared.working, open: true });
       await ws.updateFile(file.id, { initial: shared.source });
       origin = "link";
     }
