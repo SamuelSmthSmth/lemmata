@@ -98,6 +98,35 @@ QED
         assert not report.is_valid
 
 
+class TestPolynomialDivisibility:
+    """m | P(n) depends only on n mod m, so the remainders decide it."""
+
+    @pytest.mark.parametrize("claim", [
+        "Given n : Int\nTherefore MultipleOf(n^3 - n, 6)",
+        "Given n : Int\nTherefore MultipleOf(n^5 - n, 30)",
+        "Given n : Int\nTherefore Even(n * (n + 1))",
+        "Given n : Nat\nTherefore Odd(n^2 + n + 1)",
+        "Given a, b : Int\nTherefore MultipleOf(a^2 * b - a * b^2, 2)",
+        "Given n : Int\nTherefore MultipleOf(n * (n + 1) * (n + 2) / 2, 3)",
+    ])
+    def test_a_true_divisibility_is_proved(self, checker: ProofChecker, claim: str):
+        report = check(checker, claim + "\n")
+        assert report.is_valid, report.format_report()
+
+    def test_a_false_one_gets_a_remainder_as_counterexample(self, checker: ProofChecker):
+        report = check(checker, "Given n : Int\nTherefore MultipleOf(n^2 + 1, 3)\n")
+        assert not report.is_valid
+        assert report.results[-1].counterexample == "n=0"
+
+    def test_a_restricted_variable_is_left_to_the_solver(self, checker: ProofChecker):
+        # n = 1 is a remainder where 8 does not divide n^2, but Even(n) rules it
+        # out; the counterexample must be one the hypothesis allows.
+        report = check(checker, "Given n : Int\nAssume h: Even(n)\nTherefore MultipleOf(n^2, 8)\n")
+        assert not report.is_valid
+        counterexample = report.results[-1].counterexample or ""
+        assert counterexample and int(counterexample.split("=")[1]) % 2 == 0, counterexample
+
+
 class TestSums:
     def test_the_last_term_peels_off(self, checker: ProofChecker):
         # SymPy writes these as harmonic numbers it never related back.

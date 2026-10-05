@@ -443,6 +443,8 @@ A `VALID` row checks out, and still does with **Strict Domain Checking** on. `IN
 | expr · `powers` | VALID |  |
 | expr · `chained inequality` | VALID |  |
 | expr · `a sum to k + 1 is the sum to k plus a term` | VALID |  |
+| expr · `polynomial divisibility, by remainders` | VALID |  |
+| expr · `a false divisibility names a remainder` | INVALID | n^2 + 1 at n = 0 is 1: a polynomial's divisibility by a number depends only on the remainders, so they decide it |
 | expr · `Prime` | VALID |  |
 | expr · `sqrt` | VALID |  |
 | expr · `exp / ln` | VALID |  |

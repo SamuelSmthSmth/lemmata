@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import functools
+import itertools
 from dataclasses import dataclass
 from typing import Optional
 
@@ -1414,6 +1416,99 @@ def _eliminate_divisibility_witnesses(
     return diff, modulus
 
 
+_RESIDUE_MODULUS_LIMIT = 1000
+_RESIDUE_CASES_LIMIT = 20000
+
+
+def _divisibility_shape(claim: ExprNode) -> Optional[tuple[ExprNode, ExprNode]]:
+    """``(P, m)`` for a claim that says m divides P, else None."""
+    if not isinstance(claim, FunctionCallNode):
+        return None
+    fn, args = claim.func.lower(), claim.args
+    if fn == "multipleof" and len(args) == 2:
+        return args[0], args[1]
+    if fn == "divides" and len(args) == 2:
+        return args[1], args[0]
+    if fn == "even" and len(args) == 1:
+        return args[0], NumberNode(value="2")
+    if fn == "odd" and len(args) == 1:
+        return BinaryOpNode(op="-", left=args[0], right=NumberNode(value="1")), NumberNode(value="2")
+    if fn in ("congruent", "cong") and len(args) == 3:
+        return BinaryOpNode(op="-", left=args[0], right=args[1]), args[2]
+    return None
+
+
+def _try_residue_divisibility(claim: ExprNode, ctx: ProofContext) -> Optional[LogicResult]:
+    """Decide "m divides P(n)" for a polynomial P over the integers and a number m.
+
+    Nonlinear integer arithmetic is undecidable in general, which is why the
+    solver gives up on `MultipleOf(n^3 - n, 6)`.  This shape is not: P(n) mod m
+    depends only on n mod m, so checking the remainders 0, …, m - 1 of each
+    variable decides it for every integer.  A polynomial with fractional
+    coefficients (``n(n + 1)/2``) is P = Q / d with Q integral, and m divides it
+    exactly when m·d divides Q, which repeats with period m·d.
+
+    True for every remainder: valid for every integer, whatever else the proof
+    assumes.  False for some remainder: a counterexample, but only when nothing
+    the proof assumes mentions those variables (an `Assume Even(n)` could rule
+    the remainder out); otherwise this says nothing and the solver decides.
+    """
+    claim = ctx.expand_user_functions(claim) or claim
+    shape = _divisibility_shape(claim)
+    if shape is None:
+        return None
+    try:
+        p = sp.expand(ast_to_sympy(shape[0], ctx))
+        m = sp.sympify(ast_to_sympy(shape[1], ctx))
+    except Exception:
+        return None
+    if not (m.is_Integer and 0 < int(m) <= _RESIDUE_MODULUS_LIMIT):
+        return None
+    variables = sorted(p.free_symbols, key=str)
+    if not variables or not all(v.is_integer for v in variables):
+        return None
+    try:
+        poly = sp.Poly(p, *variables, domain="QQ")
+    except Exception:
+        return None
+    denominator = functools.reduce(sp.ilcm, (sp.Rational(c).q for c in poly.coeffs()), 1)
+    q = sp.Poly(poly.as_expr() * denominator, *variables, domain="ZZ")
+    modulus = int(m) * int(denominator)
+    if modulus > _RESIDUE_MODULUS_LIMIT or modulus ** len(variables) > _RESIDUE_CASES_LIMIT:
+        return None
+
+    for residues in itertools.product(range(modulus), repeat=len(variables)):
+        if q.eval(dict(zip(variables, residues))) % modulus != 0:
+            names = {str(v) for v in variables}
+            constrained = any(
+                collect_free_symbols(h.proposition) & names for h in ctx.all_hypotheses()
+            )
+            if constrained:
+                return None
+            at = ", ".join(f"{v}={r}" for v, r in zip(variables, residues))
+            value = p.subs(dict(zip(variables, residues)))
+            return LogicResult(
+                valid=False,
+                message=(
+                    f"Claim '{claim}' is false: at {at}, {shape[0]} is {value}, which is not a "
+                    f"multiple of {int(m)}."
+                ),
+                counterexample=at,
+                counterexample_dict={str(v): str(r) for v, r in zip(variables, residues)},
+                backend="Residues",
+            )
+    over = " and ".join(str(v) for v in variables)
+    return LogicResult(
+        valid=True,
+        message=(
+            f"Verified for every integer {over}: {int(m)} divides {shape[0]} at each of the "
+            f"{modulus ** len(variables)} remainder{'s' if modulus ** len(variables) != 1 else ''} "
+            f"mod {modulus}, and its remainder depends only on those."
+        ),
+        backend="Residues",
+    )
+
+
 def _try_sympy_divisibility_or_existential(
     claim: ExprNode,
     ctx: ProofContext,
@@ -1707,6 +1802,11 @@ def verify_entailment(
     sym_res = _try_sympy_divisibility_or_existential(claim, ctx)
     if sym_res is not None and sym_res.valid:
         return sym_res
+
+    # 2b. A polynomial's divisibility by a number is decided by its remainders.
+    residue_res = _try_residue_divisibility(claim, ctx)
+    if residue_res is not None:
+        return residue_res
 
     # 3. Query Z3 SMT solver
     solver = new_solver(timeout_ms)
