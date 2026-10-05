@@ -1253,6 +1253,7 @@ def working_checks() -> None:
     state = settle()
     check(state["verdict"] == "VALID (with warnings)", f"switching on Show working makes it a warning, not a domain one ({state['verdict']})")
     check("product rule" in state["ctxHas"] or "product rule" in js("document.querySelector('#audit').textContent"), "the warning names the product rule")
+    check("w=1" in (state["hash"] or ""), f"the proof's link carries Show working ({state['hash'][-12:]})")
 
 
 def boot_checks() -> None:
