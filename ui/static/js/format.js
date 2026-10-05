@@ -91,3 +91,15 @@ export function verdictClass(verdict, parseError) {
   if (verdict === "VALID (with domain warnings)") return "verdict--warning";
   return "verdict--invalid";
 }
+
+/**
+ * The verdict as shown.  The API calls every warned verdict "VALID (with
+ * domain warnings)", a name it keeps for compatibility; a warning about
+ * skipped working or an incomplete case split is not about domains, so what
+ * the student reads says only what is true of *reports*.
+ */
+export function verdictLabel(verdict, reports) {
+  if (verdict !== "VALID (with domain warnings)") return verdict;
+  const domains = (reports ?? []).some((report) => report.results.some((r) => r.domain_warnings?.length));
+  return domains ? verdict : "VALID (with warnings)";
+}

@@ -52,6 +52,7 @@ export const dom = {
   templatesMenu: byId("templates-menu"),
   symbols: byId("symbols"),
   strict: byId("strict"),
+  working: byId("working"),
   syntaxToggle: byId("syntax-toggle"),
   downloadProof: byId("download-proof"),
   editorPath: byId("editor-path"),

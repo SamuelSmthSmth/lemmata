@@ -172,6 +172,13 @@ export function renderSettings() {
         checked: getPref("strictDefault") === "on",
         onChange: (on) => setPref("strictDefault", on ? "on" : "off"),
       }),
+      toggle({
+        name: "working-default",
+        label: "Show your working for new proofs",
+        hint: "A step that skips the working a question asks for, like the product rule or a sum's closed form, gets a warning naming it. Each proof keeps its own setting.",
+        checked: getPref("workingDefault") === "on",
+        onChange: (on) => setPref("workingDefault", on ? "on" : "off"),
+      }),
       segmented({
         name: "debounce",
         label: "Check after typing pauses for",

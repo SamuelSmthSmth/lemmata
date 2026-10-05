@@ -118,6 +118,9 @@ class CheckResponse(BaseModel):
 class CheckRequest(BaseModel):
     source: str = ""
     strict_domains: bool = False
+    # Show your working: a step that skips the working a question asks to see
+    # is a warning naming the rule (ProofChecker(show_working=True)).
+    show_working: bool = False
     # The browser workspace: other files `import` can resolve against, keyed by
     # workspace path, and the checked file's own path for relative imports.
     files: Optional[dict[str, str]] = None
@@ -349,6 +352,7 @@ def check_proof(request: CheckRequest) -> CheckResponse:
             {
                 "source": request.source,
                 "strict_domains": request.strict_domains,
+                "show_working": request.show_working,
                 "files": request.files,
                 "citations": request.citations,
                 "path": request.path,

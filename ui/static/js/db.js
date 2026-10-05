@@ -4,7 +4,7 @@
 // place that knows *how*, so a future account-backed store replaces this file
 // and nothing else.  Four stores:
 //
-//   files      {id, path, source, strict, created, updated}
+//   files      {id, path, source, strict, working, created, updated}
 //   snapshots  {id, fileId, name, ts, source, strict, auto}     index: fileId
 //   meta       {key, value}   settings, folders, tabs, timeline, migration flag
 //   packs      {name, version, origin, installed, pack}   installed packs (v2)

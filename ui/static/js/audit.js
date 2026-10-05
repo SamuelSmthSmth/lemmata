@@ -5,7 +5,7 @@
 
 import { dom } from "./dom.js";
 import { state } from "./state.js";
-import { el, note, splitStepText } from "./format.js";
+import { el, note, splitStepText, verdictLabel } from "./format.js";
 import { renderContext } from "./context.js";
 
 function reportHeader(report) {
@@ -18,7 +18,7 @@ function reportHeader(report) {
   } else {
     header.append(el("span", null, "Scratchpad"));
   }
-  header.append(el("span", "report-verdict", report.verdict));
+  header.append(el("span", "report-verdict", verdictLabel(report.verdict, [report])));
   return header;
 }
 

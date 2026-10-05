@@ -69,6 +69,7 @@ def check_payload(
     checker=None,
     path: Optional[str] = None,
     citations: Optional[Mapping[str, Any]] = None,
+    show_working: bool = False,
 ) -> dict[str, Any]:
     """Check *source* and shape the result as the ``/api/check`` response body."""
     from aether import ParseError, ProofChecker
@@ -76,7 +77,7 @@ def check_payload(
     started = time.perf_counter()
     lines = source.splitlines()
     if checker is None:
-        checker = ProofChecker(strict_domains=strict_domains)
+        checker = ProofChecker(strict_domains=strict_domains, show_working=show_working)
 
     def elapsed() -> float:
         return (time.perf_counter() - started) * 1000.0
@@ -156,27 +157,33 @@ def check_payload(
 
 
 class Engine:
-    """One ready checker per strictness mode; building the parser is the expensive part."""
+    """One ready checker per mode (strict domains, show working); building the parser is the expensive part."""
 
     def __init__(self) -> None:
         from aether import ProofChecker
 
-        self.checkers = {False: ProofChecker(strict_domains=False), True: ProofChecker(strict_domains=True)}
+        self.checkers = {
+            (strict, working): ProofChecker(strict_domains=strict, show_working=working)
+            for strict in (False, True)
+            for working in (False, True)
+        }
 
     def run(self, kind: str, payload: dict[str, Any]) -> Any:
         if kind == "check":
             strict = bool(payload["strict_domains"])
+            working = bool(payload.get("show_working", False))
             try:
                 return check_payload(
                     payload["source"],
                     strict,
                     payload.get("files"),
-                    checker=self.checkers[strict],
+                    checker=self.checkers[(strict, working)],
                     path=payload.get("path"),
                     citations=payload.get("citations"),
+                    show_working=working,
                 )
             finally:
-                self.checkers[strict].clear_cache()
+                self.checkers[(strict, working)].clear_cache()
         if kind == "latex":
             from .latex_report import export_report_latex
 
