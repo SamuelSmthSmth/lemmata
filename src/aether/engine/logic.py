@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import functools
 import itertools
+import re
 from dataclasses import dataclass
 from typing import Optional
 
@@ -271,6 +272,9 @@ def expand_prelude_predicate(node: FunctionCallNode, witness_var: str = "_k") ->
     - ``Positive(x)``      -> ``x > 0``
     - ``NonNegative(x)``   -> ``x >= 0``
     - ``Prime(p)``         -> ``p > 1 and forall _kd : Int, 1 < _kd < p => not Divides(_kd, p)``
+    - ``Coprime(a, b)``    -> ``forall _kc : Int, Divides(_kc, a) and Divides(_kc, b) => _kc = 1 or _kc = -1``
+    - ``Rational(x)``      -> ``exists _kp, _kq : Int, _kq > 0 and Coprime(_kp, _kq) and x = _kp / _kq``
+    - ``Irrational(x)``    -> ``not Rational(x)``
     """
     fn = node.func.lower()
     k_sym = SymbolNode(name=witness_var)
@@ -321,6 +325,46 @@ def expand_prelude_predicate(node: FunctionCallNode, witness_var: str = "_k") ->
 
     if fn == "nonnegative" and len(node.args) == 1:
         return RelationNode(op=">=", left=node.args[0], right=NumberNode(value="0"))
+
+    if fn == "coprime" and len(node.args) == 2:
+        # Every common divisor is 1 or -1.
+        a, b = node.args
+        d = SymbolNode(name=f"{witness_var}c")
+        common = BinaryOpNode(
+            op="and",
+            left=FunctionCallNode(func="Divides", args=[d, a]),
+            right=FunctionCallNode(func="Divides", args=[d, b]),
+        )
+        unit = BinaryOpNode(
+            op="or",
+            left=RelationNode(op="=", left=d, right=NumberNode(value="1")),
+            right=RelationNode(op="=", left=d, right=UnaryOpNode(op="-", operand=NumberNode(value="1"))),
+        )
+        return QuantifierNode(
+            quantifier="forall", var=d.name, var_type="Int",
+            formula=BinaryOpNode(op="=>", left=common, right=unit),
+        )
+
+    if fn == "rational" and len(node.args) == 1:
+        # x = p / q in lowest terms: the form a proof by contradiction uses.
+        x = node.args[0]
+        p, q = SymbolNode(name=f"{witness_var}p"), SymbolNode(name=f"{witness_var}q")
+        body = BinaryOpNode(
+            op="and",
+            left=BinaryOpNode(
+                op="and",
+                left=RelationNode(op=">", left=q, right=NumberNode(value="0")),
+                right=FunctionCallNode(func="Coprime", args=[p, q]),
+            ),
+            right=RelationNode(op="=", left=x, right=BinaryOpNode(op="/", left=p, right=q)),
+        )
+        return QuantifierNode(
+            quantifier="exists", var=p.name, var_type="Int",
+            formula=QuantifierNode(quantifier="exists", var=q.name, var_type="Int", formula=body),
+        )
+
+    if fn == "irrational" and len(node.args) == 1:
+        return UnaryOpNode(op="not", operand=FunctionCallNode(func="Rational", args=[node.args[0]]))
 
     if fn == "prime" and len(node.args) == 1:
         # p > 1, and no d with 1 < d < p divides it.
@@ -1509,6 +1553,44 @@ def _try_residue_divisibility(claim: ExprNode, ctx: ProofContext) -> Optional[Lo
     )
 
 
+def _try_common_divisor(claim: ExprNode, ctx: ProofContext, timeout_ms: int) -> Optional[LogicResult]:
+    """Prove ``not Coprime(a, b)`` by finding a d > 1 that divides both.
+
+    Coprime is a statement about *every* common divisor, so its negation asks
+    the solver to invent one, which it rarely does among a proof's other facts
+    (the √2 proof stalled there with Even(p) and Even(q) in hand).  A student
+    names it ("2 divides both"); so does this: the small numbers, then any
+    number the proof mentions.
+    """
+    if not (
+        isinstance(claim, UnaryOpNode)
+        and claim.op in ("not", "\\neg", "~")
+        and isinstance(claim.operand, FunctionCallNode)
+        and claim.operand.func.lower() == "coprime"
+        and len(claim.operand.args) == 2
+    ):
+        return None
+    a, b = claim.operand.args
+    candidates = list(range(2, 13))
+    for h in ctx.all_hypotheses():
+        for value in re.findall(r"(?<![\w.])(\d+)(?![\w.])", str(h.proposition)):
+            if 12 < int(value) <= 1000 and int(value) not in candidates:
+                candidates.append(int(value))
+    for d in candidates:
+        both = BinaryOpNode(
+            op="and",
+            left=FunctionCallNode(func="Divides", args=[NumberNode(value=str(d)), a]),
+            right=FunctionCallNode(func="Divides", args=[NumberNode(value=str(d)), b]),
+        )
+        if verify_entailment(both, ctx, timeout_ms=min(timeout_ms, 800), _induction=False).valid:
+            return LogicResult(
+                valid=True,
+                message=f"Verified: {d} divides both {a} and {b}, so they are not coprime.",
+                backend="Z3",
+            )
+    return None
+
+
 def _try_sympy_divisibility_or_existential(
     claim: ExprNode,
     ctx: ProofContext,
@@ -1807,6 +1889,11 @@ def verify_entailment(
     residue_res = _try_residue_divisibility(claim, ctx)
     if residue_res is not None:
         return residue_res
+
+    # 2c. "a and b are not coprime": find the common divisor, as a student would.
+    common_res = _try_common_divisor(claim, ctx, timeout_ms)
+    if common_res is not None:
+        return common_res
 
     # 3. Query Z3 SMT solver
     solver = new_solver(timeout_ms)

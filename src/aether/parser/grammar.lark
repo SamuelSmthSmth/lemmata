@@ -52,7 +52,8 @@ var_decl: VAR_INTRO var_list ":" decl_type (("with"i | SUCH_THAT) expr)?        
 
 assume_stmt: ASSUME_KW (CNAME ":")? expr
 
-obtain_stmt: OBTAIN_KW var_ident (":" type_name)? SUCH_THAT expr ("from" CNAME)?
+// `Obtain p, q : Int such that …` unpacks the witnesses one at a time.
+obtain_stmt: OBTAIN_KW var_ident ("," var_ident)* (":" type_name)? SUCH_THAT expr ("from" CNAME)?
 
 // step_chained: Step: rel rhs   — starts with REL_OP (no lhs, chains from previous step)
 // step_single:  Step: expr      — full expression, including relations like 'n^2 = 4*k^2'

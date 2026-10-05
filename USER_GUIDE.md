@@ -145,6 +145,11 @@ Type standard LaTeX Greek letters:
   - `Divides(b, a)` $\iff \exists k \in \mathbb{Z}, a = b \cdot k$
   - `Positive(x)` $\iff x > 0$
   - `NonNegative(x)` $\iff x \ge 0$
+  - `Prime(p)` $\iff p > 1$ and no $d$ with $1 < d < p$ divides $p$ (a number is settled exactly: `Prime(41)`, `not Prime(1681)`)
+  - `Coprime(a, b)` $\iff$ every common divisor of $a$ and $b$ is $\pm 1$; to show `not Coprime(a, b)`, show some $d > 1$ divides both
+  - `Rational(x)` $\iff \exists p, q \in \mathbb{Z}, q > 0, \operatorname{Coprime}(p, q), x = p/q$ (lowest terms, the form a proof by contradiction uses); `Irrational(x)` $\iff$ `not Rational(x)`
+- A polynomial's divisibility by a number (`MultipleOf(n^3 - n, 6)`, `Even(n * (n + 1))`) is decided outright, by checking every remainder.
+- `Obtain p, q : Int such that … from h` unpacks several witnesses at once.
 
 ---
 
@@ -445,6 +450,8 @@ A `VALID` row checks out, and still does with **Strict Domain Checking** on. `IN
 | expr · `a sum to k + 1 is the sum to k plus a term` | VALID |  |
 | expr · `polynomial divisibility, by remainders` | VALID |  |
 | expr · `a false divisibility names a remainder` | INVALID | n^2 + 1 at n = 0 is 1: a polynomial's divisibility by a number depends only on the remainders, so they decide it |
+| logic · `√2 is irrational, by contradiction` | VALID |  |
+| logic · `a contradiction needs its argument` | INVALID | that √2 is irrational is not taken as known: the contradiction has to be derived |
 | expr · `Prime` | VALID |  |
 | expr · `sqrt` | VALID |  |
 | expr · `exp / ln` | VALID |  |
