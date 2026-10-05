@@ -35,6 +35,7 @@ from aether.core.ast import (
 )
 from aether.parser.parser import AetherParser
 from aether.engine.hints import hints_for
+from aether.engine.working import working_gap
 from aether.engine.citations import (
     CitationIndex,
     Target,
@@ -210,6 +211,7 @@ class ProofChecker:
         self,
         strict_domains: bool = False,
         base_dir: Optional[Path | str] = None,
+        show_working: bool = False,
     ) -> None:
         """
         Parameters
@@ -217,10 +219,16 @@ class ProofChecker:
         strict_domains:
             If True, unresolved domain obligations (like potential division by zero)
             mark the step as ``INVALID`` instead of ``WARNING``.
+        show_working:
+            If True, a step that does in one jump what a question asks to see
+            (a derivative needing the product rule, a sum's closed form, a
+            divisibility settled by checking remainders) is a ``WARNING``
+            saying what working is expected; see ``aether.engine.working``.
         base_dir:
             Optional base directory used to resolve relative proof imports.
         """
         self.strict_domains = strict_domains
+        self.show_working = show_working
         self.base_dir = Path(base_dir).resolve() if base_dir else None
         self._parser = AetherParser()
         self._sources: Optional[dict[str, str]] = None
@@ -424,6 +432,7 @@ class ProofChecker:
         has_non_def_stmts = any(not isinstance(s, (FuncDefNode, ImportNode)) for s in doc.statements)
         if doc.statements and (not doc.theorems or has_non_def_stmts or import_results):
             ctx = ProofContext()
+            ctx.show_working = self.show_working
             for fn_def in shared_defs:
                 if fn_def not in doc.statements:
                     try:
@@ -649,6 +658,7 @@ class ProofChecker:
         verified_claims: Optional[list[tuple[Optional[str], ExprNode]]] = None,
     ) -> ProofReport:
         ctx = ProofContext()
+        ctx.show_working = self.show_working
         if shared_defs:
             for fn_def in shared_defs:
                 try:
@@ -670,6 +680,32 @@ class ProofChecker:
     # -------------------------------------------------------------------
     # Internal statement dispatch
     # -------------------------------------------------------------------
+
+    def _review_working(
+        self, result: StepResult, before: Optional[ExprNode], after: Optional[ExprNode], ctx: ProofContext
+    ) -> StepResult:
+        """Show your working: a valid step that skips what the question asks to see warns."""
+        if not self.show_working or result.status != StepStatus.VALID:
+            return result
+        gap = working_gap(before, after, ctx)
+        if gap is None:
+            return result
+        result.status = StepStatus.WARNING
+        result.backend = "Working"
+        result.message = f"Show your working: {gap} The step itself is correct."
+        return result
+
+    def _review_shortcut(self, result: StepResult, ctx: ProofContext) -> StepResult:
+        """Show your working: a conclusion settled only by checking every remainder warns."""
+        if not self.show_working or result.status != StepStatus.VALID or result.backend != "Residues":
+            return result
+        result.status = StepStatus.WARNING
+        result.message = (
+            f"Show your working: this was decided by checking every remainder, not by your "
+            f"argument. Split into cases (n = 2k, n = 2k + 1, or by remainder mod the divisor) "
+            f"and show each. {result.message}"
+        )
+        return result
 
     @staticmethod
     def _review_case_coverage(result: StepResult, ctx: ProofContext) -> StepResult:
@@ -887,9 +923,12 @@ class ProofChecker:
         if isinstance(stmt, ObtainNode):
             return self._check_obtain(stmt, ctx)
         if isinstance(stmt, StepNode):
-            return self._check_step(stmt, ctx)
+            # The step's left side before the chain moves on: a `= rhs` step
+            # starts from the previous right-hand side.
+            before = stmt.lhs if stmt.lhs is not None else (ctx.chain.current_rhs if ctx.chain is not None else None)
+            return self._review_working(self._check_step(stmt, ctx), before, stmt.rhs, ctx)
         if isinstance(stmt, DeduceNode):
-            return self._review_case_coverage(self._check_deduce(stmt, ctx), ctx)
+            return self._review_shortcut(self._review_case_coverage(self._check_deduce(stmt, ctx), ctx), ctx)
         if isinstance(stmt, SubProofNode):
             return self._check_subproof(stmt, ctx)
         vars_snap, hyps_snap = self._snapshot(ctx)

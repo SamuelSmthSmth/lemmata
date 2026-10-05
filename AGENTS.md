@@ -70,6 +70,10 @@ from aether import ProofChecker, ProofReport, StepResult, StepStatus, ParseError
 
 # strict_domains=False (default): unguarded domain obligations produce StepStatus.WARNING
 # strict_domains=True: unguarded domain obligations produce StepStatus.INVALID
+# show_working=True: a step that skips the working a question asks to see (a
+#   derivative needing the product rule, a sum's closed form, a divisibility
+#   settled by checking remainders) is a StepStatus.WARNING naming the rule;
+#   default False, which changes nothing (see aether.engine.working)
 checker = ProofChecker(strict_domains=False)
 
 try:
