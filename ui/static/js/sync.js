@@ -36,7 +36,7 @@ export const SYNCED = ["files", "snapshots", "meta", "packs", "prefs"];
 /** Keys that describe this device, not the student's work: never synced. */
 export const DEVICE_ONLY = {
   meta: new Set(["tabs", "active", "migrated-v1", "sync"]),
-  prefs: new Set(["aether-desk", "aether-view", "aether-welcomed"]),
+  prefs: new Set(["aether-desk", "aether-desk-panel", "aether-view", "aether-welcomed"]),
 };
 
 export function isSynced(store, key) {

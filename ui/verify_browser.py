@@ -595,6 +595,7 @@ def run_checks() -> None:
     working_checks()
     graph_checks()
     level_checks()
+    sync_checks()
     visual_checks()
     zip_checks()
 
@@ -1369,6 +1370,82 @@ def level_checks() -> None:
     time.sleep(0.3)
     levels = js("window.__lv")
     check(levels == ["off", "exam", "off"], f"a proof from before levels stays Off; one with a level keeps it ({levels})")
+
+
+def wait_for(script: str, timeout: float = 5.0):
+    deadline = time.time() + timeout
+    value = js(script)
+    while time.time() < deadline and not value:
+        time.sleep(0.15)
+        value = js(script)
+    return value
+
+
+def sync_checks() -> None:
+    print("== sync: this browser and another device, through one account ==")
+    fresh()
+    js(
+        """(async () => {
+          const at = (p) => import(new URL(`static/js/${p}`, document.baseURI).href);
+          const [{ connectSync }, { createMemoryRemote }, prefs, ws] = await Promise.all(
+            [at('sync-local.js'), at('remote-memory.js'), at('prefs.js'), at('workspace.js')]);
+          await ws.createFile({ path: 'Mine.aether', source: 'Let x : Real\\n' });
+          const remote = createMemoryRemote();
+          const s = connectSync({ remote, owner: 'test-user' });
+          window.__sync = { remote, s, prefs, ws };
+          await s.syncNow();
+          window.__syncReady = true;
+        })(); 'ok'"""
+    )
+    check(wait_for("window.__syncReady === true") is True, "sync connects to an account")
+    rows = js("JSON.stringify([...window.__sync.remote.rows.keys()])")
+    check("files:" in " ".join(rows) and any(r.startswith("files:") for r in rows), f"first sign-in: this browser's proofs go up to the account ({len(rows)} records)")
+    check("meta:tabs" not in rows and "meta:active" not in rows, "but which tabs are open here does not")
+    js("window.__sync.prefs.setPref('editorSize', '15'); 'ok'")
+    got = wait_for("window.__sync.remote.rows.get('prefs:aether-editor-size')?.data ?? null", 4)
+    check(got == "15", f"a setting changed here reaches the account ({got})")
+
+    # Another device: a proof, a setting and the layout, pushed to the account.
+    js(
+        """(() => {
+          const t = Date.now() + 5000;
+          const file = { id: 'flaptop', path: 'From my laptop.aether', source: 'Let y : Real\\n', strict: false,
+                         working: false, level: 'off', created: t, updated: t };
+          window.__sync.remote.push([
+            { store: 'files', key: 'flaptop', data: file, modified: t, deleted: false },
+            { store: 'prefs', key: 'aether-theme', data: 'dark', modified: t, deleted: false },
+            { store: 'prefs', key: 'aether:layout', data: { version: 1, arrangement: 'stack', order: ['audit', 'editor', 'context'] }, modified: t, deleted: false },
+          ]);
+          return 'ok';
+        })()"""
+    )
+    arrived = wait_for("[...document.querySelectorAll('#explorer .tree-row--file .tree-label')].some(e => e.textContent.includes('From my laptop'))")
+    check(arrived is True, f"a proof made on another device appears in the explorer ({files_in_workspace()})")
+    check(js("document.documentElement.dataset.theme") == "dark", "a setting changed on another device is applied here at once")
+    layout = js("document.querySelector('.workspace-grid, [data-layout]')?.dataset.layout ?? null")
+    check(layout == "stack", f"and so is the panel layout ({layout})")
+    seq = js("window.__sync.remote.rows.get('prefs:aether-theme').seq")
+    time.sleep(1.5)
+    check(js("window.__sync.remote.rows.get('prefs:aether-theme').seq") == seq, "and what arrived is not sent back")
+
+    # The open proof is edited on another device.
+    js(
+        """(() => {
+          const ws = window.__sync.ws;
+          const file = ws.model.files.get(ws.model.activeId);
+          const t = Date.now() + 10000;
+          window.__sync.remote.push([{ store: 'files', key: file.id, data: { ...file, source: 'Let z : Real\\n', updated: t }, modified: t, deleted: false }]);
+          return 'ok';
+        })()"""
+    )
+    shown = wait_for("[...document.querySelectorAll('.cm-line')].some(l => l.textContent.includes('Let z'))")
+    check(shown is True, "the open proof, edited on another device, updates in the editor")
+
+    # And a proof deleted on another device goes here too.
+    js("window.__sync.remote.push([{ store: 'files', key: 'flaptop', data: null, modified: Date.now() + 20000, deleted: true }]); 'ok'")
+    gone = wait_for("![...document.querySelectorAll('#explorer .tree-row--file .tree-label')].some(e => e.textContent.includes('From my laptop'))")
+    check(gone is True, "a proof deleted on another device is deleted here")
+    js("window.__sync.s.disconnect(); 'ok'")
 
 
 def boot_checks() -> None:
