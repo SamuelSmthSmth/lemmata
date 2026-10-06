@@ -1355,6 +1355,11 @@ def level_checks() -> None:
     state = settle()
     check(state["verdict"] == "VALID" and "l=" not in (state["hash"] or ""), f"back at Off it checks as it always has ({state['verdict']})")
     check(js("localStorage.getItem('aether-level-default')") in (None, "course"), "new proofs start at the Settings default, Course unless changed")
+    # A proof saved before levels existed has no level: it stays Off.
+    js("(async () => { const m = await import(new URL('static/js/level.js', document.baseURI).href); window.__lv = [m.levelOf({ source: '' }), m.levelOf({ level: 'exam' }), m.levelOf({ level: null })]; })(); 'ok'")
+    time.sleep(0.3)
+    levels = js("window.__lv")
+    check(levels == ["off", "exam", "off"], f"a proof from before levels stays Off; one with a level keeps it ({levels})")
 
 
 def boot_checks() -> None:

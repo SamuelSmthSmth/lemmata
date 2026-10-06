@@ -36,9 +36,12 @@ export function getLevel() {
   return current;
 }
 
-/** The level a proof is checked at: its own, or the default for one that has none. */
+/** The level a proof is checked at.  Every proof made since levels exist
+ *  stores one (the Settings default when it was made); a proof without one
+ *  was made before them and was checked without the kernel, so it stays Off
+ *  rather than taking today's default and turning red unasked. */
 export function levelOf(file) {
-  return validLevel(file?.level);
+  return validLevel(file?.level, "off");
 }
 
 /** What the API's `kernel` field takes: null for Off. */
