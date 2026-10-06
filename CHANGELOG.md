@@ -17,6 +17,12 @@ What changed between releases of Lemmata, newest first. The engine is the `aethe
   - **Calibrated on the course packs:** at *Course*, all 133 entries give the same verdict as without the kernel.
   - **Without the option, nothing changes.**
 
+### What each line used, and what was computed (engine only, opt in)
+
+- **`ProofChecker(dependencies=True)`** names the premises each line that checked was proved from (`StepResult.premises`): the equalities SymPy substituted, the unsat core of Z3's proof, the line a chain continues, the source of an `Obtain … from`, an induction's base case and step, a result cited by name. When the engine can't say everything a line used, `premises_complete` is False rather than a guess. This is what a proof graph needs.
+- **`ProofChecker(trace=True)`** lists the backend calls made checking each line (`StepResult.trace`): what Z3 or SymPy was asked, the answer, how long it took, nested under the call that made it.
+- **Neither changes a verdict or a message.** The audit's unsat cores run on a Z3 context of their own, so they can't steer the check. `tests/lecture_notes/dependency_parity.py` checks this on every pack entry, with and without the kernel. On the packs, 98% of the lines that check have a complete list of premises, at no measurable cost.
+
 ### Documentation
 
 - **The README** is a front door: what Lemmata is, a checked example, who it's for, and how to run it.

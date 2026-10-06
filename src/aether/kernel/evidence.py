@@ -13,6 +13,8 @@ from typing import Optional
 
 import z3
 
+from aether.engine.trace import traced
+
 from aether.core.ast import ExprNode
 from aether.core.types import MathType
 from aether.engine.context import HypothesisInfo, ProofContext
@@ -30,6 +32,7 @@ from aether.engine.logic import (
 PREVIOUS_LINE = "the previous line"
 
 
+@traced("Z3", "core", lambda claim, premises, ctx, **_: f"{claim}, given {len(premises)} fact{'' if len(premises) == 1 else 's'}", none="no core")
 def premises_used(
     claim: ExprNode,
     premises: list[HypothesisInfo],
