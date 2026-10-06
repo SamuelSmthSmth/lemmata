@@ -57,6 +57,7 @@ export const dom = {
   symbols: byId("symbols"),
   strict: byId("strict"),
   working: byId("working"),
+  workingTip: byId("working-tip"),
   syntaxToggle: byId("syntax-toggle"),
   downloadProof: byId("download-proof"),
   editorPath: byId("editor-path"),

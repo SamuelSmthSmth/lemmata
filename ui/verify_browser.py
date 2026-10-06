@@ -1351,8 +1351,12 @@ def level_checks() -> None:
     check(state["verdict"] == "INVALID" and "too big a step" in audit, f"at Course, the whole epsilon-delta in one line is too big a step ({state['verdict']})")
     check("Kernel: auto" in audit, "and the auditor names what it needed (Kernel: auto)")
     check("l=course" in (state["hash"] or ""), f"the proof's link carries its level ({(state['hash'] or '')[-10:]})")
+    pick_level("Exam")
+    settle()
+    check(js("document.querySelector('#working').disabled") is True, "at Exam the Show working switch stands aside: the level already asks for the working")
     pick_level("Off")
     state = settle()
+    check(js("document.querySelector('#working').disabled") is False, "and comes back at the other levels")
     check(state["verdict"] == "VALID" and "l=" not in (state["hash"] or ""), f"back at Off it checks as it always has ({state['verdict']})")
     check(js("localStorage.getItem('aether-level-default')") in (None, "course"), "new proofs start at the Settings default, Course unless changed")
     # A proof saved before levels existed has no level: it stays Off.
