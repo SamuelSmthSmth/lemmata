@@ -180,7 +180,7 @@ async function checkAll(pack) {
     const key = entryKey(pack.name, entry.id);
     let verdict;
     try {
-      verdict = verdictOf(await checkProof({ source: entry.source, strictDomains: false }));
+      verdict = verdictOf(await checkProof({ source: entry.source, strictDomains: false, kernel: packs.kernelOf(packs.entryLevel(pack, entry)) }));
     } catch (error) {
       verdict = "UNREACHABLE";
     }
@@ -213,7 +213,8 @@ function packHead(pack, { installed, update }) {
   head.append(el("h2", null, label === pack.title ? pack.title : `${label} · ${pack.title}`));
   const record = packs.installedRecords().find((r) => r.name === pack.name);
   const count = entryCount(pack);
-  const meta = [`v${pack.version}`, pack.authors?.join(", "), pack.license, `${count} ${count === 1 ? "entry" : "entries"}`];
+  const level = packs.entryLevel(pack, {});
+  const meta = [`v${pack.version}`, pack.authors?.join(", "), pack.license, `${count} ${count === 1 ? "entry" : "entries"}`, level === "off" ? null : `checked at ${level[0].toUpperCase()}${level.slice(1)}`];
   if (record?.origin === "file") meta.push("installed from a file");
   if (record?.origin === "local") meta.push(`made ${kept}`);
   if (record?.origin === "registry") meta.push("from the registry");

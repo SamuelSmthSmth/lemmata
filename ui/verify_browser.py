@@ -1007,6 +1007,8 @@ def library_checks() -> None:
           f"search looks across every pack ({titles[:3]})")
     js("(() => { const s = document.querySelector('#library-search'); s.value = ''; s.dispatchEvent(new Event('input')); return 1; })()")
 
+    pack_meta = js("[...document.querySelectorAll('.pack-meta')].map(e => e.textContent).join(' | ')")
+    check("checked at Course" in pack_meta, f"a pack says the level its verdicts hold at ({pack_meta[:80]})")
     ab("click", "#library-filters [data-filter='trap']")
     time.sleep(0.3)
     kinds = js("document.querySelectorAll('.entry').length === document.querySelectorAll('.entry--trap').length")
@@ -1019,6 +1021,8 @@ def library_checks() -> None:
     state = settle()
     time.sleep(0.3)
     check(state["verdict"] == "Exercise", f"a trap opens as an exercise ({state['verdict']})")
+    copy_level = js("document.querySelector('#level-button').textContent")
+    check(copy_level == "Level: Course", f"at the level its pack records it, so the exercise's answer holds ({copy_level})")
     check(js("document.body.dataset.exercise") == "hidden", "with the answer hidden")
     visible_meta = js("[...document.querySelectorAll('.step-meta')].filter(e => e.offsetParent).length")
     check(visible_meta == 0, f"no step verdicts are visible ({visible_meta})")
@@ -1183,6 +1187,7 @@ def pack_author_checks() -> None:
     if target.exists():
         exported = json.loads(target.read_text())
         check(exported["name"] == "me/new-pack" and exported["entries"][0]["expected"] == "VALID", "recording each entry's real verdict")
+        check(exported.get("level") == "course" and "level" not in exported["entries"][0], f"at the level its proofs are checked at, recorded once for the pack ({exported.get('level')})")
         check(exported.get("courses", []) == [], "with no course code unless one was given")
 
     ab("click", "#pack-install")

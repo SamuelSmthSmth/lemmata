@@ -415,12 +415,12 @@ function workingDefault() {
   return getPref("workingDefault") === "on";
 }
 
-async function newProof({ path = null, source = null, origin = null, exercise = null, open = true } = {}) {
+async function newProof({ path = null, source = null, origin = null, exercise = null, level = null, open = true } = {}) {
   await saveActive();
   const folder = active() ? ws.dirname(active().path) : "";
   const finalPath = path ?? ws.freePath("Untitled", folder);
   const text = source ?? 'Theorem: "Untitled"\nProof:\n    \nQED\n';
-  const file = await ws.createFile({ path: finalPath, source: text, strict: strictDefault(), working: workingDefault(), level: defaultLevel(), open });
+  const file = await ws.createFile({ path: finalPath, source: text, strict: strictDefault(), working: workingDefault(), level: level ?? defaultLevel(), open });
   // `initial` is what "Reset to its start" goes back to.
   await ws.updateFile(file.id, { initial: text, ...(origin ? { origin } : {}), ...(exercise ? { exercise } : {}) });
   setView("workspace");
@@ -454,6 +454,9 @@ async function openLibraryEntry(pack, entry, { exercise = false, fresh = false }
     source: entry.source,
     origin: key,
     exercise: exercise && entry.kind === "trap" ? { revealed: false, guess: null, answer: null } : null,
+    // At the level the pack recorded it: an exercise's answer is the line that
+    // fails there, and a copy at another level could fail somewhere else.
+    level: packs.entryLevel(pack, entry),
   });
   showDesk("notes");
   return file;

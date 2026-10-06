@@ -61,7 +61,25 @@ export function compareVersions(a, b) {
   return x.pre < y.pre ? -1 : 1;
 }
 
-const ENTRY_FIELDS = ["ref", "title", "kind", "expected", "source", "chapter", "explanation"];
+const ENTRY_FIELDS = ["ref", "title", "kind", "expected", "source", "chapter", "explanation", "level"];
+
+const LEVELS = ["off", "exam", "course", "scratch"];
+
+/** The checking level an entry's verdict is recorded at: its own, else the
+ *  pack's, else off (aether.packs.entry_level, the rule's authority). */
+export function entryLevel(pack, entry) {
+  const level = entry?.level ?? pack?.level ?? "off";
+  return LEVELS.includes(level) ? level : "off";
+}
+
+/** The API's `kernel` for a level: null for off. */
+export function kernelOf(level) {
+  return level === "off" ? null : level;
+}
+
+function levelOfFile(file) {
+  return LEVELS.includes(file?.level) ? file.level : "off";
+}
 
 /** What installing `next` over `prev` would change, entry by entry. */
 export function diffPacks(prev, next) {
@@ -222,6 +240,11 @@ const stem = (path) => path.split("/").pop().replace(/\.aether$/i, "");
  * Returns {pack, problems}: problems name the file, not an entries[i] index.
  */
 export function buildPack(manifest, files, verdicts) {
+  // Each entry is recorded at its proof's own level: the pack takes the most
+  // common one, and an entry at another level says so.
+  const tally = new Map();
+  for (const file of files) tally.set(levelOfFile(file), (tally.get(levelOfFile(file)) ?? 0) + 1);
+  const packLevel = [...tally.entries()].sort((a, b) => b[1] - a[1] || LEVELS.indexOf(a[0]) - LEVELS.indexOf(b[0]))[0]?.[0] ?? "off";
   const problems = [];
   if (/^core\//.test(manifest.name)) problems.push("The core/ scope is kept for the packs that ship with the app; choose your own, e.g. yourname/" + slugify(manifest.title));
   const ordered = [...files].sort((a, b) => a.path.localeCompare(b.path));
@@ -249,6 +272,7 @@ export function buildPack(manifest, files, verdicts) {
     if (!file.source.trim()) problems.push(`${name} is empty`);
     const entry = { id, chapter: chapterIds.get(chapterTitle), ref: (meta.ref || name).trim(), title: (meta.title || name).trim(), kind, expected, source: file.source };
     if (kind === "trap") entry.explanation = meta.explanation?.trim() ?? "";
+    if (levelOfFile(file) !== packLevel) entry.level = levelOfFile(file);
     entries.push(entry);
   }
   if (!entries.length) problems.push("The folder has no proofs in it yet");
@@ -258,6 +282,7 @@ export function buildPack(manifest, files, verdicts) {
     version: manifest.version,
     title: manifest.title,
     ...(manifest.courses?.length ? { courses: manifest.courses } : {}),
+    ...(packLevel !== "off" ? { level: packLevel } : {}),
     summary: manifest.summary,
     authors: manifest.authors ?? [],
     license: manifest.license,
