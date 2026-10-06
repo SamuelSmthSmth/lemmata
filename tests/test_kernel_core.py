@@ -96,8 +96,20 @@ class TestTactics:
         # tactic proves it, so the kernel keeps calling it what it is.
         assert tactic(ctx_with(n="Int"), "MultipleOf(n^3 - n, 6)") is None
 
-    def test_an_uninterpreted_function_proves_nothing_about_itself(self):
-        assert tactic(ctx_with(x="Real"), "sqrt(x)^2 = x", "x >= 0") is None
+    def test_a_function_the_notes_name_proves_nothing_about_itself(self):
+        assert tactic(ctx_with(x="Real"), "f(x)^2 = x", "x >= 0") is None
+
+    def test_standard_functions_read_as_the_engine_reads_them(self):
+        ctx = ctx_with(x="Real")
+        assert tactic(ctx, "factorial(3) = 6") == "ring"
+        assert tactic(ctx, "gcd(8, 2) = 2") == "ring"
+
+    @pytest.mark.parametrize("goal", ["gcd(n, k) = 1", "lcm(n, k) = n * k", "binomial(n, 2) = n"])
+    def test_number_theory_on_symbols_is_not_polynomial_algebra(self, goal):
+        # SymPy's gcd of two symbols is the polynomial gcd, 1, and its lcm the
+        # product: false for integers, and the Notation pack's traps.  A shadow
+        # run of the tactics against the engine caught ring proving both.
+        assert tactic(ctx_with(n="Int", k="Int"), goal) is None
 
 
 SEVEN = """\
