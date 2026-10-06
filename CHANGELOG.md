@@ -10,7 +10,7 @@ What changed between releases of Lemmata, newest first. The engine is the `aethe
 
 ### In the app
 
-- **Checking levels.** A *Level* menu in the tool strip: *Off* (every true line passes, as before), *Exam*, *Course* or *Scratch*. *Course*, the default for new proofs, refuses a line that is true but skips the argument (a whole ε–δ statement at once, a divisibility by checking remainders) and says what to write instead; *Exam* also wants a derivative, limit or sum worked. Each proof keeps its level, and its link and History snapshots carry it; a link from before opens at *Off*.
+- **Checking levels.** A *Level* menu in the tool strip: *Off* (every true line passes, as before), *Exam*, *Course* or *Scratch*. *Course*, the default for new proofs, refuses a line that is true but skips the argument (a whole ε–δ statement at once, a divisibility by checking remainders) and says what to write instead; *Exam* also wants a derivative, limit or sum worked. Each proof keeps its level, and its link and History snapshots carry it; a proof or link from before levels opens at *Off*, as it was checked.
 - **What each line used.** Select a step and the auditor draws arcs to the lines it was proved from, with their line numbers lit, and to the lines that use it. Context & state lists both as *Used* and *Used by*, each a link to its line. A button in the auditor's head draws the whole proof's graph.
 - **The Trace tab:** the checker's log in the reading pane. For each line it shows what was asked of SymPy and Z3, the answer and the time, with a block's own lines nested under it.
 - Both can be turned off in Settings (*What each line used*), which makes checking about a tenth quicker.
