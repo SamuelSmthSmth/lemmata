@@ -8,6 +8,15 @@ What changed between releases of Lemmata, newest first. The engine is the `aethe
 
 - **Several names in one quantifier**, as the notes write them: `forall a, b : Int, …`, `∀ a, b ∈ ℤ, …` and `∀ ε, δ > 0, …`. Each name gets the type or bound. The User Guide already used the first form, and it didn't parse.
 
+### The proof kernel, stage 1 (engine only, opt in)
+
+- **`ProofChecker(kernel="exam" | "course" | "scratch")`** checks whether each line *follows*, not only whether it is true. It is the first stage of the design in *A Proof Kernel for Lemmata*.
+  - **A line that cites its premises may use only those.** `x² > 25 [using h2]` is refused when h2 doesn't give it, and the message names the fact that does.
+  - **Each line is classified by the reasoning that settled it**, and refused as too big a step when the level doesn't allow that: a whole ε–δ statement decided in one line, or a divisibility settled by checking remainders. Under *Exam*, a limit, derivative or series evaluated in one line is refused too.
+  - **The audit names the tactic and the premises used**, for example "Kernel: linarith … (from line 5 and line 4)".
+  - **Calibrated on the course packs:** at *Course*, all 133 entries give the same verdict as without the kernel.
+  - **Without the option, nothing changes.**
+
 ### Documentation
 
 - **The README** is a front door: what Lemmata is, a checked example, who it's for, and how to run it.
