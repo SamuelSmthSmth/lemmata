@@ -20,10 +20,15 @@ Format 1::
       "license": "CC-BY-SA-4.0",
       "engine": ">=0.1",                 the engine versions the verdicts hold for
       "depends": {"core/notation": "^1"},
+      "level": "course",                optional: the checking level, default "off"
       "chapters": [{"id": "1", "title": "..."}],
       "entries": [{"id", "chapter", "ref", "title", "kind", "expected",
-                   "source", "explanation"?, "blurb"?}]
+                   "source", "explanation"?, "blurb"?, "level"?}]
     }
+
+An entry's ``expected`` is the verdict at its level (``entry_level``): the
+entry's own ``level``, else the pack's, else ``"off"`` (the engine without the
+proof kernel).  A pack without levels means what it always meant.
 
 This is a library module, not part of the stable public API listed in
 AGENTS.md.
@@ -39,6 +44,8 @@ from typing import Any
 PACK_FORMAT = 1
 
 KINDS = ("proof", "trap")
+#: The checking levels (aether.kernel.policy.LEVELS, and "off" for none).
+LEVELS = ("off", "exam", "course", "scratch")
 VERDICTS = ("VALID", "WARN", "INVALID", "PARSE ERROR")
 
 NAME_RE = re.compile(r"^[a-z0-9][a-z0-9-]*/[a-z0-9][a-z0-9-]*$")
@@ -46,9 +53,9 @@ SLUG_RE = re.compile(r"^[a-z0-9][a-z0-9-]*$")
 SEMVER_RE = re.compile(r"^\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?$")
 
 REQUIRED = ("format", "name", "version", "title", "summary", "license", "chapters", "entries")
-OPTIONAL = ("courses", "authors", "engine", "depends")
+OPTIONAL = ("courses", "authors", "engine", "depends", "level")
 ENTRY_REQUIRED = ("id", "chapter", "ref", "title", "kind", "expected", "source")
-ENTRY_OPTIONAL = ("explanation", "blurb")
+ENTRY_OPTIONAL = ("explanation", "blurb", "level")
 
 
 class PackError(ValueError):
@@ -92,6 +99,8 @@ def validate_pack(data: Any) -> tuple[dict[str, Any] | None, list[str]]:
     for key in ("courses", "authors"):
         if key in data and not (isinstance(data[key], list) and all(_is_str(v) for v in data[key])):
             errors.append(f"{key}: must be a list of strings")
+    if "level" in data and data["level"] not in LEVELS:
+        errors.append(f"level: must be one of {', '.join(LEVELS)}")
     if "engine" in data and not _is_str(data["engine"]):
         errors.append("engine: must be a version range string, e.g. >=0.1")
     if "depends" in data and not (
@@ -155,6 +164,8 @@ def validate_pack(data: Any) -> tuple[dict[str, Any] | None, list[str]]:
                 for key in ENTRY_OPTIONAL:
                     if key in entry and not _is_str(entry[key]):
                         errors.append(f"{where}.{key}: must be a non-empty string")
+                if "level" in entry and entry["level"] not in LEVELS:
+                    errors.append(f"{where}.level: must be one of {', '.join(LEVELS)}")
 
     if errors:
         return None, errors
@@ -164,6 +175,18 @@ def validate_pack(data: Any) -> tuple[dict[str, Any] | None, list[str]]:
     pack.setdefault("engine", ">=0.1")
     pack.setdefault("depends", {})
     return pack, []
+
+
+def entry_level(pack: dict[str, Any], entry: dict[str, Any]) -> str:
+    """The checking level *entry* records its verdict at: its own, else the
+    pack's, else ``"off"``.  The one place that rule lives."""
+    level = entry.get("level") or pack.get("level") or "off"
+    return level if level in LEVELS else "off"
+
+
+def kernel_for(level: str) -> str | None:
+    """``ProofChecker(kernel=...)`` for a level: None for ``"off"``."""
+    return None if level == "off" else level
 
 
 def load_pack(path: str | Path) -> dict[str, Any]:

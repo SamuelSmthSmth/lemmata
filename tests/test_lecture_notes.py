@@ -15,7 +15,7 @@ from pathlib import Path
 import pytest
 
 from aether import ParseError, ProofChecker
-from aether.packs import load_packs, pack_label
+from aether.packs import entry_level, kernel_for, load_packs, pack_label
 
 COURSES = Path(__file__).resolve().parent.parent / "courses"
 
@@ -24,10 +24,12 @@ def _entries():
     """Every course-pack entry, as a pytest param named after its pack and reference."""
     for pack in load_packs(COURSES):
         for entry in pack["entries"]:
+            level = entry_level(pack, entry)
             yield pytest.param(
                 entry["source"],
                 entry["expected"],
-                id=f"{pack_label(pack)} {entry['ref']} {entry['title']}",
+                level,
+                id=f"{pack_label(pack)} {entry['ref']} {entry['title']}" + ("" if level == "off" else f" @{level}"),
             )
 
 
@@ -44,10 +46,14 @@ def test_every_trap_explains_itself() -> None:
                 assert entry["expected"] == "INVALID" and entry.get("explanation"), entry["id"]
 
 
-@pytest.fixture(scope="module")
-def checker() -> ProofChecker:
-    # Building the parser dominates a small check, so one checker serves all.
-    return ProofChecker()
+_CHECKERS: dict[str, ProofChecker] = {}
+
+
+def checker_at(level: str) -> ProofChecker:
+    # Building the parser dominates a small check, so one checker per level serves all.
+    if level not in _CHECKERS:
+        _CHECKERS[level] = ProofChecker(kernel=kernel_for(level))
+    return _CHECKERS[level]
 
 
 def _verdict(checker: ProofChecker, source: str) -> tuple[str, str]:
@@ -63,7 +69,7 @@ def _verdict(checker: ProofChecker, source: str) -> tuple[str, str]:
     return "VALID", text
 
 
-@pytest.mark.parametrize("source, expected", ENTRIES)
-def test_lecture_note_entry(checker: ProofChecker, source: str, expected: str) -> None:
-    got, report = _verdict(checker, source)
+@pytest.mark.parametrize("source, expected, level", ENTRIES)
+def test_lecture_note_entry(source: str, expected: str, level: str) -> None:
+    got, report = _verdict(checker_at(level), source)
     assert got == expected, f"expected {expected}, got {got}\n{report}"

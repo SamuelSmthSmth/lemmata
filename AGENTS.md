@@ -191,7 +191,11 @@ in **pack format 1**, defined and validated by `src/aether/packs.py`
 `courses/pack.schema.json` is a JSON Schema copy for authors, and
 `tests/test_packs.py` keeps the two in step. A pack has a scoped `name`
 (`core/mth2008`), a semver `version`, a `license`, and an **optional**
-`courses` list, so a pack can be a topic rather than a module.
+`courses` list, so a pack can be a topic rather than a module. A pack (or one
+entry) may record its **checking level** (`"level": "exam" | "course" |
+"scratch"`, default `"off"`): its `expected` verdicts are then the verdicts
+with the proof kernel at that level. `aether.packs.entry_level(pack, entry)` is
+the one place that rule lives; the core packs are recorded at `course`.
 
 They are data shared by both sides: `tests/test_lecture_notes.py` checks every
 entry, and the UI serves them as the bundled catalogue the browser installs

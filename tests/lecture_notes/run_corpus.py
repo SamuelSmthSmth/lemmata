@@ -19,25 +19,26 @@ from pathlib import Path
 COURSES = Path(__file__).resolve().parents[2] / "courses"
 
 
-def _load() -> list[tuple[str, str, str, str]]:
-    from aether.packs import load_packs, pack_label
+def _load() -> list[tuple[str, str, str, str, str]]:
+    from aether.packs import entry_level, load_packs, pack_label
 
     rows = []
     for pack in load_packs(COURSES):
         for entry in pack["entries"]:
-            rows.append((pack_label(pack), f"{entry['ref']} {entry['title']}", entry["expected"], entry["source"]))
+            rows.append((pack_label(pack), f"{entry['ref']} {entry['title']}", entry["expected"], entry["source"], entry_level(pack, entry)))
     return rows
 
 
 ALL = _load()
 
 
-def verdict(source: str, strict: bool = False) -> tuple[str, str]:
+def verdict(source: str, strict: bool = False, level: str = "off") -> tuple[str, str]:
     """Fold a document's reports into one verdict, plus a printable report."""
     from aether import ParseError, ProofChecker
+    from aether.packs import kernel_for
 
     try:
-        reports = ProofChecker(strict_domains=strict).check_source(source)
+        reports = ProofChecker(strict_domains=strict, kernel=kernel_for(level)).check_source(source)
     except ParseError as err:
         return "PARSE", f"line {err.line} col {err.col}: {str(err.message)[:300]}"
     except Exception:  # noqa: BLE001 - a crash is exactly what we want to see
@@ -52,15 +53,15 @@ def verdict(source: str, strict: bool = False) -> tuple[str, str]:
     return "VALID", text
 
 
-def _child(source: str, conn) -> None:
-    conn.send(verdict(source))
+def _child(source: str, level: str, conn) -> None:
+    conn.send(verdict(source, level=level))
     conn.close()
 
 
-def run_one(source: str, budget: float) -> tuple[str, str, float]:
+def run_one(source: str, budget: float, level: str = "off") -> tuple[str, str, float]:
     start = time.time()
     parent, child = mp.Pipe(duplex=False)
-    proc = mp.get_context("fork").Process(target=_child, args=(source, child))
+    proc = mp.get_context("fork").Process(target=_child, args=(source, level, child))
     proc.start()
     child.close()
     if parent.poll(budget):
@@ -84,10 +85,10 @@ def main() -> int:
     from concurrent.futures import ThreadPoolExecutor
 
     with ThreadPoolExecutor(args.j) as pool:
-        results = list(pool.map(lambda e: run_one(e[3], args.budget), entries))
+        results = list(pool.map(lambda e: run_one(e[3], args.budget, e[4]), entries))
 
     bad = 0
-    for (course, name, expect, _src), (got, text, dt) in zip(entries, results):
+    for (course, name, expect, _src, _level), (got, text, dt) in zip(entries, results):
         ok = got == expect
         bad += not ok
         print(f"[{'ok ' if ok else 'BAD'}] {course} {name:62.62s} want={expect:7s} got={got:7s} {dt:5.1f}s")
