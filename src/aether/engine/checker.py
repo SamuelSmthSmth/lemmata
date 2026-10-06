@@ -36,6 +36,8 @@ from aether.core.ast import (
 from aether.parser.parser import AetherParser
 from aether.engine.hints import hints_for
 from aether.engine.working import working_gap
+from aether.kernel import Kernel
+from aether.kernel.premises import unrestricted
 from aether.engine.citations import (
     CitationIndex,
     Target,
@@ -212,6 +214,7 @@ class ProofChecker:
         strict_domains: bool = False,
         base_dir: Optional[Path | str] = None,
         show_working: bool = False,
+        kernel: Optional[str] = None,
     ) -> None:
         """
         Parameters
@@ -226,9 +229,17 @@ class ProofChecker:
             saying what working is expected; see ``aether.engine.working``.
         base_dir:
             Optional base directory used to resolve relative proof imports.
+        kernel:
+            A proof-kernel level (``"exam"``, ``"course"`` or ``"scratch"``;
+            see ``aether.kernel``).  Chain links and deductions are then
+            checked with only the premises they cite, and a line settled by
+            reasoning stronger than the level allows is refused as too big a
+            step.  ``None`` (the default) leaves the engine as it was.
         """
         self.strict_domains = strict_domains
         self.show_working = show_working
+        self.kernel_level = kernel
+        self.kernel: Optional[Kernel] = Kernel(kernel) if kernel else None
         self.base_dir = Path(base_dir).resolve() if base_dir else None
         self._parser = AetherParser()
         self._sources: Optional[dict[str, str]] = None
@@ -268,6 +279,8 @@ class ProofChecker:
         """
         doc = self._parser.parse(source)
         fresh_solver_context()
+        if self.kernel_level:
+            self.kernel = Kernel(self.kernel_level)
         previous_lines = self._lines
         self._lines = source.splitlines()
         previous = self._sources
@@ -796,7 +809,10 @@ class ProofChecker:
                 continue
             for ob in extract_domain_obligations(ex, line=line, ctx=ctx):
                 ctx.obligations.append(ob)
-                d_res = check_domain_obligation(ob, ctx)
+                # A side condition is not part of the step's argument: under
+                # the kernel's premise selection it may still use anything in scope.
+                with unrestricted(ctx):
+                    d_res = check_domain_obligation(ob, ctx)
                 # `sqrt(x) + sqrt(x) = 2 * sqrt(x)` extracts the same obligation
                 # once per occurrence, which reported the identical warning three
                 # times over; each distinct one is worth saying only once.
@@ -814,6 +830,14 @@ class ProofChecker:
         return StepStatus.INVALID if self.strict_domains else StepStatus.WARNING
 
     def _check_statement(self, stmt: StatementNode, ctx: ProofContext) -> StepResult:
+        if self.kernel is None:
+            return self._check_statement_unrecorded(stmt, ctx)
+        before = {id(h) for h in ctx.all_hypotheses()}
+        result = self._check_statement_unrecorded(stmt, ctx)
+        self.kernel.record(ctx, before, stmt.line)
+        return result
+
+    def _check_statement_unrecorded(self, stmt: StatementNode, ctx: ProofContext) -> StepResult:
         justification = getattr(stmt, "justification", None)
         if justification and self._citations is not None:
             result = self._check_citing(stmt, justification, ctx)
@@ -859,10 +883,14 @@ class ProofChecker:
             for d in cited_defs
             if ctx.get_function(d.name) is None and ctx.get_var(d.name) is None
         ]
+        if self.kernel is not None:
+            self.kernel.lent = added
         try:
             stripped = replace(stmt, justification=", ".join(rest) or None)
             result = self._dispatch(stripped, ctx)
         finally:
+            if self.kernel is not None:
+                self.kernel.lent = []
             for frame in ctx._frames:
                 frame.hypotheses[:] = [h for h in frame.hypotheses if not any(h is a for a in added)]
             for name in lent:
@@ -922,6 +950,12 @@ class ProofChecker:
             return self._check_assume(stmt, ctx)
         if isinstance(stmt, ObtainNode):
             return self._check_obtain(stmt, ctx)
+        if isinstance(stmt, StepNode) and self.kernel is not None:
+            return self.kernel.check_step(stmt, ctx, self._check_step, self._defines_declared_function)
+        if isinstance(stmt, DeduceNode) and self.kernel is not None:
+            return self._review_case_coverage(
+                self.kernel.check_deduce(stmt, ctx, self._check_deduce, self._defines_declared_function), ctx
+            )
         if isinstance(stmt, StepNode):
             # The step's left side before the chain moves on: a `= rhs` step
             # starts from the previous right-hand side.

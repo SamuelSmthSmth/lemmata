@@ -1091,38 +1091,12 @@ def _populate_solver_context(solver: z3.Solver, ctx: ProofContext) -> None:
     # problem mentions a set operation (see _SET_FUNCTIONS).
 
     for h in ctx.all_hypotheses():
-        try:
-            solver.add(ast_to_z3(h.proposition, ctx, extra_constraints=extra))
-        except LogicConversionError:
-            pass
+        for term in hypothesis_terms(h.proposition, ctx, extra):
+            solver.add(term)
         _populate_algebra_axioms(solver, h.proposition, ctx)
-        # Eager ground instantiation for universally quantified hypotheses / lemmas
-        if isinstance(h.proposition, QuantifierNode) and h.proposition.quantifier == "forall":
-            q1_mt = _quantifier_type(h.proposition.var_type, ctx)
-            for v1 in active_vars.values():
-                if _types_compatible(q1_mt, v1.math_type):
-                    inst1 = substitute_expr(h.proposition.formula, h.proposition.var, SymbolNode(name=v1.name))
-                    if isinstance(inst1, QuantifierNode) and inst1.quantifier == "forall":
-                        q2_mt = _quantifier_type(inst1.var_type, ctx)
-                        for v2 in active_vars.values():
-                            if _types_compatible(q2_mt, v2.math_type):
-                                inst2 = substitute_expr(inst1.formula, inst1.var, SymbolNode(name=v2.name))
-                                try:
-                                    solver.add(ast_to_z3(inst2, ctx, extra_constraints=extra))
-                                except LogicConversionError:
-                                    pass
-                    else:
-                        try:
-                            solver.add(ast_to_z3(inst1, ctx, extra_constraints=extra))
-                        except LogicConversionError:
-                            pass
 
-    if ctx.chain is not None and ctx.chain.effective_relation:
-        chain_rel = RelationNode(
-            op=ctx.chain.effective_relation,
-            left=ctx.chain.head_lhs,
-            right=ctx.chain.current_rhs,
-        )
+    chain_rel = chain_fact(ctx)
+    if chain_rel is not None:
         try:
             solver.add(ast_to_z3(chain_rel, ctx, extra_constraints=extra))
         except LogicConversionError:
@@ -1130,6 +1104,50 @@ def _populate_solver_context(solver: z3.Solver, ctx: ProofContext) -> None:
 
     for c in extra:
         solver.add(c)
+
+
+def chain_fact(ctx: ProofContext) -> Optional[RelationNode]:
+    """What the active chain has established so far (``head R current``), if any."""
+    if ctx.chain is not None and ctx.chain.effective_relation:
+        return RelationNode(
+            op=ctx.chain.effective_relation,
+            left=ctx.chain.head_lhs,
+            right=ctx.chain.current_rhs,
+        )
+    return None
+
+
+def hypothesis_terms(prop: ExprNode, ctx: ProofContext, extra: list) -> list[z3.ExprRef]:
+    """A hypothesis as the solver is given it: the proposition, and for a
+    universal one its ground instances at the variables in scope (up to two
+    quantifiers deep).  Parts that do not translate are left out."""
+    terms: list[z3.ExprRef] = []
+    try:
+        terms.append(ast_to_z3(prop, ctx, extra_constraints=extra))
+    except LogicConversionError:
+        pass
+    # Eager ground instantiation for universally quantified hypotheses / lemmas
+    if isinstance(prop, QuantifierNode) and prop.quantifier == "forall":
+        active_vars = ctx.all_variables()
+        q1_mt = _quantifier_type(prop.var_type, ctx)
+        for v1 in active_vars.values():
+            if _types_compatible(q1_mt, v1.math_type):
+                inst1 = substitute_expr(prop.formula, prop.var, SymbolNode(name=v1.name))
+                if isinstance(inst1, QuantifierNode) and inst1.quantifier == "forall":
+                    q2_mt = _quantifier_type(inst1.var_type, ctx)
+                    for v2 in active_vars.values():
+                        if _types_compatible(q2_mt, v2.math_type):
+                            inst2 = substitute_expr(inst1.formula, inst1.var, SymbolNode(name=v2.name))
+                            try:
+                                terms.append(ast_to_z3(inst2, ctx, extra_constraints=extra))
+                            except LogicConversionError:
+                                pass
+                else:
+                    try:
+                        terms.append(ast_to_z3(inst1, ctx, extra_constraints=extra))
+                    except LogicConversionError:
+                        pass
+    return terms
 
 
 def _exprs_match(e1: ExprNode, e2: ExprNode, ctx: ProofContext) -> bool:

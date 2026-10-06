@@ -74,6 +74,12 @@ from aether import ProofChecker, ProofReport, StepResult, StepStatus, ParseError
 #   derivative needing the product rule, a sum's closed form, a divisibility
 #   settled by checking remainders) is a StepStatus.WARNING naming the rule;
 #   default False, which changes nothing (see aether.engine.working)
+# kernel="exam" | "course" | "scratch": the proof kernel, stage 1 (see
+#   aether.kernel): a line that cites premises may use only those, a line is
+#   refused as "too big a step" when the reasoning that settled it is stronger
+#   than the level allows, and `backend` reads "Kernel: <tactic>". Default
+#   None, which changes nothing. tests/lecture_notes/kernel_parity.py compares
+#   every pack entry with it on and off.
 checker = ProofChecker(strict_domains=False)
 
 try:
