@@ -16,6 +16,11 @@ What changed between releases of Lemmata, newest first. The engine is the `aethe
   - **The audit names the tactic and the premises used**, for example "Kernel: linarith … (from line 5 and line 4)".
   - **Calibrated on the course packs:** at *Course*, all 133 entries give the same verdict as without the kernel.
   - **Without the option, nothing changes.**
+- **Stage 2, the structural rules:**
+  - **`QED` is goal closure.** It no longer proves the claim for you: a proof that is only `Given n : Int`, then `QED`, is refused for a divisibility or a quantified claim, and the message names what the proof never showed.
+  - **A conclusion after a complete case split is by the case rule** ("By cases: … holds in each case …"), not decided by a solver.
+  - **Induction on a sum is recognised as working at *Exam*:** peeling off the last term and using the inductive hypothesis.
+  - **A line that follows from the line above is classified by that argument**, even when the engine reached it another way. This fixes stage 1 refusing the User Guide's own proof by cases.
 
 ### What each line used, and what was computed (engine only, opt in)
 
