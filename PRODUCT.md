@@ -36,7 +36,7 @@ A "proof intern": it reads proofs written the way the notes write them, `∀ ε 
 - A student's work lives in their browser: no accounts or server-side storage in this version, with file import and export as the backup. The storage layer must allow accounts to be added later.
 - No build step for development and no runtime network access: vanilla ES modules with vendored CodeMirror 6 and Web Awesome, served by FastAPI. The static build is a distribution step only.
 - Every engine call runs under a hard wall-clock budget; a stalled solver query answers TIMEOUT rather than hanging.
-- The engine's capability matrix (`USER_GUIDE.md` §8) is the honest statement of what is and is not supported; the product never claims more.
+- The engine's capability matrix (`USER_GUIDE.md` §9) is the honest statement of what is and is not supported; the product never claims more.
 
 ## Brand Commitments
 

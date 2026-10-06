@@ -222,3 +222,12 @@ Every claim this repo makes is checked by a script you can run yourself:
 For ad-hoc browser work — screenshots, accessibility audits, HARs, layout diffs —
 see `TOOLING.md`: what the `agent-browser` CLI can do, its argument-order and
 session footguns, and the recipes this repo uses to verify the UI.
+
+### Releases
+
+`CHANGELOG.md` records each release in students' terms; add to its *Unreleased* section as you change things. To cut a release:
+
+1. Raise the version in `pyproject.toml` (the engine, the site and the app read it from there), `desktop/src-tauri/Cargo.toml`, `desktop/src-tauri/tauri.conf.json`, the `aether` entry in `uv.lock`, and the `lemmata-desktop` entry in `desktop/src-tauri/Cargo.lock`. Date the CHANGELOG heading.
+2. Merge that to `master`, then push a `v<version>` tag. `.github/workflows/desktop.yml` builds the installers on Linux, Windows and macOS into a **draft** GitHub release.
+3. Write the release notes from the CHANGELOG, then publish: `gh release edit v<version> --draft=false`.
+4. Redeploy the site. The download page reads the latest release when it's built.

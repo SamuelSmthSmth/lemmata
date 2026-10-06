@@ -493,7 +493,7 @@ Why each one earns its place:
   verdict each must still produce — including the deliberate refusals
   (`ChainGuard`, `ScopeGuard`, variable capture), the few known gaps, and the
   rejections that are simply correct. It also fails when the table embedded in
-  `USER_GUIDE.md` (§8) no longer matches the pins, so a flipped expectation
+  `USER_GUIDE.md` (§9) no longer matches the pins, so a flipped expectation
   cannot stop at the code. `--markdown` prints that table. Each snippet runs in
   a worker process under a wall-clock budget (`--budget`, 10s), because Z3's soft
   `timeout` is not honoured by its model-based quantifier instantiation: one
