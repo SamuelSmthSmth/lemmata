@@ -26,6 +26,8 @@ const SPEC = {
   welcomed: { key: "aether-welcomed", allowed: ["yes", "no"], fallback: "no" },
 };
 
+import { changed } from "./changes.js";
+
 const listeners = new Set();
 
 export function getPref(name) {
@@ -39,14 +41,49 @@ export function getPref(name) {
 }
 
 export function setPref(name, value) {
+  if (store(name, value)) changed("prefs", SPEC[name].key);
+}
+
+// Listeners hear fn(name, value, {remote}); remote is true for a setting that
+// arrived from another device, which the app re-applies on screen.
+function store(name, value, origin = { remote: false }) {
   const spec = SPEC[name];
-  if (!spec.allowed.includes(String(value))) return;
+  if (!spec.allowed.includes(String(value))) return false;
   try {
     localStorage.setItem(spec.key, String(value));
   } catch (error) {
     // Storage can be unavailable; the choice simply will not persist.
   }
-  for (const fn of listeners) fn(name, String(value));
+  for (const fn of listeners) fn(name, String(value), origin);
+  return true;
+}
+
+/** The storage keys of every preference, for sync. */
+export const PREF_KEYS = Object.values(SPEC).map((spec) => spec.key);
+
+/** A preference by storage key, as stored (null when unset). */
+export function readPrefKey(key) {
+  try {
+    return localStorage.getItem(key);
+  } catch (error) {
+    return null;
+  }
+}
+
+/** A preference from another device: applied, but not sent back. */
+export function adoptPrefKey(key, value) {
+  const name = Object.keys(SPEC).find((n) => SPEC[n].key === key);
+  if (!name) return;
+  if (value === null || value === undefined) {
+    try {
+      localStorage.removeItem(key);
+    } catch (error) {
+      // Nothing to remove.
+    }
+    for (const fn of listeners) fn(name, getPref(name), { remote: true });
+    return;
+  }
+  store(name, value, { remote: true });
 }
 
 export function onPrefChange(fn) {

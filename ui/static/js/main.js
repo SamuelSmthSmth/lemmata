@@ -36,7 +36,7 @@ import * as packs from "./packs.js";
 import * as registry from "./registry.js";
 import { initPalette, openPalette } from "./palette.js";
 import { permalinkFor, readPermalink, writePermalink } from "./permalink.js";
-import { getPref, setPref } from "./prefs.js";
+import { getPref, onPrefChange, setPref } from "./prefs.js";
 import { applyResponse } from "./render.js";
 import { initSettings, renderSettings } from "./settings.js";
 import { holder, kept, loadSite, site } from "./site.js";
@@ -1396,6 +1396,45 @@ initGuide({
     params.set("page", pageId);
     history.replaceState({ view: "guide" }, "", `${location.pathname}?${params}${location.hash}`);
   },
+});
+
+// ---------------------------------------------------------------------------
+// Sync: what arrives from the student's other devices (js/sync-local.js)
+// ---------------------------------------------------------------------------
+
+async function applySynced(changes) {
+  const stores = new Set(changes.map((c) => c.store));
+  if (stores.has("packs")) {
+    await packs.reload();
+    refreshPacks();
+  }
+  if (!["files", "snapshots", "meta"].some((s) => stores.has(s))) return;
+  const before = active();
+  const typed = before ? currentSource() : null;
+  await ws.load();
+  const now = active();
+  if (before && now?.id === before.id && typed !== before.source && now.source !== typed) {
+    // Edited here and on another device at once: theirs is kept as a
+    // snapshot, and what is typed here saves (and syncs) as the newer edit.
+    await ws.addSnapshot(now.id, { name: "From your other device", auto: true });
+    await saveActive();
+  }
+  const changedHere = now?.id !== before?.id || (now && editor.getSource() !== now.source);
+  await showActive({ check: changedHere });
+  if (stores.has("meta")) renderHistory();
+}
+
+window.addEventListener("lemmata:synced", (event) => applySynced(event.detail));
+
+// A setting from another device is put on screen as if chosen here.
+onPrefChange((name, value, { remote } = {}) => {
+  if (!remote) return;
+  if (name === "theme" && value) applyTheme(value);
+  else if (name === "syntax") applySyntax(value);
+  else if (name === "editorSize") document.documentElement.style.setProperty("--editor-size", `${value}px`);
+  else if (name === "wrap") editor.setWrap(value === "on");
+  else if (name === "visual") editor.setVisual(value === "on");
+  renderSettings();
 });
 
 initSettings({

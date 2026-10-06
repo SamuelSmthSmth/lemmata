@@ -16,7 +16,9 @@
 // This module owns only the state and the interactions: the preset menu, the
 // grips, the swap.
 
-const LAYOUT_KEY = "aether:layout";
+import { changed } from "./changes.js";
+
+export const LAYOUT_KEY = "aether:layout";
 const VERSION = 1;
 
 // ---------------------------------------------------------------------------
@@ -126,9 +128,12 @@ function readStored() {
   }
 }
 
+let adopting = false;
+
 function persist() {
   try {
     localStorage.setItem(LAYOUT_KEY, JSON.stringify(layout));
+    if (!adopting) changed("prefs", LAYOUT_KEY);
     return true;
   } catch (error) {
     return false;
@@ -158,6 +163,19 @@ export const layoutApi = {
     layoutApi.setArrangement?.(layout.arrangement);
     layoutApi.setOrder?.(layout.order);
     persist();
+  },
+  /** A layout from another device (sync): applied, but not sent back. */
+  adopt(stored) {
+    const next = normalizeLayout(stored);
+    adopting = true;
+    try {
+      layout.arrangement = next.arrangement;
+      layout.order = next.order;
+      layoutApi.apply?.();
+      persist();
+    } finally {
+      adopting = false;
+    }
   },
 };
 

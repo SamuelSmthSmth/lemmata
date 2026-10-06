@@ -13,6 +13,8 @@
 // same interface runs over memory and mirrors into localStorage, so the app
 // keeps working and `persistent()` says whether work will survive a reload.
 
+import { changed } from "./changes.js";
+
 const DB_NAME = "aether";
 const DB_VERSION = 2;
 const FALLBACK_KEY = "aether:db-fallback";
@@ -107,43 +109,57 @@ function keyFor(storeName, value) {
   return { meta: value.key, packs: value.name }[storeName] ?? value.id;
 }
 
-const store = (name) => ({
-  async all() {
-    return tx(name, "readonly", (s) => (s ? request(s.getAll()) : [...fallback[name].values()]));
-  },
-  async get(key) {
-    return tx(name, "readonly", (s) => (s ? request(s.get(key)) : fallback[name].get(key)));
-  },
-  async put(value) {
-    return tx(name, "readwrite", (s) => {
-      if (s) return request(s.put(value));
-      fallback[name].set(keyFor(name, value), value);
-      saveFallback();
-      return keyFor(name, value);
-    });
-  },
-  async delete(key) {
-    return tx(name, "readwrite", (s) => {
-      if (s) return request(s.delete(key));
-      fallback[name].delete(key);
-      saveFallback();
-      return undefined;
-    });
-  },
-  async clear() {
-    return tx(name, "readwrite", (s) => {
-      if (s) return request(s.clear());
-      fallback[name].clear();
-      saveFallback();
-      return undefined;
-    });
-  },
-});
+// put and delete tell js/changes.js (sync listens); the quiet forms are for
+// sync's own writes, which must not be sent back.
+const store = (name) => {
+  const api = {
+    async put(value) {
+      const key = await api.putQuiet(value);
+      changed(name, keyFor(name, value));
+      return key;
+    },
+    async delete(key) {
+      await api.deleteQuiet(key);
+      changed(name, key);
+    },
+    async all() {
+      return tx(name, "readonly", (s) => (s ? request(s.getAll()) : [...fallback[name].values()]));
+    },
+    async get(key) {
+      return tx(name, "readonly", (s) => (s ? request(s.get(key)) : fallback[name].get(key)));
+    },
+    async putQuiet(value) {
+      return tx(name, "readwrite", (s) => {
+        if (s) return request(s.put(value));
+        fallback[name].set(keyFor(name, value), value);
+        saveFallback();
+        return keyFor(name, value);
+      });
+    },
+    async deleteQuiet(key) {
+      return tx(name, "readwrite", (s) => {
+        if (s) return request(s.delete(key));
+        fallback[name].delete(key);
+        saveFallback();
+        return undefined;
+      });
+    },
+    async clear() {
+      return tx(name, "readwrite", (s) => {
+        if (s) return request(s.clear());
+        fallback[name].clear();
+        saveFallback();
+        return undefined;
+      });
+    },
+  };
+  return api;
+};
 
 export const files = store("files");
 export const snapshots = store("snapshots");
 export const packs = store("packs");
-const metaStore = store("meta");
+export const metaStore = store("meta");
 
 export const meta = {
   async get(key, fallbackValue = null) {

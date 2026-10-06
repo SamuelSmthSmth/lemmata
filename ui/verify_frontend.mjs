@@ -816,6 +816,160 @@ console.log("registry checked");
   console.log("Show in Lean checked");
 }
 
+// --- sync (js/sync.js, js/remote-memory.js) ------------------------------------
+//
+// Two devices, one account, one remote.  Each device is a memory store with
+// the local adapter's shape; the clock is shared and steps on every read, so
+// "newer" is unambiguous.
+
+{
+  const { createSync, freeCopyPath } = await moduleAt("js/sync.js");
+  const { createMemoryRemote } = await moduleAt("js/remote-memory.js");
+  let now = 1000;
+  const clock = () => ++now;
+
+  function device(remote, owner = "u1", { mergeLocal = true } = {}) {
+    const stores = new Map();
+    let state = null;
+    const table = (s) => {
+      if (!stores.has(s)) stores.set(s, new Map());
+      return stores.get(s);
+    };
+    const applied = [];
+    const local = {
+      async all(s) {
+        return [...table(s).entries()].map(([key, value]) => ({ key, value: structuredClone(value) }));
+      },
+      async read(s, key) {
+        const v = table(s).get(key);
+        return v === undefined ? undefined : structuredClone(v);
+      },
+      async write(s, key, value) {
+        table(s).set(key, structuredClone(value));
+      },
+      async remove(s, key) {
+        table(s).delete(key);
+      },
+      async loadState() {
+        return state && structuredClone(state);
+      },
+      async saveState(s) {
+        state = structuredClone(s);
+      },
+    };
+    const sync = createSync({ local, remote, owner, mergeLocal, clock, onApplied: (c) => applied.push(...c) });
+    return {
+      sync,
+      applied,
+      table,
+      // A local edit: write, then tell sync (as db.js's change bus will).
+      async put(s, key, value) {
+        table(s).set(key, structuredClone(value));
+        await sync.record(s, key, clock());
+      },
+      async del(s, key) {
+        table(s).delete(key);
+        await sync.record(s, key, clock());
+      },
+    };
+  }
+
+  const file = (id, path, source) => ({ id, path, source, strict: false, working: false, level: "course", created: 1, updated: clock() });
+
+  // 1. A proof made on one device appears on the other.
+  {
+    const remote = createMemoryRemote();
+    const a = device(remote);
+    const b = device(remote);
+    await a.put("files", "f1", file("f1", "Week 1.aether", "Let x : Real\n"));
+    await a.sync.syncNow();
+    await b.sync.syncNow();
+    check(b.table("files").get("f1")?.source === "Let x : Real\n", "sync: a proof made on one device reaches the other");
+    check(b.applied.some((c) => c.store === "files" && c.key === "f1"), "sync: and the views are told what changed");
+  }
+
+  // 2. Both edit offline; the newer edit wins everywhere, and the older one
+  //    is kept as a snapshot, not lost.
+  {
+    const remote = createMemoryRemote();
+    const a = device(remote);
+    const b = device(remote);
+    await a.put("files", "f1", file("f1", "P.aether", "v0"));
+    await a.sync.syncNow();
+    await b.sync.syncNow();
+    await b.put("files", "f1", { ...b.table("files").get("f1"), source: "older edit on B", updated: clock() });
+    await a.put("files", "f1", { ...a.table("files").get("f1"), source: "newer edit on A", updated: clock() });
+    await a.sync.syncNow();
+    await b.sync.syncNow();
+    await a.sync.syncNow();
+    check(b.table("files").get("f1").source === "newer edit on A", "sync: the newer of two offline edits wins on both devices");
+    check(a.table("files").get("f1").source === "newer edit on A", "sync: and stays on the device that made it");
+    const kept = [...b.table("snapshots").values()].find((s) => s.fileId === "f1");
+    check(kept?.source === "older edit on B" && kept.name === "Kept from this device", "sync: the losing edit is kept as a snapshot");
+    check([...a.table("snapshots").values()].some((s) => s.source === "older edit on B"), "sync: and that snapshot reaches the other device too");
+    check((await b.sync.pending()) === 0 && (await a.sync.pending()) === 0, "sync: nothing is left waiting once both have synced");
+  }
+
+  // 3. A deletion reaches every device.
+  {
+    const remote = createMemoryRemote();
+    const a = device(remote);
+    const b = device(remote);
+    await a.put("files", "f1", file("f1", "Gone.aether", "x"));
+    await a.sync.syncNow();
+    await b.sync.syncNow();
+    await b.del("files", "f1");
+    await b.sync.syncNow();
+    await a.sync.syncNow();
+    check(!a.table("files").has("f1"), "sync: a proof deleted on one device is deleted on the other");
+  }
+
+  // 4. Two workspaces meeting for the first time: both kept, one moved aside.
+  {
+    const remote = createMemoryRemote();
+    const a = device(remote);
+    await a.table("files").set("fa", file("fa", "Untitled.aether", "from A"));
+    await a.sync.syncNow();
+    const b = device(remote);
+    b.table("files").set("fb", file("fb", "Untitled.aether", "from B"));
+    await b.sync.syncNow();
+    await a.sync.syncNow();
+    const paths = (d) => [...d.table("files").values()].map((f) => f.path).sort();
+    check(JSON.stringify(paths(b)) === JSON.stringify(["Untitled (2).aether", "Untitled.aether"]), `sync: a first merge keeps both proofs at one path (${paths(b)})`);
+    check(JSON.stringify(paths(a)) === JSON.stringify(paths(b)), `sync: and both devices agree on the paths (${paths(a)})`);
+  }
+
+  // 5. Settings and history sync; this device's tabs do not.
+  {
+    const remote = createMemoryRemote();
+    const a = device(remote);
+    const b = device(remote);
+    await a.put("prefs", "aether-theme", "dark");
+    await a.put("meta", "timeline", [{ verdict: "VALID", ts: 1 }]);
+    await a.put("meta", "tabs", ["f1"]);
+    await a.sync.syncNow();
+    await b.sync.syncNow();
+    check(b.table("prefs").get("aether-theme") === "dark", "sync: settings follow the account");
+    check(b.table("meta").get("timeline")?.length === 1, "sync: the check history follows too");
+    check(!b.table("meta").has("tabs"), "sync: but which tabs are open stays with the device");
+  }
+
+  // 6. Starting from the account's work leaves this device's proofs out.
+  {
+    const remote = createMemoryRemote();
+    const a = device(remote);
+    await a.put("files", "f1", file("f1", "Mine.aether", "x"));
+    await a.sync.syncNow();
+    const b = device(remote, "u1", { mergeLocal: false });
+    b.table("files").set("local", file("local", "Scratch.aether", "y"));
+    await b.sync.syncNow();
+    check(!remote.rows.has("files:local") && b.table("files").has("f1"), "sync: starting from the account's work does not upload this device's proofs");
+  }
+
+  check(freeCopyPath("a/Week 1.aether", new Set(["a/Week 1 (2).aether"])) === "a/Week 1 (3).aether", "sync: a moved-aside path finds the next free number");
+  console.log("sync checked");
+}
+
 console.log();
 if (failures.length) {
   console.log(`${failures.length} check(s) failed:`);

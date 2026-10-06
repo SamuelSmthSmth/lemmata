@@ -350,6 +350,11 @@ export async function load(catalog, preinstall = null) {
   await db.meta.set("packsSeen", [...seen]);
 }
 
+/** Re-read what is installed (sync wrote a pack from another device). */
+export async function reload() {
+  model.records = new Map((await db.packs.all()).map((r) => [r.name, r]));
+}
+
 /** Install (or replace) a pack; returns the record it replaced, for undo. */
 export async function install(pack, origin) {
   const previous = model.records.get(pack.name) ?? null;
