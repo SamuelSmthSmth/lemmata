@@ -22,16 +22,46 @@ __all__ = [
 
 
 USAGE = """\
-usage: lemmata [--latex] [FILE]
+usage: lemmata [--used] [--trace] [--latex] [FILE]
 
 Check a proof written in Lemmata's notation, step by step, and print the
 audit; exit status 1 if any step is invalid.  Reads FILE, or standard input
 when no file is given.  (`aether` is the same command, under its old name.)
 
+  --used      after the audit, list what each line was proved from
+  --trace     after the audit, list each call made to SymPy and Z3 per line,
+              with its answer and time
   --latex     print the proof as a LaTeX document instead of checking it
   --version   print the version
   --help      print this message
 """
+
+
+def format_audit_trail(report: ProofReport, used: bool = False, trace: bool = False) -> str:
+    """What each line was proved from (``used``) and the backend calls that
+    checked it (``trace``), as the CLI prints them after the audit.  The app's
+    Trace tab shows the same log."""
+    lines = ["", "What each line used" if used and not trace else "Trace" if trace and not used else "What each line used, and the trace"]
+    for result in report.all_results:
+        status = result.status.value
+        lines.append(f"  L{result.line if result.line is not None else '?':<4} {result.statement}  [{status}]")
+        if used and status != "INVALID":
+            names = []
+            for p in result.premises:
+                name = "the line before" if p["kind"] == "chain" else p.get("label")
+                where = f"L{p['line']}" if p.get("line") is not None else p["kind"]
+                names.append(f"{where} {name}: {p['fact']}" if name else f"{where}: {p['fact']}")
+            if names:
+                lines.extend(f"        used {n}" for n in names)
+            elif result.premises_complete:
+                lines.append("        used nothing earlier")
+            if not result.premises_complete:
+                lines.append("        (possibly more: the engine could not recover everything this line used)")
+        if trace:
+            for e in result.trace:
+                indent = "  " * int(e.get("depth") or 0)
+                lines.append(f"        {e['ms']:>7.1f} ms {indent}{e['backend']:<6} {e['call']:<9} {e['query']}  -> {e['result']}")
+    return "\n".join(lines)
 
 
 def main() -> None:
@@ -55,8 +85,11 @@ def main() -> None:
     if "--latex" in args:
         latex_mode = True
         args.remove("--latex")
+    used = "--used" in args
+    tracing = "--trace" in args
+    args = [a for a in args if a not in ("--used", "--trace")]
 
-    checker = ProofChecker()
+    checker = ProofChecker(dependencies=used, trace=tracing)
 
     if args:
         path = args[0]
@@ -80,6 +113,8 @@ def main() -> None:
         all_valid = True
         for report in reports:
             print(report.format_report())
+            if used or tracing:
+                print(format_audit_trail(report, used=used, trace=tracing))
             if not report.is_valid:
                 all_valid = False
         if not all_valid:
