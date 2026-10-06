@@ -117,7 +117,7 @@ def render(out: Path, computed: dict[str, str]) -> list[str]:
             "updated": "6 October 2026",
             # Where the account database (site.json `accounts`) is hosted: the
             # privacy page names it, so change it with the Supabase project.
-            "accounts_region": "London, in the UK",
+            "accounts_region": "Ireland, in the EU",
             "root": "../" * depth or "./",
             **computed,
         }
