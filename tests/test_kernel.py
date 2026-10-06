@@ -140,3 +140,105 @@ class TestLevels:
     def test_a_since_premise_is_reviewed_like_a_line(self):
         src = "Let x : Real\nAssume h: x > 5\nSince x^2 > 25, x^2 + 1 > 26\n"
         assert check(src, kernel="course").is_valid
+
+
+CASES = """\
+Theorem: "n^2 + n is even"
+Claim: forall n : Int, Even(n^2 + n)
+Proof:
+    Given n : Int
+    Case Even(n):
+        Obtain k : Int such that n = 2 * k
+        Step: n^2 + n = 2 * (2 * k^2 + k)
+        Therefore Even(n^2 + n)
+    Case Odd(n):
+        Obtain k : Int such that n = 2 * k + 1
+        Step: n^2 + n = 2 * (2 * k^2 + 3 * k + 1)
+        Therefore Even(n^2 + n)
+    Therefore Even(n^2 + n)
+QED
+"""
+
+SUM_OF_SQUARES = """\
+Theorem: "Sum of squares, for every positive integer"
+Claim: forall n : Nat, n >= 1 => sum(r, 1, n, r^2) = n * (n + 1) * (2 * n + 1) / 6
+Proof:
+    Base case n = 1:
+        Step: sum(r, 1, 1, r^2) = 1
+        Step: = 1 * 2 * 3 / 6
+    Inductive step:
+        Given k : Nat
+        Assume hk: k >= 1
+        Assume ih: sum(r, 1, k, r^2) = k * (k + 1) * (2 * k + 1) / 6
+        Step: sum(r, 1, k + 1, r^2) = sum(r, 1, k, r^2) + (k + 1)^2
+        Step: = k * (k + 1) * (2 * k + 1) / 6 + (k + 1)^2
+        Step: = (k + 1) * (k + 2) * (2 * k + 3) / 6
+    Therefore forall n : Nat, n >= 1 => sum(r, 1, n, r^2) = n * (n + 1) * (2 * n + 1) / 6
+QED
+"""
+
+FACTORIAL_SUM = """\
+Theorem: "Sum of r times r factorial"
+Claim: forall n : Nat, sum(r, 1, n, r * r!) = (n + 1)! - 1
+Proof:
+    Base case n = 0:
+        Step: sum(r, 1, 0, r * r!) = 0
+        Step: = 1! - 1
+    Inductive step:
+        Given k : Nat
+        Assume ih: sum(r, 1, k, r * r!) = (k + 1)! - 1
+        Step: sum(r, 1, k + 1, r * r!) = (k + 1)! - 1 + (k + 1) * (k + 1)!
+        Step: = (k + 2)! - 1
+    Therefore forall n : Nat, sum(r, 1, n, r * r!) = (n + 1)! - 1
+QED
+"""
+
+
+class TestStructuralRules:
+    def test_a_conclusion_after_complete_cases_is_by_the_case_rule(self):
+        for level in ("exam", "course"):
+            report = check(CASES, kernel=level)
+            assert report.is_valid, (level, report.format_report())
+            conclusion = report.results[-2]
+            assert conclusion.backend == "Kernel: cases"
+            assert conclusion.message.startswith("By cases:") and "cover every possibility" in conclusion.message
+
+    def test_a_line_that_follows_from_the_line_above_is_not_a_remainder_check(self):
+        # Inside a case, Even(n^2 + n) follows from n^2 + n = 2(2k^2 + k): the
+        # engine reaches it by checking remainders first, the kernel by the line.
+        report = check(CASES, kernel="exam")
+        inner = [r for r in report.all_results if r.line in (8, 12)]
+        assert inner and all(r.backend != "Kernel: residues" for r in inner)
+
+
+class TestGoalClosure:
+    @pytest.mark.parametrize("given, claim", [
+        ("n : Int", "forall n : Int, MultipleOf(n^3 - n, 6)"),
+        ("e : Real", "forall e : Real, e > 0 => exists d : Real, d > 0 and "
+                     "(forall x : Real, abs(x - 2) < d => abs(3 * x - 6) < e)"),
+    ])
+    def test_qed_does_not_prove_the_claim_for_you(self, given, claim):
+        src = f'Theorem: "t"\nClaim: {claim}\nProof:\n    Given {given}\nQED\n'
+        assert check(src).is_valid
+        for level in ("exam", "course"):
+            qed = check(src, kernel=level).results[-1]
+            assert qed.status.value == "INVALID", level
+            assert qed.backend.startswith("Kernel") and "never shows" in qed.message
+
+    def test_a_claim_the_proof_reaches_closes(self):
+        report = check(EPSILON_DELTA_WRITTEN_OUT, kernel="exam")
+        assert report.is_valid and report.results[-1].backend == "QED"
+
+    def test_an_obvious_last_step_is_still_closed_by_qed(self):
+        src = 'Theorem: "t"\nClaim: forall x : Real, x > 2 => x > 1\nProof:\n    Given x : Real\n    Assume h: x > 2\nQED\n'
+        assert check(src, kernel="exam").is_valid
+
+
+class TestInductionIsWorking:
+    """Under the exam level a sum must be proved, and induction is how: its
+    lines (peeling the last term, using the hypothesis) are the working."""
+
+    @pytest.mark.parametrize("src", [SUM_OF_SQUARES, FACTORIAL_SUM])
+    def test_an_induction_on_a_sum_passes(self, src):
+        report = check(src, kernel="exam")
+        assert report.is_valid, report.format_report()
