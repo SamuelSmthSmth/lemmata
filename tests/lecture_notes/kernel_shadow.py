@@ -52,7 +52,7 @@ def run(item):
         el = core.elaborate(goal, ctx)
         verdict = None
         if el is not None:
-            verdict = tactics.weakest(el.prop, review._core_premises(ctx, allowed, self._chain)) or "none"
+            verdict = tactics.weakest(el.prop, review._core_premises(ctx, allowed, self._chain, goal)) or "none"
         rows.append((key, result.line, result.status.value, result.backend, verdict, str(goal)[:100], result.message[:120]))
         return original(self, result, obligation, kind, cited, allowed, ctx, before, after, witnessed)
 

@@ -43,6 +43,14 @@ What changed between releases of Lemmata, newest first. The engine is the `aethe
   - **The tactics label lines; they don't decide them.** All 133 course-pack entries still agree at *Course*.
   - **Shadow mode** (`tests/lecture_notes/kernel_shadow.py`) compares the engine's verdict with the tactics' answer on every line of the packs and the tests (874 lines). The tactics never prove a line the engine refused on the mathematics. They miss 43 lines the engine proves (quantified premises, group operations), so they keep labelling rather than deciding.
   - **Standard functions in the algebra tactics:** `factorial(3) = 6` and `gcd(8, 2) = 2` are evaluated, and `sqrt`, `sin`, `exp` and the rest are read as the engine reads them. Number-theoretic functions are evaluated only on numbers: on symbols, SymPy's `gcd(n, k)` is the polynomial gcd, 1, and shadow mode caught `ring` "proving" the Notation pack's `gcd(n, k) = 1` and `lcm(n, k) = nk` traps. A test now runs every pack trap and fails if any tactic proves its false line.
+  - **The core's tactics now cover nearly everything the engine proves in the core:** of the 43 lines shadow mode found them missing, 8 remain. Changes:
+    - Standard functions carry their true range facts (sin and cos in [−1, 1], exp > 0, a square root ≥ 0 where it is real).
+    - `min` and `max` mean what they say.
+    - A universal fact is used through its instances at the line's own terms (a recurrence at `k`, `f(2) > 0` from `∀x, f(x) > 0`), only at terms of a type the quantifier allows.
+    - A `simp` tactic handles identities like `n! = n·(n − 1)!` and `cosh² − sinh² = 1`.
+    - A `residues` tactic checks divisibility by remainders, still too big a step at *Course* and *Exam*.
+    - Group operations are outside the core until it states their axioms.
+  - **Shadow mode caught two more false proofs before they shipped:** an unconditional "√t ≥ 0" proved `√(x − 1) ≥ 0`, which fails at x = 0. And the number-theory guard covered `factorial` and `binomial` needlessly; it now covers only `gcd` and `lcm`.
   - **Fixed:** with the kernel on, a hard induction step ("7ⁿ − 3ⁿ is divisible by 4") could come back "inconclusive". The kernel's own solver questions now run apart from the check's, so they can't change its answer.
 
 ### What each line used, and what was computed (engine only, opt in)

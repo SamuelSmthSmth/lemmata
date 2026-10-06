@@ -39,7 +39,7 @@ def test_no_tactic_proves_a_trap_line(key, source, monkeypatch):
                 goal = review.substitute_expr(body, var, value)
             elaborated = core.elaborate(goal, ctx)
             if elaborated is not None:
-                name = tactics.weakest(elaborated.prop, review._core_premises(ctx, allowed, self._chain))
+                name = tactics.weakest(elaborated.prop, review._core_premises(ctx, allowed, self._chain, goal))
                 if name is not None:
                     proved.append((result.line, name, str(goal)))
         return original(self, result, obligation, kind, cited, allowed, ctx, before, after, witnessed)

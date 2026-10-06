@@ -29,7 +29,7 @@ from typing import Optional
 import sympy as sp
 import z3
 
-from aether.engine.logic import SolverContext, check_solver, new_solver
+from aether.engine.logic import SolverContext, _range_facts, check_solver, new_solver
 from aether.kernel.core import Conn, Divisible, Not, Prop, Rel, Ty, has_division, to_sympy, variables
 
 #: The order ``weakest`` tries them in, with their strengths.
@@ -37,14 +37,16 @@ TACTICS: tuple[tuple[str, int], ...] = (
     ("ring", 1),
     ("field", 1),
     ("subst", 1),
+    ("simp", 1),
     ("linarith", 2),
     ("nlinarith", 3),
+    ("residues", 4),
 )
 
 _Z3_TIMEOUT_MS = 1500
 
 
-def weakest(goal: Prop, premises: list[Prop], up_to: int = 3) -> Optional[str]:
+def weakest(goal: Prop, premises: list[Prop], up_to: int = 4) -> Optional[str]:
     """The weakest tactic (at most strength *up_to*) that proves *goal* from *premises*."""
     for name, strength in TACTICS:
         if strength > up_to:
@@ -99,6 +101,59 @@ def subst(goal: Prop, premises: list[Prop]) -> bool:
     return sp.cancel(sp.together(sp.expand(diff))) == 0
 
 
+#: Above this many operations, simplify is not tried (it can take seconds).
+_SIMP_OPS = 80
+
+
+def simp(goal: Prop, premises: list[Prop]) -> bool:
+    """An identity of the standard functions: n! = n (n - 1)!, cosh^2 - sinh^2 = 1,
+    sinh x = (e^x - e^-x)/2.  SymPy's own simplification, as the engine's
+    SymPy route uses; gcd and lcm on symbols stay uninterpreted (core)."""
+    diff = _difference(goal)
+    if diff is None or sp.count_ops(diff) > _SIMP_OPS:
+        return False
+    if sp.simplify(diff) == 0 or sp.combsimp(diff) == 0:
+        return True
+    return sp.simplify(diff.rewrite(sp.exp)) == 0
+
+
+#: The residue check's limits, as the engine's (logic._try_residue_divisibility).
+_RESIDUE_MODULUS = 1000
+_RESIDUE_CASES = 20000
+
+
+def residues(goal: Prop, premises: list[Prop]) -> bool:
+    """`m` divides an integer polynomial for every integer: check each remainder.
+
+    P(n) mod m depends only on n mod m (for P = Q/d with Q integral, m d | Q
+    repeats with period m d), so the remainders decide it for every integer.
+    Only when no premise mentions the variables, as the engine: a premise
+    could rule a remainder out, and then this would not be the argument."""
+    if not isinstance(goal, Divisible) or goal.modulus > _RESIDUE_MODULUS:
+        return False
+    names = variables(goal.term)
+    if not names or any(not ty.integral for ty in names.values()):
+        return False
+    if any(set(variables(p)) & set(names) for p in premises):
+        return False
+    poly = sp.expand(to_sympy(goal.term))
+    symbols = sorted(poly.free_symbols, key=lambda s: s.name)
+    if not poly.is_polynomial(*symbols):
+        return False
+    denominator = sp.ilcm(*[sp.Rational(c).q for c in sp.Poly(poly, *symbols).coeffs()]) if symbols else 1
+    period = goal.modulus * int(denominator)
+    integral = sp.expand(poly * denominator)
+    if period ** len(symbols) > _RESIDUE_CASES:
+        return False
+    from itertools import product
+
+    for values in product(range(period), repeat=len(symbols)):
+        value = integral.subs(dict(zip(symbols, values)))
+        if int(value) % period != 0:
+            return False
+    return True
+
+
 # ---------------------------------------------------------------------------
 # Arithmetic (Z3)
 # ---------------------------------------------------------------------------
@@ -129,7 +184,31 @@ class _Z3:
             self.atoms[key] = z3.Int(key) if expr.is_integer else z3.Real(key)
             if expr.is_integer and expr.is_nonnegative:
                 self.side.append(self.atoms[key] >= 0)
+            self.side.extend(self._range(expr, self.atoms[key]))
         return self.atoms[key]
+
+    def _range(self, expr, value: z3.ExprRef) -> list:
+        """True facts about a standard function's value, for any argument (the
+        engine's own, ``logic._range_facts``): sin and cos in [-1, 1], exp > 0
+        and exp(t) >= 1 + t, cosh >= 1, |tanh| < 1, log(t) <= t - 1 for t > 0,
+        and a square root >= 0.  They only remove models that were never real."""
+        if isinstance(expr, sp.Pow) and expr.args[1] == sp.Rational(1, 2):
+            # Only where the root is real: sqrt(x - 1) >= 0 is not true at x = 0
+            # (the engine refuses it there; shadow mode caught an unconditional
+            # fact proving it).
+            try:
+                radicand = self.expr(expr.args[0])
+            except Exception:  # noqa: BLE001
+                return []
+            return [z3.Implies(radicand >= 0, value >= 0)]  # type: ignore[operator]
+        if isinstance(expr, sp.Function) and len(expr.args) == 1:
+            name = type(expr).__name__.lower()
+            if name in ("sin", "cos", "exp", "cosh", "tanh", "log"):
+                try:
+                    return _range_facts(name, z3.ToReal(value) if z3.is_int(value) else value, self.expr(expr.args[0]))
+                except Exception:  # noqa: BLE001 - an argument the fragment cannot state
+                    return []
+        return []
 
     def num(self, expr) -> z3.ExprRef:
         r = sp.Rational(expr)
@@ -145,6 +224,13 @@ class _Z3:
         if isinstance(e, sp.Abs):
             a = self.expr(e.args[0])
             return z3.If(a >= 0, a, -a)
+        if isinstance(e, (sp.Min, sp.Max)):
+            # min and max mean what they say: the smaller, the larger.
+            parts = [self.expr(a) for a in e.args]
+            out = parts[0]
+            for p in parts[1:]:
+                out = z3.If(out <= p, out, p) if isinstance(e, sp.Min) else z3.If(out >= p, out, p)
+            return out
         if isinstance(e, sp.Mul):
             coeff, rest = e.as_coeff_Mul()
             if coeff != 1:
@@ -220,6 +306,14 @@ def nlinarith(goal: Prop, premises: list[Prop]) -> bool:
     return _z3_proves(goal, premises, linear=False)
 
 
-_RUN = {"ring": ring, "field": field, "subst": subst, "linarith": linarith, "nlinarith": nlinarith}
+_RUN = {
+    "ring": ring,
+    "field": field,
+    "subst": subst,
+    "simp": simp,
+    "linarith": linarith,
+    "nlinarith": nlinarith,
+    "residues": residues,
+}
 
-__all__ = ["TACTICS", "weakest", "ring", "field", "subst", "linarith", "nlinarith", "variables", "Ty"]
+__all__ = ["TACTICS", "weakest", "ring", "field", "subst", "simp", "linarith", "nlinarith", "residues", "variables", "Ty"]
