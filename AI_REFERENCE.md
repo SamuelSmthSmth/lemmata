@@ -55,6 +55,10 @@ Source Code (.aether or string)
       │      - What to try for a failing step, with one-edit fixes
       │      - Results cited by name (`by Theorem 1.1`)
       │
+      ├──> Dependencies & trace (`aether.engine.dependencies`, `aether.engine.trace`, opt-in)
+      │      - The premises each line was proved from (SymPy substitutions, Z3 unsat cores)
+      │      - Each backend call made checking a line, with its answer and timing
+      │
       └──> SMT Solver (`Z3` Backend)
              - Inequalities, propositional logic, boolean connectives
              - Quantifiers (`exists`, `forall`) and witness validation

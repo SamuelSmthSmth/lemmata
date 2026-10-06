@@ -387,6 +387,10 @@ class _ScopeFrame:
     cases_reviewed: bool = False
 
 
+#: Where an equality came from when it is the chain so far (``equality_sources``).
+CHAIN = "chain"
+
+
 class ProofContext:
     """Manages nested scopes, active variables, hypotheses, and equational chains."""
 
@@ -396,6 +400,11 @@ class ProofContext:
         # Show your working (ProofChecker(show_working=True)): shortcuts that
         # settle a claim without the student's argument are held back.
         self.show_working = False
+        # The sources of the equalities the last identity SymPy proved
+        # substituted (``equality_sources``), for the dependency audit.
+        self.algebra_sources: Optional[list[object]] = None
+        # The base cases and step the last induction that held used.
+        self.induction_sources: Optional[list[HypothesisInfo]] = None
 
     @property
     def scope_depth(self) -> int:
@@ -808,19 +817,24 @@ class ProofContext:
 
     def get_equality_substitutions(self) -> list[tuple[ExprNode, ExprNode]]:
         """Extract active equality pairs ``(lhs, rhs)`` from hypotheses and current chain."""
-        subs: list[tuple[ExprNode, ExprNode]] = []
+        return [(lhs, rhs) for lhs, rhs, _ in self.equality_sources()]
+
+    def equality_sources(self) -> list[tuple[ExprNode, ExprNode, object]]:
+        """The equality pairs with where each came from: its ``HypothesisInfo``,
+        the ``VarInfo`` whose condition it is, or ``CHAIN`` for the chain so far."""
+        subs: list[tuple[ExprNode, ExprNode, object]] = []
         for h in self.all_hypotheses():
             if isinstance(h.proposition, RelationNode) and canonical_rel(h.proposition.op) == "=":
-                subs.append((h.proposition.left, h.proposition.right))
+                subs.append((h.proposition.left, h.proposition.right, h))
         for v in self.all_variables().values():
             if (
                 v.condition is not None
                 and isinstance(v.condition, RelationNode)
                 and canonical_rel(v.condition.op) == "="
             ):
-                subs.append((v.condition.left, v.condition.right))
+                subs.append((v.condition.left, v.condition.right, v))
         if self.chain is not None and self.chain.effective_relation == "=":
-            subs.append((self.chain.head_lhs, self.chain.current_rhs))
+            subs.append((self.chain.head_lhs, self.chain.current_rhs, CHAIN))
         return subs
 
     # -------------------------------------------------------------------

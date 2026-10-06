@@ -34,9 +34,12 @@ from aether.core.ast import (
     FunctionCallNode,
 )
 from aether.parser.parser import AetherParser
+from aether.engine import trace
+from aether.engine.dependencies import Dependencies
 from aether.engine.hints import hints_for
 from aether.engine.working import working_gap
 from aether.kernel import Kernel
+from aether.kernel import premises as kernel_premises
 from aether.kernel.premises import unrestricted
 from aether.engine.citations import (
     CitationIndex,
@@ -103,6 +106,14 @@ class StepResult:
     citation: Optional[dict[str, str]] = None
     # What to do about it: [{"message", "fix"?: {"line", "insert"|"replace", "text", "label"}}].
     hints: list[dict[str, Any]] = field(default_factory=list)
+    # What it was proved from (ProofChecker(dependencies=True); see
+    # aether.engine.dependencies): [{"kind", "line", "label", "fact"}], and
+    # whether that is everything it used.
+    premises: list[dict[str, Any]] = field(default_factory=list)
+    premises_complete: bool = False
+    # The backend calls made checking it (ProofChecker(trace=True); see
+    # aether.engine.trace): [{"backend", "call", "query", "result", "ms", "depth"}].
+    trace: list[dict[str, Any]] = field(default_factory=list)
 
     def __post_init__(self) -> None:
         if self.col is None and hasattr(self.statement, "col"):
@@ -138,6 +149,9 @@ class StepResult:
             "sub_results": [r.to_dict() for r in self.sub_results],
             "citation": self.citation,
             "hints": list(self.hints),
+            "premises": [dict(p) for p in self.premises],
+            "premises_complete": self.premises_complete,
+            "trace": [dict(e) for e in self.trace],
         }
 
 
@@ -215,6 +229,8 @@ class ProofChecker:
         base_dir: Optional[Path | str] = None,
         show_working: bool = False,
         kernel: Optional[str] = None,
+        dependencies: bool = False,
+        trace: bool = False,
     ) -> None:
         """
         Parameters
@@ -235,11 +251,21 @@ class ProofChecker:
             checked with only the premises they cite, and a line settled by
             reasoning stronger than the level allows is refused as too big a
             step.  ``None`` (the default) leaves the engine as it was.
+        dependencies:
+            If True, each result names the premises it was proved from
+            (``StepResult.premises``; see ``aether.engine.dependencies``).
+            Costs an unsat-core query per line Z3 settled.
+        trace:
+            If True, each result lists the backend calls made checking it,
+            with their answers and timings (``StepResult.trace``).
         """
         self.strict_domains = strict_domains
         self.show_working = show_working
         self.kernel_level = kernel
         self.kernel: Optional[Kernel] = Kernel(kernel) if kernel else None
+        self.dependencies = dependencies
+        self.trace = trace
+        self._deps: Optional[Dependencies] = None
         self.base_dir = Path(base_dir).resolve() if base_dir else None
         self._parser = AetherParser()
         self._sources: Optional[dict[str, str]] = None
@@ -281,6 +307,7 @@ class ProofChecker:
         fresh_solver_context()
         if self.kernel_level:
             self.kernel = Kernel(self.kernel_level)
+        self._deps = Dependencies() if self.dependencies else None
         previous_lines = self._lines
         self._lines = source.splitlines()
         previous = self._sources
@@ -312,6 +339,8 @@ class ProofChecker:
         file_path: Optional[Path | str] = None,
         import_chain: Optional[list[Path]] = None,
     ) -> list[ProofReport]:
+        if self.dependencies and self._deps is None:
+            self._deps = Dependencies()
         reports, _, _ = self._check_document_internal(
             doc, file_path=file_path, import_chain=import_chain
         )
@@ -577,12 +606,17 @@ class ProofChecker:
                 backend="Library",
             )
 
-        sub_reports, sub_defs, sub_claims = self._check_document_internal(
-            sub_doc,
-            file_path=None if virtual_text is not None else target_path,
-            virtual_file=target_path if virtual_text is not None else None,
-            import_chain=chain + [target_path],
-        )
+        # An imported file's lines are not shown, so they are neither audited nor traced.
+        deps, tracing, self._deps, self.trace = self._deps, self.trace, None, False
+        try:
+            sub_reports, sub_defs, sub_claims = self._check_document_internal(
+                sub_doc,
+                file_path=None if virtual_text is not None else target_path,
+                virtual_file=target_path if virtual_text is not None else None,
+                import_chain=chain + [target_path],
+            )
+        finally:
+            self._deps, self.trace = deps, tracing
         sub_results = [r for rep in sub_reports for r in rep.results]
         cyclic = next((r for r in sub_results if "Cyclic import" in r.message), None)
         if cyclic:
@@ -687,7 +721,18 @@ class ProofChecker:
             for stmt in thm.proof.statements:
                 results.append(self._check_statement(stmt, ctx))
         if thm.claim is not None:
-            results.append(self._verify_qed_claim(thm.claim, results, ctx))
+            with trace.recording(self.trace) as rec:
+                if self._deps is not None:
+                    self._deps.before_qed(ctx)
+                qed = self._verify_qed_claim(thm.claim, results, ctx)
+                if self._deps is not None:
+                    try:
+                        self._deps.audit_qed(qed, thm.claim, ctx)
+                    except Exception:  # noqa: BLE001 - the audit must never cost the verdict
+                        qed.premises, qed.premises_complete = [], False
+            if rec is not None:
+                qed.trace = rec.events
+            results.append(qed)
         return ProofReport(theorem_name=thm.name, results=results)
 
     # -------------------------------------------------------------------
@@ -830,6 +875,14 @@ class ProofChecker:
         return StepStatus.INVALID if self.strict_domains else StepStatus.WARNING
 
     def _check_statement(self, stmt: StatementNode, ctx: ProofContext) -> StepResult:
+        if not self.trace:
+            return self._check_statement_traced(stmt, ctx)
+        with trace.recording() as rec:
+            result = self._check_statement_traced(stmt, ctx)
+        result.trace = rec.events  # type: ignore[union-attr]
+        return result
+
+    def _check_statement_traced(self, stmt: StatementNode, ctx: ProofContext) -> StepResult:
         if self.kernel is None:
             return self._check_statement_unrecorded(stmt, ctx)
         before = {id(h) for h in ctx.all_hypotheses()}
@@ -885,12 +938,20 @@ class ProofChecker:
         ]
         if self.kernel is not None:
             self.kernel.lent = added
+        if self._deps is not None:
+            lent = iter(added)
+            for _, target, claims in cited:
+                for _, claim in claims:
+                    h = next(lent)
+                    self._deps.lent[id(h)] = (h, {"label": target.label, "key": target.key, "claim": str(claim)})
         try:
             stripped = replace(stmt, justification=", ".join(rest) or None)
             result = self._dispatch(stripped, ctx)
         finally:
             if self.kernel is not None:
                 self.kernel.lent = []
+            if self._deps is not None:
+                self._deps.lent.clear()
             for frame in ctx._frames:
                 frame.hypotheses[:] = [h for h in frame.hypotheses if not any(h is a for a in added)]
             for name in lent:
@@ -901,12 +962,15 @@ class ProofChecker:
             message = f"{result.message} (The cited result says {statement_text}.)"
         else:
             message = f"{result.message.rstrip('.')}, by {target.label}."
-        return replace(
+        result = replace(
             result,
             statement=stmt,
             message=message,
             citation={"cited": part, "label": target.label, "key": target.key, "claim": statement_text},
         )
+        if self._deps is not None and result.status != StepStatus.INVALID:
+            self._deps.name_citation(result)
+        return result
 
     def _is_label_or_keyword(self, part: str, ctx: ProofContext) -> bool:
         valid, _ = self._validate_justification(part, ctx)
@@ -940,6 +1004,25 @@ class ProofChecker:
         )
 
     def _dispatch(self, stmt: StatementNode, ctx: ProofContext) -> StepResult:
+        deps = self._deps
+        if deps is None:
+            return self._dispatch_unaudited(stmt, ctx)
+        state = deps.before(stmt, ctx)
+        candidates = None
+        if self.kernel is not None and (getattr(stmt, "justification", None) or deps.lent):
+            # Under the kernel a line that cites its premises saw only those.
+            cited = kernel_premises.cited_labels(getattr(stmt, "justification", None), ctx)
+            cited += [h for h, _ in deps.lent.values()]
+            candidates = kernel_premises.select(cited, ctx, self._defines_declared_function)
+        result = self._dispatch_unaudited(stmt, ctx)
+        try:
+            deps.audit(result, stmt, ctx, state, candidates)
+        except Exception:  # noqa: BLE001 - the audit must never cost the verdict
+            result.premises, result.premises_complete = [], False
+        deps.record(ctx, stmt)
+        return result
+
+    def _dispatch_unaudited(self, stmt: StatementNode, ctx: ProofContext) -> StepResult:
         if isinstance(stmt, ImportNode):
             return self._process_import(stmt, None, [], [], [])
         if isinstance(stmt, VarDeclNode):

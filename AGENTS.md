@@ -142,6 +142,10 @@ Each item in `report.results` corresponds to one parsed statement and contains:
 - `citation: dict | None` — The result a `by …` citation used: `{"cited", "label", "key", "claim"}`.
 - `hints: list[dict]` — What to do about a step that did not check, in the student's notation: `{"message", "fix"?}`, where a fix is `{"line", "insert_before", "label"}` or `{"line", "col_start", "col_end", "text", "was", "label"}` (1-based; see `aether.engine.hints`). Empty for a step that checks.
 - `counterexample: str | None` — Concrete counterexample assignment if the step failed and one was found (e.g., `"Counterexample at x=3: LHS = 24, RHS = 23"` or `"x=1"`).
+- `premises: list[dict]` and `premises_complete: bool` — With `ProofChecker(dependencies=True)`, what a step that checked was proved from: `{"kind", "line", "label", "fact"}`, where `kind` is `"hypothesis"` (a fact established on `line`), `"chain"` (the chain as of `line`), `"result"` (an earlier theorem or an import, by `label`) or `"citation"` (a `by …` result; it also has `key`). From SymPy's substitutions, Z3's unsat core, `Obtain … from`, the induction schema's base cases and step, or the fact a line restates (see `aether.engine.dependencies`). `premises_complete` is False when the engine cannot say everything it used; it never guesses. Empty (and not complete) for a step that failed, and when the option is off.
+- `trace: list[dict]` — With `ProofChecker(trace=True)`, the backend calls made checking the step, in the order they started: `{"backend", "call", "query", "result", "ms", "depth"}` (`call` is `entails`, `identity`, `domain`, `cases`, `induction`, `core` or a raw Z3 `check`; `depth` nests a call under the one that made it; see `aether.engine.trace`).
+
+Neither option changes a verdict or a message: the dependency audit asks its unsat cores on a Z3 context of its own, and `tests/lecture_notes/dependency_parity.py [level]` checks every pack entry line by line with both on and off.
 
 ---
 

@@ -5,6 +5,7 @@ from __future__ import annotations
 import functools
 import itertools
 import re
+import time
 from dataclasses import dataclass
 from typing import Optional
 
@@ -25,7 +26,10 @@ from aether.core.ast import (
     VectorNode,
 )
 from aether.core.types import MathType
+from aether.engine import trace
+from aether.engine.trace import traced
 from aether.engine.context import (
+    HypothesisInfo,
     ProofContext,
     binding_call,
     collect_free_symbols,
@@ -66,6 +70,29 @@ def fresh_solver_context() -> None:
     between checks; the old context is freed once nothing refers to it.
     """
     z3.z3._main_ctx = None
+
+
+class SolverContext:
+    """A Z3 context of its own, for queries that must not touch the check's.
+
+    Z3's search depends on the terms its context has seen, so a query made
+    only to report something (which premises a line used) could otherwise
+    change how a later line is decided, or which core the kernel reports.
+    ``with scratch:`` runs the queries inside on this context instead."""
+
+    def __init__(self) -> None:
+        self._ctx: Optional[z3.Context] = None
+        self._saved: list = []
+
+    def __enter__(self) -> "SolverContext":
+        if self._ctx is None:
+            self._ctx = z3.Context()
+        self._saved.append(z3.z3._main_ctx)
+        z3.z3._main_ctx = self._ctx
+        return self
+
+    def __exit__(self, *exc: object) -> None:
+        z3.z3._main_ctx = self._saved.pop()
 
 
 def new_solver(timeout_ms: int) -> z3.Solver:
@@ -1055,7 +1082,19 @@ def _uses_set_functions(solver: z3.Solver) -> bool:
     return False
 
 
-def check_solver(solver: z3.Solver) -> z3.CheckSatResult:
+def check_solver(solver: z3.Solver, *assumptions: z3.ExprRef) -> z3.CheckSatResult:
+    if trace.active() is None:
+        return _check_solver(solver, *assumptions)
+    start = time.perf_counter()
+    result = z3.unknown
+    try:
+        result = _check_solver(solver, *assumptions)
+        return result
+    finally:
+        trace.solver_event(str(result), len(solver.assertions()), start)
+
+
+def _check_solver(solver: z3.Solver, *assumptions: z3.ExprRef) -> z3.CheckSatResult:
     """``solver.check()``, with the set axioms added when the problem needs them.
 
     A query that runs out of its budget is *unknown*, never an error.  Z3
@@ -1066,7 +1105,7 @@ def check_solver(solver: z3.Solver) -> z3.CheckSatResult:
     if _uses_set_functions(solver):
         _add_set_axioms(solver)
     try:
-        return solver.check()
+        return solver.check(*assumptions)
     except z3.Z3Exception as exc:
         if _is_budget_exhausted(exc):
             return z3.unknown
@@ -1192,6 +1231,7 @@ def _exprs_match(e1: ExprNode, e2: ExprNode, ctx: ProofContext) -> bool:
     return False
 
 
+@traced("Logic", "induction", lambda claim, ctx: str(claim), quiet=True)
 def verify_induction_schema(
     claim: ExprNode,
     ctx: ProofContext,
@@ -1236,14 +1276,18 @@ def verify_induction_schema(
     p_n, start = _induction_guard(expanded_claim.formula, n_var)
     hyps = ctx.all_hypotheses()
 
+    def established_by(prop: ExprNode) -> Optional[HypothesisInfo]:
+        return next((h for h in hyps if _exprs_match(h.proposition, prop, ctx)), None)
+
     def established(prop: ExprNode) -> bool:
-        return any(_exprs_match(h.proposition, prop, ctx) for h in hyps)
+        return established_by(prop) is not None
 
     def p_at(value: int) -> ExprNode:
         return substitute_expr(p_n, n_var, _int_node(value))
 
     # 1. Inductive steps among the established facts: forall k, H => P(k + d).
-    steps = [s for s in (_induction_step(h.proposition, p_n, n_var, ctx) for h in hyps) if s is not None]
+    found = [(s, h) for s, h in ((_induction_step(h.proposition, p_n, n_var, ctx), h) for h in hyps) if s is not None]
+    steps = [s for s, _ in found]
     if not steps:
         return None
 
@@ -1318,6 +1362,10 @@ def verify_induction_schema(
             )
 
     shape = "base case + inductive step" if step.span == 1 else f"{step.span} base cases + a {step.span}-step recurrence"
+    # What it rested on, for the dependency audit: the base run and the step.
+    ctx.induction_sources = [established_by(p_at(a + j)) for j in range(step.span)] + [
+        next(h for s, h in found if s is step)
+    ]
     return LogicResult(
         valid=True,
         message=f"Verified by Mathematical Induction on {n_var} from {a} ({shape}).",
@@ -1729,6 +1777,7 @@ def _explain_solver_limits(message: str, claim: ExprNode, ctx: ProofContext) -> 
     return message
 
 
+@traced("Z3", "entails", lambda claim, ctx, witness=None, **_: f"{claim} [witness: {witness}]" if witness is not None else str(claim))
 def verify_entailment(
     claim: ExprNode,
     ctx: ProofContext,
@@ -1999,6 +2048,7 @@ def _evaluate_constant_relation(condition: ExprNode, ctx: ProofContext) -> Optio
     return None
 
 
+@traced("Z3", "domain", lambda obligation, ctx, **_: str(obligation.reason))
 def check_domain_obligation(
     obligation: DomainObligation,
     ctx: ProofContext,
@@ -2032,6 +2082,7 @@ def check_domain_obligation(
     )
 
 
+@traced("Z3", "cases", lambda conds, ctx, **_: " or ".join(str(c) for c in conds))
 def verify_case_exhaustiveness(
     case_conditions: list[ExprNode],
     ctx: ProofContext,

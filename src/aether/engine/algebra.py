@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass, fields
+from dataclasses import dataclass, field, fields
 import difflib
 import itertools
 from typing import Optional
@@ -32,6 +32,7 @@ from aether.engine.context import (
     canonical_rel,
     collect_free_symbols,
 )
+from aether.engine.trace import traced
 
 
 class AlgebraConversionError(Exception):
@@ -47,6 +48,8 @@ class AlgebraResult:
     counterexample: Optional[str] = None
     counterexample_dict: Optional[dict[str, str]] = None
     used_substitutions: bool = False
+    #: Where each substituted equality came from (``ProofContext.equality_sources``).
+    substitutions: list = field(default_factory=list)
     #: A failure that no other backend can overturn (see ``_verify_group_identity``).
     decisive: bool = False
 
@@ -789,11 +792,14 @@ def _is_zero(diff: sp.Expr) -> bool:
 def _apply_context_substitutions(
     expr: sp.Expr,
     ctx: ProofContext,
+    record: Optional[list] = None,
 ) -> tuple[sp.Expr, bool]:
-    """Apply active equality hypotheses ``lhs = rhs`` from *ctx* to *expr*."""
+    """Apply active equality hypotheses ``lhs = rhs`` from *ctx* to *expr*.
+
+    *record*, if given, gets the source of each equality that changed *expr*."""
     used = False
     current = expr
-    for lhs_node, rhs_node in ctx.get_equality_substitutions():
+    for lhs_node, rhs_node, source in ctx.equality_sources():
         try:
             s_lhs = ast_to_sympy(lhs_node, ctx)
             s_rhs = ast_to_sympy(rhs_node, ctx)
@@ -805,6 +811,8 @@ def _apply_context_substitutions(
         if updated != current:
             current = updated
             used = True
+            if record is not None:
+                record.append(source)
             continue
         # If s_lhs is a sum like (3^k - 1 = 2*m), also try isolating non-constant terms (3^k = 2*m + 1)
         if isinstance(s_lhs, sp.Add):
@@ -816,6 +824,8 @@ def _apply_context_substitutions(
                         if updated != current:
                             current = updated
                             used = True
+                            if record is not None:
+                                record.append(source)
                             break
     return current, used
 
@@ -1030,12 +1040,33 @@ def _verify_group_identity(lhs: ExprNode, rhs: ExprNode, ctx: ProofContext) -> O
     return None
 
 
+def _unique(items: list) -> list:
+    """*items* without repeats, by identity, in order."""
+    out: list = []
+    for item in items:
+        if not any(item is seen for seen in out):
+            out.append(item)
+    return out
+
+
+@traced("SymPy", "identity", lambda lhs, rhs, ctx: f"{lhs} = {rhs}")
 def verify_algebraic_equality(
     lhs: ExprNode,
     rhs: ExprNode,
     ctx: ProofContext,
 ) -> AlgebraResult:
     """Verify whether ``lhs = rhs`` holds by pure algebra or context equality substitution."""
+    result = _verify_algebraic_equality(lhs, rhs, ctx)
+    if result.valid:
+        ctx.algebra_sources = list(result.substitutions)
+    return result
+
+
+def _verify_algebraic_equality(
+    lhs: ExprNode,
+    rhs: ExprNode,
+    ctx: ProofContext,
+) -> AlgebraResult:
     word_result = _verify_group_identity(lhs, rhs, ctx)
     if word_result is not None and word_result.valid:
         return word_result
@@ -1087,13 +1118,15 @@ def verify_algebraic_equality(
 
     # 2. Try substituting active context equalities (e.g. n = 2 * k)
     try:
-        s_lhs_sub, used_l = _apply_context_substitutions(s_lhs, ctx)
-        s_rhs_sub, used_r = _apply_context_substitutions(s_rhs, ctx)
+        sources: list = []
+        s_lhs_sub, used_l = _apply_context_substitutions(s_lhs, ctx, sources)
+        s_rhs_sub, used_r = _apply_context_substitutions(s_rhs, ctx, sources)
         if (used_l or used_r) and _is_zero(s_lhs_sub - s_rhs_sub):
             return AlgebraResult(
                 valid=True,
                 message=f"Verified by SymPy using context substitutions ({lhs} = {rhs}).",
                 used_substitutions=True,
+                substitutions=_unique(sources),
             )
     except (TypeError, ValueError, AttributeError, sp.ShapeError):
         pass
