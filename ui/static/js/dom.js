@@ -52,6 +52,8 @@ export const dom = {
   // Working pane
   tabs: byId("tabs"),
   templatesMenu: byId("templates-menu"),
+  levelMenu: byId("level-menu"),
+  levelButton: byId("level-button"),
   symbols: byId("symbols"),
   strict: byId("strict"),
   working: byId("working"),

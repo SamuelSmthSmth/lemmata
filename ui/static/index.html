@@ -212,6 +212,10 @@
           <wa-tooltip for="strict" placement="bottom">Unguarded divisions and square roots become hard errors</wa-tooltip>
           <wa-switch id="working" class="strict-switch" size="s">Show working</wa-switch>
           <wa-tooltip for="working" placement="bottom">A step that skips the working a question asks for (the product rule, a sum's closed form) gets a warning</wa-tooltip>
+          <wa-dropdown id="level-menu" class="toolstrip-dropdown" placement="bottom-end">
+            <button id="level-button" slot="trigger" class="text-button text-button--menu" type="button" aria-label="Checking level">Level: Off</button>
+          </wa-dropdown>
+          <wa-tooltip for="level-button" placement="bottom">How big a step one line may take</wa-tooltip>
           <span class="toolstrip-rule" aria-hidden="true"></span>
           <button id="layout-toggle" class="icon-button-native" type="button" aria-label="Panel arrangement" aria-haspopup="menu" aria-expanded="false">
             <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true">

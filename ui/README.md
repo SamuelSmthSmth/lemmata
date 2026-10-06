@@ -233,6 +233,11 @@ Below 1100px the reading pane overlays the work instead of squeezing it; below
 path; `import` resolves against it (relative to `path`, then the root) before
 the engine's disk search.
 
+`"kernel": "exam" | "course" | "scratch"` checks with the proof kernel at
+that level (`ProofChecker(kernel=…)`; `null` or absent checks without it). The
+app sends the open proof's level (`js/level.js`): its own, or the Settings
+default, Course.
+
 `"audit": true` checks with `ProofChecker(dependencies=True, trace=True)`:
 each step then carries `premises` (`{"kind", "line", "label", "fact"}`),
 `premises_complete`, `trace` (`{"backend", "call", "query", "result",

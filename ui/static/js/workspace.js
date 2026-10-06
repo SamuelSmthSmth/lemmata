@@ -185,12 +185,12 @@ function saveTabs() {
 // Files
 // ---------------------------------------------------------------------------
 
-export async function createFile({ path, source = "", strict = false, working = false, open = true } = {}) {
+export async function createFile({ path, source = "", strict = false, working = false, level = null, open = true } = {}) {
   const finalPath = withExtension(normalizePath(path || freePath()));
   const problem = pathProblem(finalPath);
   if (problem) throw new Error(problem);
   const now = Date.now();
-  const file = { id: db.newId(), path: finalPath, source, strict, working, created: now, updated: now };
+  const file = { id: db.newId(), path: finalPath, source, strict, working, level, created: now, updated: now };
   model.files.set(file.id, file);
   await db.files.put(file);
   emit("files", { id: file.id });
@@ -225,7 +225,7 @@ export async function duplicateFile(id) {
   const file = model.files.get(id);
   if (!file) return null;
   const stem = basename(file.path).replace(EXTENSION, "");
-  return createFile({ path: freePath(`${stem} copy`, dirname(file.path)), source: file.source, strict: file.strict, working: Boolean(file.working) });
+  return createFile({ path: freePath(`${stem} copy`, dirname(file.path)), source: file.source, strict: file.strict, working: Boolean(file.working), level: file.level ?? null });
 }
 
 /**
@@ -372,6 +372,7 @@ export async function addSnapshot(fileId, { name, auto = false } = {}) {
     source: file.source,
     strict: file.strict,
     working: Boolean(file.working),
+    level: file.level ?? null,
     auto,
   };
   await db.snapshots.put(snap);

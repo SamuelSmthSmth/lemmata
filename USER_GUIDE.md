@@ -485,7 +485,17 @@ QED
 
 ### Checking options
 
-Two switches change how strict the checking is. Both are off by default, each proof keeps its own setting, and both travel with the proof's link.
+Three settings change how strict the checking is. Each proof keeps its own, and all three travel with the proof's link.
+
+**The checking level** decides how big a step one line may take. With the level *Off*, every true line passes, however big the leap; the other levels are the proof kernel's:
+
+| Level | A line may | Refused as too big a step |
+| --- | --- | --- |
+| **Exam** | use algebra, linear and non-linear arithmetic, and the facts it cites | a whole quantified statement in one line, a divisibility settled by checking remainders, a derivative, limit or sum written down without the working |
+| **Course** (the default for new proofs) | all of that, and write a standard result down (a limit, a derivative, the geometric series), as lecture notes do | a whole quantified statement in one line, a divisibility settled by checking remainders |
+| **Scratch** | anything the solvers can decide | nothing for being big |
+
+At every level but Off, a line that cites its premises (`[using h1]`, `Since …`, `By …`) may use only those, and is told which fact it needed if it cited the wrong one. A refused line says what to write instead ("introduce each variable with Given, … choose any witness with [witness: …]"), and its conclusion still counts, so one leap is one finding. `QED` closes only a claim the proof reached. The level is in the tool strip (*Level: Course*), in the command palette (*Checking level: …*), and its default in Settings; a link made before levels existed opens at Off, as it was checked. From Python: `ProofChecker(kernel="course")`.
 
 **Strict domains** (`ProofChecker(strict_domains=True)`) makes an unguarded division or square root an error instead of a warning. Turn it on when the proof should rule out every `x - 2 = 0` itself.
 
@@ -527,7 +537,7 @@ Run `uv run python -m ui` and open `http://localhost:8000`. The rail on the left
    - **Use in a proof** puts `import "@core/mth2010/<entry>"` at the top of the open proof, so you can cite that theorem. It arrives with its assumptions: it applies where they hold (see §4).
    - **Make your own pack.** *New pack…* (or the pack button on a folder in the Files tab) turns a folder of your proofs into a pack. Give it a name, a version and, if you like, a course code; give each proof a reference, title and chapter, and mark traps with what is wrong. **Export .pack.json** checks every proof on its own and records the verdict it gives, so anyone who installs your pack sees exactly what you saw. **Share to the registry…** shows how to publish it for everyone: upload the file to the registry on GitHub and open a pull request, and its checks run every entry again.
 4. **Checking Options, Arrangement and Appearance:**
-   - The **Strict domains** and **Show working** switches in the tool strip are the two [checking options](#checking-options). Each proof keeps its own settings, its link and History snapshots carry them, and Settings chooses the defaults for new proofs.
+   - The **Level** menu and the **Strict domains** and **Show working** switches in the tool strip are the [checking options](#checking-options). Each proof keeps its own settings, its link and History snapshots carry them, and Settings chooses the defaults for new proofs.
    - **Typeset the maths** (in Settings, or *Toggle typeset maths* in the command palette) shows each expression as it would print: fractions, powers and roots. The keywords stay as you wrote them. Move the caret into an expression to edit its source.
    - The **Panel arrangement** button offers four presets, each drawn as a miniature of itself: **Columns**, **Stack**, **Split** (the default) and **Focus**. Drag a panel's grip onto another panel to swap the two, or focus a grip and press an arrow key.
    - The sun/moon on the rail flips light / dark; the three-dot button flips the editor between near-monochrome and colourised syntax. **Settings** also holds the editor text size, line wrapping, how long to wait after typing before checking, and storage use. All of it is remembered.
