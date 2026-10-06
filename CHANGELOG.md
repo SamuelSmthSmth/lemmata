@@ -2,68 +2,59 @@
 
 What changed between releases of Lemmata, newest first. The engine is the `aether` Python package; its public API (`ProofChecker`, `ProofReport`, `StepResult`, `StepStatus`, `ParseError`) stays backward compatible within these releases.
 
-## Unreleased
+## 0.3.0 (2026-10-06)
+
+The proof kernel release. Lemmata used to check whether each line was true; now it can check whether each line *follows*. A line that is true but skips the argument is refused as too big a step, with what to write instead. Underneath, a typed core and named tactics say what each line needed. You can also see what each line was proved from, as a graph, and what the checker did, as a log.
+
+### Checking levels
+
+- **A *Level* menu in the tool strip:**
+  - *Off* checks as before: every true line passes.
+  - *Course*, the default for new proofs, refuses a line that is true but skips the argument (a whole ε–δ statement at once, a divisibility settled by checking remainders) and says what to write instead.
+  - *Exam* also wants a derivative, limit or sum worked, not written down. At *Exam*, the *Show working* switch stands aside, because the level already asks for it.
+  - *Scratch* accepts anything the solvers decide.
+- **A line that cites its premises may use only those.** `x² > 25 [using h2]` is refused when `h2` doesn't give it, and the message names the fact that does.
+- **`QED` closes only a claim the proof reached.** `Given n : Int` followed by `QED` no longer proves a divisibility for you.
+- **A conclusion after a complete case split is accepted by the case rule:** "By cases: … holds in each case …".
+- **Your existing work is safe.** Each proof keeps its own level, carried by its link and its History snapshots. A proof or link from before levels opens at *Off*, as it was checked.
+- **On the course packs, *Course* changes no verdict:** all 133 entries agree.
+
+### What each line used, and what the checker did
+
+- **The proof graph:** select a step and the auditor draws arcs to the lines it was proved from, with their line numbers lit, and to the lines that use it. *Used* and *Used by* in Context & state list the same facts as links. A button in the auditor's head shows the whole graph.
+- **The Trace tab:** the checker's log, line by line. Each line shows what SymPy and Z3 were asked, the answer and the time, with a block's own lines nested under it.
+- **Both can be turned off** in Settings (*What each line used*), which makes checking about a tenth quicker.
 
 ### Proofs you can now write
 
-- **Several names in one quantifier**, as the notes write them: `forall a, b : Int, …`, `∀ a, b ∈ ℤ, …` and `∀ ε, δ > 0, …`. Each name gets the type or bound. The User Guide already used the first form, and it didn't parse.
+- **Several names in one quantifier**, as the notes write them: `forall a, b : Int, …`, `∀ a, b ∈ ℤ, …`, `∀ ε, δ > 0, …`.
 
 ### Packs
 
-- **A pack, or one entry, can record its checking level** (`"level": "course"`), and its expected verdicts then hold at that level. Without one, a pack means what it always meant: checked with the level Off. The core packs (MTH2008, MTH2010, Notation; 1.0.1) are recorded at *Course*, which changes none of their verdicts.
-
-### In the app
-
-- **Checking levels.** A *Level* menu in the tool strip: *Off* (every true line passes, as before), *Exam*, *Course* or *Scratch*. *Course*, the default for new proofs, refuses a line that is true but skips the argument (a whole ε–δ statement at once, a divisibility by checking remainders) and says what to write instead; *Exam* also wants a derivative, limit or sum worked. Each proof keeps its level, and its link and History snapshots carry it; a proof or link from before levels opens at *Off*, as it was checked.
-- **What each line used.** Select a step and the auditor draws arcs to the lines it was proved from, with their line numbers lit, and to the lines that use it. Context & state lists both as *Used* and *Used by*, each a link to its line. A button in the auditor's head draws the whole proof's graph.
-- **The Trace tab:** the checker's log in the reading pane. For each line it shows what was asked of SymPy and Z3, the answer and the time, with a block's own lines nested under it.
-- Both can be turned off in Settings (*What each line used*), which makes checking about a tenth quicker.
+- **A pack, or one entry, can record its checking level** (`"level": "course"`), and its verdicts then hold at that level. A pack without one means what it always meant.
+- **The app and the registry use the level everywhere:** checking a pack, making one (each proof is recorded at its own level), and opening an entry or an exercise, so an exercise's answer is the line that fails at the pack's level.
+- **The core packs (1.0.1) are recorded at *Course*.**
 
 ### On the command line
 
-- **`lemmata --used FILE`** lists what each line was proved from, and **`--trace`** lists the calls made to SymPy and Z3 per line: the same log as the Trace tab.
+- **`lemmata --used FILE`** lists what each line was proved from, and **`--trace`** lists the calls made to SymPy and Z3: the same log as the Trace tab.
 
-### The proof kernel, stage 1 (engine only, opt in)
+### For developers
 
-- **`ProofChecker(kernel="exam" | "course" | "scratch")`** checks whether each line *follows*, not only whether it is true. It is the first stage of the design in *A Proof Kernel for Lemmata*.
-  - **A line that cites its premises may use only those.** `x² > 25 [using h2]` is refused when h2 doesn't give it, and the message names the fact that does.
-  - **Each line is classified by the reasoning that settled it**, and refused as too big a step when the level doesn't allow that: a whole ε–δ statement decided in one line, or a divisibility settled by checking remainders. Under *Exam*, a limit, derivative or series evaluated in one line is refused too.
-  - **The audit names the tactic and the premises used**, for example "Kernel: linarith … (from line 5 and line 4)".
-  - **Calibrated on the course packs:** at *Course*, all 133 entries give the same verdict as without the kernel.
-  - **Without the option, nothing changes.**
-- **Stage 2, the structural rules:**
-  - **`QED` is goal closure.** It no longer proves the claim for you: a proof that is only `Given n : Int`, then `QED`, is refused for a divisibility or a quantified claim, and the message names what the proof never showed.
-  - **A conclusion after a complete case split is by the case rule** ("By cases: … holds in each case …"), not decided by a solver.
-  - **Induction on a sum is recognised as working at *Exam*:** peeling off the last term and using the inductive hypothesis.
-  - **A line that follows from the line above is classified by that argument**, even when the engine reached it another way. This fixes stage 1 refusing the User Guide's own proof by cases.
-- **The typed core and its tactics:**
-  - **One typed form for the maths** (`aether.kernel.core`). A line's maths is translated once into typed terms: naturals, integers, rationals, reals, with division's side conditions recorded.
-  - **Separate tactics on those terms** (`aether.kernel.tactics`): `ring`, `field`, `subst`, `linarith` and `nlinarith`. The audit now names the weakest one that proves a line, rather than guessing from which solver answered.
-  - **`linarith` treats products of unknowns as atoms**, so the Archimedean step (`nε ≤ β − ε` from `(n+1)ε ≤ β`) is linear, as it should be.
-  - **The tactics label lines; they don't decide them.** All 133 course-pack entries still agree at *Course*.
-  - **Shadow mode** (`tests/lecture_notes/kernel_shadow.py`) compares the engine's verdict with the tactics' answer on every line of the packs and the tests (874 lines). The tactics never prove a line the engine refused on the mathematics. They miss 43 lines the engine proves (quantified premises, group operations), so they keep labelling rather than deciding.
-  - **Standard functions in the algebra tactics:** `factorial(3) = 6` and `gcd(8, 2) = 2` are evaluated, and `sqrt`, `sin`, `exp` and the rest are read as the engine reads them. Number-theoretic functions are evaluated only on numbers: on symbols, SymPy's `gcd(n, k)` is the polynomial gcd, 1, and shadow mode caught `ring` "proving" the Notation pack's `gcd(n, k) = 1` and `lcm(n, k) = nk` traps. A test now runs every pack trap and fails if any tactic proves its false line.
-  - **The core's tactics now cover nearly everything the engine proves in the core:** of the 43 lines shadow mode found them missing, 8 remain. Changes:
-    - Standard functions carry their true range facts (sin and cos in [−1, 1], exp > 0, a square root ≥ 0 where it is real).
-    - `min` and `max` mean what they say.
-    - A universal fact is used through its instances at the line's own terms (a recurrence at `k`, `f(2) > 0` from `∀x, f(x) > 0`), only at terms of a type the quantifier allows.
-    - A `simp` tactic handles identities like `n! = n·(n − 1)!` and `cosh² − sinh² = 1`.
-    - A `residues` tactic checks divisibility by remainders, still too big a step at *Course* and *Exam*.
-    - Group operations are outside the core until it states their axioms.
-  - **Shadow mode caught two more false proofs before they shipped:** an unconditional "√t ≥ 0" proved `√(x − 1) ≥ 0`, which fails at x = 0. And the number-theory guard covered `factorial` and `binomial` needlessly; it now covers only `gcd` and `lcm`.
-  - **Fixed:** with the kernel on, a hard induction step ("7ⁿ − 3ⁿ is divisible by 4") could come back "inconclusive". The kernel's own solver questions now run apart from the check's, so they can't change its answer.
+- **`ProofChecker(kernel="exam" | "course" | "scratch")`:** the proof kernel (`aether.kernel`). It has a typed core and the tactics `ring`, `field`, `subst`, `simp`, `linarith` (products of unknowns as atoms), `nlinarith` and `residues`, which label each line with the weakest one that proves it.
+- **Shadow mode** (`tests/lecture_notes/kernel_shadow.py`) compares the tactics with the engine on every line of the packs and tests. A test runs every pack trap and fails if a tactic proves its false line.
+- **`ProofChecker(dependencies=True, trace=True)`** fills `StepResult.premises` and `StepResult.trace` without changing a verdict or a message.
+- **Without these options, the engine checks exactly as 0.2 did.**
+- **Documentation:**
+  - the README is now a proper front page;
+  - the User Guide has a *Proof methods* section and documents the levels;
+  - *A Proof Kernel for Lemmata* describes the design.
 
-### What each line used, and what was computed (engine only, opt in)
+### Fixed
 
-- **`ProofChecker(dependencies=True)`** names the premises each line that checked was proved from (`StepResult.premises`): the equalities SymPy substituted, the unsat core of Z3's proof, the line a chain continues, the source of an `Obtain … from`, an induction's base case and step, a result cited by name. When the engine can't say everything a line used, `premises_complete` is False rather than a guess. This is what a proof graph needs.
-- **`ProofChecker(trace=True)`** lists the backend calls made checking each line (`StepResult.trace`): what Z3 or SymPy was asked, the answer, how long it took, nested under the call that made it.
-- **Neither changes a verdict or a message.** The audit's unsat cores run on a Z3 context of their own, so they can't steer the check. `tests/lecture_notes/dependency_parity.py` checks this on every pack entry, with and without the kernel. On the packs, 98% of the lines that check have a complete list of premises, at no measurable cost.
-
-### Documentation
-
-- **The README** is a front door: what Lemmata is, a checked example, who it's for, and how to run it.
-- **The User Guide** has a new *Proof methods* section: deduction, cases, contradiction (√2), counterexample, and induction from a starting value and with recurrences, each with a proof that checks as written. *Checking options* brings Strict domains and Show your working together, and the app section covers the typeset view. The capability matrix is now §9.
-- **The AI reference** matches the 0.2 grammar and engine: the real grammar, the AST as it is, number theory, induction, case coverage, Show your working, and the current HTTP API.
+- **With the kernel on, a hard induction step could come back "inconclusive"** ("7ⁿ − 3ⁿ is divisible by 4"). The kernel's own solver questions now run apart from the check's.
+- **Shadow mode caught three false proofs in the new tactics before release:** `gcd(n, k) = 1`, `lcm(n, k) = nk` and `√(x − 1) ≥ 0`. All three are refused, and tested.
+- **The tool strip no longer pushes the export and Lean buttons off screen** at 1440px.
 
 ## 0.2.0 (2026-10-06)
 
