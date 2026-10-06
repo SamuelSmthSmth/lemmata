@@ -44,7 +44,7 @@ def _probes() -> list[dict[str, Any]]:
 
 
 def cases() -> list[dict[str, Any]]:
-    from aether.packs import load_packs
+    from aether.packs import entry_level, load_packs
 
     from ui.examples import EXAMPLE_FILE_VERDICTS, EXAMPLES
     from ui.verify_examples import EXPECTATIONS
@@ -53,7 +53,7 @@ def cases() -> list[dict[str, Any]]:
     for pack in load_packs(ROOT / "courses"):
         for entry in pack["entries"]:
             expected = "PARSE" if entry["expected"] == "PARSE ERROR" else entry["expected"]
-            out.append({"id": f"{pack['name']}/{entry['id']}", "judge": "pack", "strict": False, "source": entry["source"], "expected": expected})
+            out.append({"id": f"{pack['name']}/{entry['id']}", "judge": "pack", "strict": False, "level": entry_level(pack, entry), "source": entry["source"], "expected": expected})
     for example in EXAMPLES:
         kind = EXPECTATIONS[example["id"]][0]
         out.append({"id": f"example/{example['id']}", "judge": "example", "strict": False, "source": example["source"], "expected": kind})
@@ -96,12 +96,23 @@ def run(only: str = "", progress=None) -> dict[str, Any]:
     from aether import ProofChecker
 
     started = time.perf_counter()
-    checkers = {False: ProofChecker(strict_domains=False), True: ProofChecker(strict_domains=True)}
+    from aether.packs import kernel_for
+
+    checkers: dict = {}
+
+    def checker_for(case):
+        key = (case["strict"], case.get("level", "off"))
+        if key not in checkers:
+            checkers[key] = ProofChecker(strict_domains=key[0], kernel=kernel_for(key[1]))
+        return checkers[key]
+
+    checker_for({"strict": False})
+    checker_for({"strict": True})
     warm_ms = (time.perf_counter() - started) * 1000
     results = []
     selected = [c for c in cases() if only in c["id"]]
     for i, case in enumerate(selected):
-        checker = checkers[case["strict"]]
+        checker = checker_for(case)
         t0 = time.perf_counter()
         try:
             got = judge(case, checker)

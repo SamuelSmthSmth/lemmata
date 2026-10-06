@@ -200,7 +200,9 @@ async function finish(action) {
       setStatus(`Checking ${i + 1} of ${files.length}: ${file.path.split("/").pop()}`);
       const sources = packs.importsFromPacks(file.source) ? packs.importSources(packs.installedPacks()) : null;
       try {
-        verdicts.set(file.id, verdictOf(await checkProof({ source: file.source, strictDomains: false, files: sources, path: file.path })));
+        // At the proof's own level: that is the level the entry will record.
+        const level = ["exam", "course", "scratch"].includes(file.level) ? file.level : "off";
+        verdicts.set(file.id, verdictOf(await checkProof({ source: file.source, strictDomains: false, kernel: packs.kernelOf(level), files: sources, path: file.path })));
       } catch (error) {
         verdicts.set(file.id, "UNREACHABLE");
       }

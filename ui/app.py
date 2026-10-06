@@ -226,6 +226,8 @@ class LibraryEntryModel(BaseModel):
     expected: str
     explanation: Optional[str] = None
     blurb: Optional[str] = None
+    # The checking level this entry's verdict holds at, when not the pack's.
+    level: Optional[Literal["off", "exam", "course", "scratch"]] = None
     source: str
 
 
@@ -247,6 +249,8 @@ class LibraryPackModel(BaseModel):
     license: str
     engine: str
     depends: dict[str, str]
+    # The checking level its verdicts hold at (aether.packs.entry_level); absent is off.
+    level: Optional[Literal["off", "exam", "course", "scratch"]] = None
     chapters: list[LibraryChapterModel]
     entries: list[LibraryEntryModel]
 
