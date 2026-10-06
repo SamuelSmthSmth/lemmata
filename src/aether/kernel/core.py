@@ -197,6 +197,30 @@ def elaborate(expr: ExprNode, ctx: ProofContext) -> Optional[Elaborated]:
     return Elaborated(prop, builder.conditions)
 
 
+def elaborate_term(expr: ExprNode, ctx: ProofContext) -> Optional[Term]:
+    """*expr* as a core term, or None when it is outside the core."""
+    expanded = ctx.expand_user_functions(expr) or expr
+    try:
+        return _Builder(ctx).term(expanded)
+    except _Outside:
+        return None
+
+
+def same_value(a: ExprNode, b: ExprNode, ctx: ProofContext) -> Optional[bool]:
+    """Whether two expressions are equal as polynomials (or rational functions)
+    in their typed variables: None when either is outside the core.  Plain
+    expansion, never a search for a counterexample."""
+    import sympy as sp
+
+    ta, tb = elaborate_term(a, ctx), elaborate_term(b, ctx)
+    if ta is None or tb is None:
+        return None
+    diff = to_sympy(ta) - to_sympy(tb)
+    if has_division(ta) or has_division(tb):
+        return sp.cancel(sp.together(diff)) == 0
+    return sp.expand(diff) == 0
+
+
 class _Builder:
     def __init__(self, ctx: ProofContext) -> None:
         self.ctx = ctx
