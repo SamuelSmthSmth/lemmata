@@ -87,7 +87,10 @@ class SolverContext:
     def __enter__(self) -> "SolverContext":
         if self._ctx is None:
             self._ctx = z3.Context()
-        self._saved.append(z3.z3._main_ctx)
+        # The check's own context, made now if it has not been yet: saving an
+        # unmade one (None) would restore None, and the check's next query
+        # would start a new context without the terms it has already made.
+        self._saved.append(z3.main_ctx())
         z3.z3._main_ctx = self._ctx
         return self
 

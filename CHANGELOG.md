@@ -31,6 +31,12 @@ What changed between releases of Lemmata, newest first. The engine is the `aethe
   - **A conclusion after a complete case split is by the case rule** ("By cases: … holds in each case …"), not decided by a solver.
   - **Induction on a sum is recognised as working at *Exam*:** peeling off the last term and using the inductive hypothesis.
   - **A line that follows from the line above is classified by that argument**, even when the engine reached it another way. This fixes stage 1 refusing the User Guide's own proof by cases.
+- **The typed core and its tactics:**
+  - **One typed form for the maths** (`aether.kernel.core`). A line's maths is translated once into typed terms: naturals, integers, rationals, reals, with division's side conditions recorded.
+  - **Separate tactics on those terms** (`aether.kernel.tactics`): `ring`, `field`, `subst`, `linarith` and `nlinarith`. The audit now names the weakest one that proves a line, rather than guessing from which solver answered.
+  - **`linarith` treats products of unknowns as atoms**, so the Archimedean step (`nε ≤ β − ε` from `(n+1)ε ≤ β`) is linear, as it should be.
+  - **The tactics label lines; they don't decide them.** All 133 course-pack entries still agree at *Course*.
+  - **Fixed:** with the kernel on, a hard induction step ("7ⁿ − 3ⁿ is divisible by 4") could come back "inconclusive". The kernel's own solver questions now run apart from the check's, so they can't change its answer.
 
 ### What each line used, and what was computed (engine only, opt in)
 

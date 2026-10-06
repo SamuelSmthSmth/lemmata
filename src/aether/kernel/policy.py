@@ -28,6 +28,8 @@ class Fragment:
 HYPOTHESIS = Fragment("hypothesis", 0, "a fact already established")
 INDUCTION = Fragment("induction", 0, "the induction its blocks set up")
 RING = Fragment("ring", 1, "algebra on the two sides")
+FIELD = Fragment("field", 1, "algebra with division, where the denominators are not 0")
+SUBST = Fragment("subst", 1, "substituting an equation in scope, then algebra")
 LINEAR = Fragment("linarith", 2, "linear arithmetic and logic")
 NONLINEAR = Fragment(
     "nlinarith",
@@ -48,6 +50,16 @@ QUANTIFIED = Fragment(
     "Prove it in parts: introduce each variable with Given, assume what it is for, "
     "choose any witness with [witness: …], and show the rest step by step.",
 )
+
+
+#: The fragment each core tactic (``aether.kernel.tactics``) proves in.
+TACTIC_FRAGMENTS: dict[str, Fragment] = {
+    "ring": RING,
+    "field": FIELD,
+    "subst": SUBST,
+    "linarith": LINEAR,
+    "nlinarith": NONLINEAR,
+}
 
 
 def evaluation(gap: str) -> Fragment:
