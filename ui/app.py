@@ -87,6 +87,14 @@ class StepModel(BaseModel):
     # The result a `by …` citation used, and what to do about a failure.
     citation: Optional[dict[str, str]] = None
     hints: list[dict[str, Any]] = Field(default_factory=list)
+    # With `audit`: what the line was proved from ({"kind", "line", "label",
+    # "fact"}), whether that list is the whole story, and the backend calls
+    # made checking it ({"backend", "call", "query", "result", "ms", "depth"}).
+    premises: list[dict[str, Any]] = Field(default_factory=list)
+    premises_complete: bool = False
+    trace: list[dict[str, Any]] = Field(default_factory=list)
+    # A block's own lines, each {"line", "statement", "status", "trace", "inner"}.
+    inner: list[dict[str, Any]] = Field(default_factory=list)
 
 
 class ReportModel(BaseModel):
@@ -121,6 +129,9 @@ class CheckRequest(BaseModel):
     # Show your working: a step that skips the working a question asks to see
     # is a warning naming the rule (ProofChecker(show_working=True)).
     show_working: bool = False
+    # What each line used and the trace of its backend calls (the proof graph
+    # and the Trace tab): ProofChecker(dependencies=True, trace=True).
+    audit: bool = False
     # The browser workspace: other files `import` can resolve against, keyed by
     # workspace path, and the checked file's own path for relative imports.
     files: Optional[dict[str, str]] = None
@@ -353,6 +364,7 @@ def check_proof(request: CheckRequest) -> CheckResponse:
                 "source": request.source,
                 "strict_domains": request.strict_domains,
                 "show_working": request.show_working,
+                "audit": request.audit,
                 "files": request.files,
                 "citations": request.citations,
                 "path": request.path,

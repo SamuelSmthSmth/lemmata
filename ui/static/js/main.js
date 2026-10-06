@@ -11,6 +11,8 @@ import { canExportPdf, checkProof, exportLatex, exportLean, exportPdf, fetchLibr
 import { leanEditorUrl, leanFilename, renderLeanMessage, renderLeanRows, untranslatedNote } from "./lean.js";
 import { onEngineStatus, warmUp } from "./backend.js";
 import { initAuditNav, selectStepForLine } from "./audit.js";
+import { drawGraph, initGraph } from "./graph.js";
+import { followSelection, renderTrace, resetTrace } from "./trace.js";
 import { insertSymbol, insertTemplate, setCitationSource, setScopeSource, SYMBOLS, TEMPLATES } from "./complete.js";
 import { renderContext, setContextHandlers } from "./context.js";
 import { applyFix } from "./fixes.js";
@@ -209,6 +211,7 @@ async function runCheck() {
       source,
       strictDomains: dom.strict.checked,
       showWorking: dom.working.checked,
+      audit: getPref("audit") === "on",
       files,
       path: file.path,
       citations,
@@ -237,7 +240,12 @@ function firstProblem(data) {
   return problems;
 }
 
+let tracedFile = null;
+
 function showResponse(file, data) {
+  // A different proof: which lines' traces were expanded no longer applies.
+  if (tracedFile !== file.id) resetTrace();
+  tracedFile = file.id;
   const hidden = exerciseHidden(file);
   document.body.dataset.exercise = hidden ? "hidden" : file.exercise ? "revealed" : "none";
   applyResponse(data);
@@ -292,6 +300,7 @@ async function showActive({ check = true } = {}) {
     dom.audit.replaceChildren(el("p", "empty-state", "Open a proof to see its audit here."));
     state.steps = [];
     state.data = null;
+    drawGraph();
     renderContext();
     renderNotesPanel();
     return;
@@ -824,6 +833,10 @@ function setDeskPanel(name) {
   for (const [key, panel] of Object.entries(dom.deskPanels)) panel.hidden = key !== name;
   setPref("deskPanel", name);
   if (name === "history") renderHistory();
+  if (name === "trace") {
+    renderTrace();
+    if (state.selected !== null) followSelection(state.selected);
+  }
 }
 
 for (const tab of dom.deskTabs) {
@@ -1155,6 +1168,7 @@ dom.paletteOpen.addEventListener("click", () => openPalette());
 // ---------------------------------------------------------------------------
 
 initAuditNav();
+initGraph();
 
 initExplorer(
   {
@@ -1366,6 +1380,8 @@ initSettings({
   onSyntax: (name) => applySyntax(name, { persist: true }),
   onWrap: (on) => editor.setWrap(on),
   onVisual: (on) => setVisual(on),
+  // The audit is part of the check: re-check so the graph and trace appear or go.
+  onAudit: () => runCheck(),
   onDesk: (on) => setDeskOpen(on),
   onExport: exportWorkspace,
   countFiles: async () => ws.model.files.size,

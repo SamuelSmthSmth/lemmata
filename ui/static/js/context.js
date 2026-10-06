@@ -6,6 +6,8 @@
 import { dom } from "./dom.js";
 import { state } from "./state.js";
 import { bulletList, chipList, el, note, section, splitStepText } from "./format.js";
+import { dependentsOf, hasGraph, premisesOf } from "./graph.js";
+import { selectStep } from "./audit.js";
 
 let handlers = {};
 
@@ -42,6 +44,69 @@ function citationSection(citation) {
   const inPack = citation.key.startsWith("@");
   item.append(textButton(inPack ? "Open in the Library" : "Open the file", "", () => handlers.onOpenCited?.(citation)));
   return section("Cited result", [item]);
+}
+
+/** How a premise is named: its label, or what kind of fact it is. */
+function premiseName(premise) {
+  if (premise.kind === "chain") return "the line before";
+  if (premise.kind === "citation") return premise.label ? `${premise.label}, cited` : "a cited result";
+  if (premise.kind === "result") return premise.label ?? "an earlier result";
+  return premise.label ?? null;
+}
+
+/** One line of "Used" or "Used by": a line number, a name, the fact.  A row
+ *  of this proof is a button that selects it, so the list is the keyboard's
+ *  way along the arcs the auditor draws. */
+function usedRow({ index, line, name, fact }) {
+  const row = el(index >= 0 ? "button" : "div", "ctx-used");
+  if (index >= 0) {
+    row.type = "button";
+    row.addEventListener("click", () => selectStep(index, { focus: true }));
+  }
+  row.append(el("span", "ctx-used-line", line != null ? `L${line}` : ""));
+  const text = el("span", "ctx-used-text");
+  if (name) text.append(el("span", "ctx-used-name", name));
+  if (fact) text.append(el("code", "ctx-used-fact", fact));
+  row.append(text);
+  return row;
+}
+
+/** "Used" and "Used by": what the selected line was proved from, and which
+ *  lines rest on it.  Honest when the engine could not say everything. */
+function usedSections(index, result) {
+  if (!hasGraph() || result.status === "INVALID") return [];
+  const out = [];
+  const premises = premisesOf(index);
+  const nodes = premises.map(({ index: at, premise }) =>
+    usedRow({ index: at, line: premise.line, name: premiseName(premise), fact: premise.fact }),
+  );
+  if (!result.premises_complete) {
+    nodes.push(
+      el(
+        "p",
+        "ctx-empty",
+        premises.length
+          ? "Possibly more: the engine could not recover everything this line used."
+          : `The engine could not recover what this line used (${result.backend} does not say which facts it needed).`,
+      ),
+    );
+  } else if (!premises.length) {
+    nodes.push(el("p", "ctx-empty", "Nothing earlier in the proof: this line holds on its own."));
+  }
+  out.push(section("Used", nodes));
+  const dependents = dependentsOf(index);
+  if (dependents.length) {
+    out.push(
+      section(
+        "Used by",
+        dependents.map((i) => {
+          const r = state.steps[i].result;
+          return usedRow({ index: i, line: r.line, name: null, fact: r.statement });
+        }),
+      ),
+    );
+  }
+  return out;
 }
 
 export function renderContext() {
@@ -126,6 +191,7 @@ export function renderContext() {
   }
   if (result.hints?.length) dom.context.append(hintSection(result.hints));
   if (result.citation) dom.context.append(citationSection(result.citation));
+  dom.context.append(...usedSections(state.selected, result));
 
   if (result.subproof_metadata) {
     const meta = result.subproof_metadata;

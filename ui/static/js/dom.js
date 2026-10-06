@@ -26,7 +26,9 @@ export const dom = {
     files: byId("desk-files"),
     notes: byId("desk-notes"),
     history: byId("desk-history"),
+    trace: byId("desk-trace"),
   },
+  trace: byId("trace"),
   deskCollapse: byId("desk-collapse"),
   deskOpen: byId("desk-open"),
   explorer: byId("explorer"),
@@ -60,6 +62,7 @@ export const dom = {
   editor: byId("editor"),
   welcome: byId("welcome"),
   audit: byId("audit"),
+  graphToggle: byId("graph-toggle"),
   context: byId("context"),
   contextSub: byId("context-sub"),
 

@@ -7,6 +7,8 @@ import { dom } from "./dom.js";
 import { state } from "./state.js";
 import { el, note, splitStepText, verdictLabel } from "./format.js";
 import { renderContext } from "./context.js";
+import { drawGraph } from "./graph.js";
+import { followSelection } from "./trace.js";
 
 function reportHeader(report) {
   const header = el("div", "report-header");
@@ -92,6 +94,12 @@ function stepRow(entry, index) {
 }
 
 export function renderAudit(data) {
+  renderRows(data);
+  // The arcs are measured from the rows, so they are drawn once the rows are in.
+  drawGraph();
+}
+
+function renderRows(data) {
   dom.audit.replaceChildren();
 
   if (data.parse_error) {
@@ -141,6 +149,8 @@ export function selectStep(index, { focus = false } = {}) {
     node.tabIndex = isSelected ? 0 : -1;
   }
   if (focus) focusStepRow(index);
+  drawGraph({ animate: true });
+  followSelection(index);
   renderContext();
 }
 
