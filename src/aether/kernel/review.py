@@ -48,7 +48,7 @@ from aether.core.ast import (
 from aether.engine.context import ChainError, HypothesisInfo, MonotonicityError, ProofContext, collect_free_symbols
 from aether.engine.logic import _exprs_match, chain_fact, substitute_expr
 from aether.engine.working import working_gap
-from aether.kernel import evidence, policy, premises
+from aether.kernel import core, evidence, policy, premises, tactics
 from aether.kernel.policy import Fragment, Policy
 
 if TYPE_CHECKING:
@@ -228,6 +228,13 @@ class Kernel:
             message = f"{message.rstrip('.')} (from {self.names(used)})."
         return replace(result, message=message, backend=f"Kernel: {fragment.tactic}")
 
+    def _by_tactics(self, goal: ExprNode, ctx: ProofContext, known: list[HypothesisInfo]) -> Optional[str]:
+        """The weakest core tactic that proves *goal* from what the line could see."""
+        elaborated = core.elaborate(goal, ctx)
+        if elaborated is None:
+            return None
+        return tactics.weakest(elaborated.prop, _core_premises(ctx, known, self._chain))
+
     @staticmethod
     def _by_cases(claim: ExprNode, ctx: ProofContext) -> Optional[str]:
         """The case rule's message, if *claim* is what every case of a complete split showed."""
@@ -312,10 +319,6 @@ class Kernel:
         argument instead."""
         if backend == "Induction":
             return policy.INDUCTION
-        if backend == "Residues":
-            if evidence.premises_used(obligation, known, ctx, chain=self._chain) is None:
-                return policy.RESIDUES
-            backend = "Z3"
         if message.startswith("Verified from established hypothesis"):
             return policy.HYPOTHESIS
         if before is not None and after is not None:
@@ -325,8 +328,6 @@ class Kernel:
             gap = working_gap(_rewrite_with(before, known), after, ctx)
             if gap:
                 return policy.evaluation(gap)
-        if backend.startswith("SymPy") and backend != "SymPy+Logic":
-            return policy.RING
         # Only facts the line could see count as already established: by now
         # its own conclusion has been recorded too.
         if witnessed is not None:
@@ -337,11 +338,33 @@ class Kernel:
             expanded = _undischarged(ctx.expand_user_functions(obligation) or obligation, ctx, known)
         if expanded is None:
             return policy.HYPOTHESIS
+        # The typed core: the weakest tactic that proves what is left, from the
+        # premises the line could see, names the reasoning it needed.
+        tactic = self._by_tactics(expanded, ctx, known)
+        if tactic is not None:
+            return policy.TACTIC_FRAGMENTS[tactic]
+        # Outside the core (or beyond its tactics): stage 1's reading of how
+        # the engine settled it.
+        if backend == "Residues":
+            if evidence.premises_used(obligation, known, ctx, chain=self._chain) is None:
+                return policy.RESIDUES
+            backend = "Z3"
+        if backend.startswith("SymPy") and backend != "SymPy+Logic":
+            return policy.RING
         if _has_quantifier(expanded):
             return policy.QUANTIFIED
         if _nonlinear(expanded, ctx):
             return policy.NONLINEAR
         return policy.LINEAR
+
+
+def _core_premises(ctx: ProofContext, known: list[HypothesisInfo], chain: Optional[ExprNode]) -> list:
+    out = []
+    for prop in [h.proposition for h in known] + ([chain] if chain is not None else []):
+        elaborated = core.elaborate(prop, ctx)
+        if elaborated is not None:
+            out.append(elaborated.prop)
+    return out
 
 
 def _instance(claim: ExprNode, witness: Optional[ExprNode]) -> ExprNode:

@@ -20,6 +20,7 @@ from aether.core.types import MathType
 from aether.engine.context import HypothesisInfo, ProofContext
 from aether.engine.logic import (
     LogicConversionError,
+    SolverContext,
     _make_z3_var,
     _populate_algebra_axioms,
     ast_to_z3,
@@ -34,6 +35,22 @@ PREVIOUS_LINE = "the previous line"
 
 @traced("Z3", "core", lambda claim, premises, ctx, **_: f"{claim}, given {len(premises)} fact{'' if len(premises) == 1 else 's'}", none="no core")
 def premises_used(
+    claim: ExprNode,
+    premises: list[HypothesisInfo],
+    ctx: ProofContext,
+    chain: Optional[ExprNode] = None,
+    timeout_ms: int = 1500,
+) -> Optional[list[object]]:
+    """The premises a proof of *claim* needs (see ``_premises_used``), asked on
+    a Z3 context of its own.  The canonical core asks many small questions;
+    on the check's context they changed what Z3 had seen, and a harder query
+    later in the same proof (7^n - 3^n divisible by 4) came back unknown.
+    Evidence only reports, so it must never change a verdict."""
+    with SolverContext():
+        return _premises_used(claim, premises, ctx, chain=chain, timeout_ms=timeout_ms)
+
+
+def _premises_used(
     claim: ExprNode,
     premises: list[HypothesisInfo],
     ctx: ProofContext,
