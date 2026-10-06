@@ -1,7 +1,8 @@
 {
   "format": 1,
   "name": "core/mth2008",
-  "version": "1.0.0",
+  "version": "1.0.1",
+  "level": "course",
   "title": "Real Analysis",
   "courses": [
     "MTH2008"

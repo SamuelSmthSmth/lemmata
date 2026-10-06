@@ -8,6 +8,10 @@ What changed between releases of Lemmata, newest first. The engine is the `aethe
 
 - **Several names in one quantifier**, as the notes write them: `forall a, b : Int, …`, `∀ a, b ∈ ℤ, …` and `∀ ε, δ > 0, …`. Each name gets the type or bound. The User Guide already used the first form, and it didn't parse.
 
+### Packs
+
+- **A pack, or one entry, can record its checking level** (`"level": "course"`), and its expected verdicts then hold at that level. Without one, a pack means what it always meant: checked with the level Off. The core packs (MTH2008, MTH2010, Notation; 1.0.1) are recorded at *Course*, which changes none of their verdicts.
+
 ### In the app
 
 - **Checking levels.** A *Level* menu in the tool strip: *Off* (every true line passes, as before), *Exam*, *Course* or *Scratch*. *Course*, the default for new proofs, refuses a line that is true but skips the argument (a whole ε–δ statement at once, a divisibility by checking remainders) and says what to write instead; *Exam* also wants a derivative, limit or sum worked. Each proof keeps its level, and its link and History snapshots carry it; a proof or link from before levels opens at *Off*, as it was checked.

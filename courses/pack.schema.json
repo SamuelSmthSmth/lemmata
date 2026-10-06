@@ -16,6 +16,7 @@
     "authors": { "type": "array", "items": { "type": "string", "minLength": 1 } },
     "license": { "type": "string", "minLength": 1 },
     "engine": { "type": "string", "minLength": 1 },
+    "level": { "enum": ["off", "exam", "course", "scratch"] },
     "depends": {
       "type": "object",
       "propertyNames": { "pattern": "^[a-z0-9][a-z0-9-]*/[a-z0-9][a-z0-9-]*$" },
@@ -45,7 +46,8 @@
           "expected": { "enum": ["VALID", "WARN", "INVALID", "PARSE ERROR"] },
           "source": { "type": "string", "minLength": 1 },
           "explanation": { "type": "string", "minLength": 1 },
-          "blurb": { "type": "string", "minLength": 1 }
+          "blurb": { "type": "string", "minLength": 1 },
+          "level": { "enum": ["off", "exam", "course", "scratch"] }
         },
         "if": { "properties": { "kind": { "const": "trap" } } },
         "then": { "required": ["explanation"], "properties": { "expected": { "const": "INVALID" } } }

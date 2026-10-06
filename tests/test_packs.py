@@ -93,3 +93,36 @@ def test_the_json_schema_agrees_on_the_fields() -> None:
     assert set(entry["properties"]) == set(packs.ENTRY_REQUIRED) | set(packs.ENTRY_OPTIONAL)
     assert entry["properties"]["kind"]["enum"] == list(packs.KINDS)
     assert entry["properties"]["expected"]["enum"] == list(packs.VERDICTS)
+    assert entry["properties"]["level"]["enum"] == list(packs.LEVELS)
+    assert schema["properties"]["level"]["enum"] == list(packs.LEVELS)
+
+
+class TestLevels:
+    """An entry's expected verdict is at its level: its own, else the pack's, else off."""
+
+    def test_a_pack_without_levels_is_checked_off(self) -> None:
+        pack, errors = validate_pack(copy.deepcopy(MINIMAL))
+        assert not errors
+        assert packs.entry_level(pack, pack["entries"][0]) == "off"
+        assert packs.kernel_for("off") is None
+
+    def test_the_pack_level_and_an_entry_override(self) -> None:
+        data = copy.deepcopy(MINIMAL)
+        data["level"] = "course"
+        data["entries"].append({**data["entries"][0], "id": "at-exam", "level": "exam"})
+        pack, errors = validate_pack(data)
+        assert not errors
+        assert [packs.entry_level(pack, e) for e in pack["entries"]] == ["course", "exam"]
+        assert packs.kernel_for("exam") == "exam"
+
+    @pytest.mark.parametrize("where", ["pack", "entry"])
+    def test_an_unknown_level_is_refused(self, where: str) -> None:
+        data = copy.deepcopy(MINIMAL)
+        (data if where == "pack" else data["entries"][0])["level"] = "strict"
+        pack, errors = validate_pack(data)
+        assert pack is None
+        assert any("level: must be one of off, exam, course, scratch" in e for e in errors)
+
+    def test_the_core_packs_are_recorded_at_course(self) -> None:
+        for pack in load_packs(COURSES):
+            assert pack["level"] == "course", pack["name"]
