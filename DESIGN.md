@@ -651,6 +651,9 @@ The native family, used wherever a Web Awesome button would be heavier than the 
 - **Secondary (Web Awesome):** dialog actions that are not the primary one sit on Paper Lowered with ink text, not on a tinted chip.
 - **Focus:** a 2px Proof Blue outline inset by 2px on every native control.
 
+### Level Menu (tool strip)
+The checking level, after the two switches: a menu text button reading "Level: Course" (12px mono ink, the menu chevron), with the tooltip "How big a step one line may take". It opens Web Awesome's dropdown, aligned to its end: four checkbox items (Off, Exam, Course, Scratch), the current one ticked, each with its one-line description in the details slot, as the template menu sets them. A step the level refuses is an ordinary invalid row: the red rail, "INVALID" and the backend `Kernel: <tactic>`, its message saying it is true but too big a step and what to write instead. The symbol strip gives way to it: when the tool strip is short of room the symbols scroll within their own strip (no scrollbar), so the export and Lean buttons at the end are never pushed out of sight.
+
 ### Segmented Control
 One outlined strip of 24px segments divided by Rule lines; 12px mono, quiet ink. The checked segment is Proof Blue text on the quiet blue fill. Used for the Library filters and every choice in Settings.
 

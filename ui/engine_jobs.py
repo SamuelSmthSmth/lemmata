@@ -99,6 +99,7 @@ def check_payload(
     citations: Optional[Mapping[str, Any]] = None,
     show_working: bool = False,
     audit: bool = False,
+    kernel: Optional[str] = None,
 ) -> dict[str, Any]:
     """Check *source* and shape the result as the ``/api/check`` response body.
 
@@ -110,7 +111,7 @@ def check_payload(
     lines = source.splitlines()
     if checker is None:
         checker = ProofChecker(
-            strict_domains=strict_domains, show_working=show_working, dependencies=audit, trace=audit
+            strict_domains=strict_domains, show_working=show_working, dependencies=audit, trace=audit, kernel=kernel
         )
 
     def elapsed() -> float:
@@ -194,16 +195,18 @@ class Engine:
     """One ready checker per mode (strict domains, show working, audit); building the parser is the expensive part."""
 
     def __init__(self) -> None:
-        self.checkers: dict[tuple[bool, bool, bool], Any] = {}
-        self.checker(False, False, True)
+        self.checkers: dict[tuple[bool, bool, bool, Optional[str]], Any] = {}
+        self.checker(False, False, True, "course")
 
-    def checker(self, strict: bool, working: bool, audit: bool):
-        key = (strict, working, audit)
+    def checker(self, strict: bool, working: bool, audit: bool, kernel: Optional[str] = None):
+        if kernel not in (None, "exam", "course", "scratch"):
+            kernel = None
+        key = (strict, working, audit, kernel)
         if key not in self.checkers:
             from aether import ProofChecker
 
             self.checkers[key] = ProofChecker(
-                strict_domains=strict, show_working=working, dependencies=audit, trace=audit
+                strict_domains=strict, show_working=working, dependencies=audit, trace=audit, kernel=kernel
             )
         return self.checkers[key]
 
@@ -212,7 +215,7 @@ class Engine:
             strict = bool(payload["strict_domains"])
             working = bool(payload.get("show_working", False))
             audit = bool(payload.get("audit", False))
-            checker = self.checker(strict, working, audit)
+            checker = self.checker(strict, working, audit, payload.get("kernel"))
             try:
                 return check_payload(
                     payload["source"],

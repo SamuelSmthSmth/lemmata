@@ -179,6 +179,14 @@ export function renderSettings() {
         checked: getPref("workingDefault") === "on",
         onChange: (on) => setPref("workingDefault", on ? "on" : "off"),
       }),
+      segmented({
+        name: "level-default",
+        label: "Checking level for new proofs",
+        hint: "How big a step one line may take. Course and Exam refuse a line that is true but skips the argument (a whole ε–δ statement at once, a divisibility by checking remainders); Exam also wants a derivative, limit or sum worked. Each proof keeps its own level.",
+        options: [["off", "Off"], ["exam", "Exam"], ["course", "Course"], ["scratch", "Scratch"]],
+        value: getPref("levelDefault"),
+        onChange: (v) => setPref("levelDefault", v),
+      }),
       toggle({
         name: "audit",
         label: "What each line used",

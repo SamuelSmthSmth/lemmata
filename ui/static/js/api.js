@@ -43,12 +43,12 @@ export async function validatePack(data) {
  * own workspace path) let `import` statements resolve against the browser
  * workspace; they are only sent when the proof imports something.
  */
-export async function checkProof({ source, strictDomains, showWorking = false, audit = false, files = null, path = null, citations = null, signal }) {
-  if (inBrowser) return browser.check({ source, strictDomains, showWorking, audit, files, path, citations, signal });
+export async function checkProof({ source, strictDomains, showWorking = false, audit = false, kernel = null, files = null, path = null, citations = null, signal }) {
+  if (inBrowser) return browser.check({ source, strictDomains, showWorking, audit, kernel, files, path, citations, signal });
   const response = await fetch("/api/check", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ source, strict_domains: strictDomains, show_working: showWorking, audit, files, path, citations }),
+    body: JSON.stringify({ source, strict_domains: strictDomains, show_working: showWorking, audit, kernel, files, path, citations }),
     signal,
   });
   if (!response.ok) throw new Error(`server returned ${response.status}`);

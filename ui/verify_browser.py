@@ -594,6 +594,7 @@ def run_checks() -> None:
     boot_checks()
     working_checks()
     graph_checks()
+    level_checks()
     visual_checks()
     zip_checks()
 
@@ -1328,6 +1329,32 @@ def graph_checks() -> None:
     off = js("({ graph: document.querySelector('#audit').classList.contains('has-graph'), arcs: document.querySelectorAll('.arcs path').length })")
     check(not off["graph"] and off["arcs"] == 0, f"with the audit off in Settings, no graph is drawn ({off})")
     js("localStorage.removeItem('aether-audit'); 'ok'")
+
+
+LEAP = 'Theorem: "3x continuous at 2"\nProof:\n    Therefore forall e : Real, e > 0 => exists d : Real, d > 0 and (forall x : Real, abs(x - 2) < d => abs(3 * x - 6) < e)\nQED\n'
+
+
+def pick_level(label: str) -> None:
+    js(f"[...document.querySelectorAll('#level-menu wa-dropdown-item')].find(i => i.textContent.trim().startsWith('{label}')).click(); 'ok'")
+    time.sleep(0.4)
+
+
+def level_checks() -> None:
+    print("== the checking level: the kernel in the app ==")
+    ab("open", permalink(LEAP))
+    state = settle()
+    button = js("document.querySelector('#level-button').textContent")
+    check(button == "Level: Off" and state["verdict"] == "VALID", f"a link from before levels opens at Off, as it was checked ({button}, {state['verdict']})")
+    pick_level("Course")
+    state = settle()
+    audit = js("document.querySelector('#audit').textContent")
+    check(state["verdict"] == "INVALID" and "too big a step" in audit, f"at Course, the whole epsilon-delta in one line is too big a step ({state['verdict']})")
+    check("Kernel: auto" in audit, "and the auditor names what it needed (Kernel: auto)")
+    check("l=course" in (state["hash"] or ""), f"the proof's link carries its level ({(state['hash'] or '')[-10:]})")
+    pick_level("Off")
+    state = settle()
+    check(state["verdict"] == "VALID" and "l=" not in (state["hash"] or ""), f"back at Off it checks as it always has ({state['verdict']})")
+    check(js("localStorage.getItem('aether-level-default')") in (None, "course"), "new proofs start at the Settings default, Course unless changed")
 
 
 def boot_checks() -> None:

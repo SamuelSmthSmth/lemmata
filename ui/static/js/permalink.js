@@ -11,6 +11,7 @@
 const PARAM = "p";
 const STRICT_PARAM = "s";
 const WORKING_PARAM = "w";
+const LEVEL_PARAM = "l";
 
 function bytesToBase64Url(bytes) {
   let binary = "";
@@ -46,6 +47,8 @@ export function readPermalink() {
       source: decodeSource(token),
       strict: params.get(STRICT_PARAM) === "1",
       working: params.get(WORKING_PARAM) === "1",
+      // A link from before levels was checked without the kernel: Off.
+      level: params.get(LEVEL_PARAM) ?? "off",
     };
   } catch (error) {
     // A mangled fragment is not worth failing over; fall back to saved work.
@@ -59,11 +62,12 @@ export function readPermalink() {
  * replaceState, not pushState: the fragment tracks the current proof, so it
  * must not fill the back stack with one entry per keystroke pause.
  */
-export function writePermalink(source, strict, working = false) {
+export function writePermalink(source, strict, working = false, level = "off") {
   const params = new URLSearchParams();
   params.set(PARAM, encodeSource(source));
   if (strict) params.set(STRICT_PARAM, "1");
   if (working) params.set(WORKING_PARAM, "1");
+  if (level && level !== "off") params.set(LEVEL_PARAM, level);
   const url = `${window.location.pathname}${window.location.search}#${params.toString()}`;
   try {
     window.history.replaceState(null, "", url);
@@ -73,10 +77,11 @@ export function writePermalink(source, strict, working = false) {
 }
 
 /** The URL that reproduces the current buffer. */
-export function permalinkFor(source, strict, working = false) {
+export function permalinkFor(source, strict, working = false, level = "off") {
   const params = new URLSearchParams();
   params.set(PARAM, encodeSource(source));
   if (strict) params.set(STRICT_PARAM, "1");
   if (working) params.set(WORKING_PARAM, "1");
+  if (level && level !== "off") params.set(LEVEL_PARAM, level);
   return `${window.location.origin}${window.location.pathname}#${params.toString()}`;
 }

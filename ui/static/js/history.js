@@ -68,7 +68,7 @@ async function renderSnapshots() {
     const row = el("div", "snapshot");
     const meta = el("div", "snapshot-meta");
     meta.append(el("span", "snapshot-name", snapshot.name));
-    meta.append(el("span", "snapshot-sub", `${day(snapshot.ts)}${snapshot.strict ? " · strict" : ""}${snapshot.working ? " · show working" : ""}${snapshot.auto ? " · automatic" : ""}`));
+    meta.append(el("span", "snapshot-sub", `${day(snapshot.ts)}${snapshot.strict ? " · strict" : ""}${snapshot.working ? " · show working" : ""}${snapshot.level && snapshot.level !== "off" ? ` · ${snapshot.level} level` : ""}${snapshot.auto ? " · automatic" : ""}`));
     row.append(meta);
     const actions = el("div", "snapshot-actions");
     const restore = el("button", "text-button", "Restore");

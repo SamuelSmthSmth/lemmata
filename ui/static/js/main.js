@@ -13,6 +13,7 @@ import { onEngineStatus, warmUp } from "./backend.js";
 import { initAuditNav, selectStepForLine } from "./audit.js";
 import { drawGraph, initGraph } from "./graph.js";
 import { followSelection, renderTrace, resetTrace } from "./trace.js";
+import { LEVELS, defaultLevel, getLevel, initLevelMenu, kernelFor, levelOf, setLevel, validLevel } from "./level.js";
 import { insertSymbol, insertTemplate, setCitationSource, setScopeSource, SYMBOLS, TEMPLATES } from "./complete.js";
 import { renderContext, setContextHandlers } from "./context.js";
 import { applyFix } from "./fixes.js";
@@ -132,9 +133,10 @@ async function saveActive() {
   const source = currentSource();
   const strict = dom.strict.checked;
   const working = dom.working.checked;
-  if (file.source !== source || file.strict !== strict || Boolean(file.working) !== working) {
+  const level = getLevel();
+  if (file.source !== source || file.strict !== strict || Boolean(file.working) !== working || levelOf(file) !== level) {
     try {
-      await ws.updateFile(file.id, { source, strict, working });
+      await ws.updateFile(file.id, { source, strict, working, level });
     } catch (error) {
       if (!warnedAboutStorage) {
         warnedAboutStorage = true;
@@ -142,7 +144,7 @@ async function saveActive() {
       }
     }
   }
-  writePermalink(source, strict, working);
+  writePermalink(source, strict, working, level);
 }
 
 /** Snapshot the active proof before an action is allowed to replace it. */
@@ -212,6 +214,7 @@ async function runCheck() {
       strictDomains: dom.strict.checked,
       showWorking: dom.working.checked,
       audit: getPref("audit") === "on",
+      kernel: kernelFor(getLevel()),
       files,
       path: file.path,
       citations,
@@ -308,9 +311,10 @@ async function showActive({ check = true } = {}) {
   if (editor.getSource() !== file.source) editor.setContent(file.source);
   dom.strict.checked = file.strict;
   dom.working.checked = Boolean(file.working);
+  setLevel(levelOf(file));
   dom.editorPath.textContent = file.path;
   dom.statusFile.textContent = file.path;
-  writePermalink(file.source, file.strict, Boolean(file.working));
+  writePermalink(file.source, file.strict, Boolean(file.working), levelOf(file));
   renderNotesPanel();
   renderHistory();
   const cached = lastResponse.get(file.id);
@@ -416,7 +420,7 @@ async function newProof({ path = null, source = null, origin = null, exercise = 
   const folder = active() ? ws.dirname(active().path) : "";
   const finalPath = path ?? ws.freePath("Untitled", folder);
   const text = source ?? 'Theorem: "Untitled"\nProof:\n    \nQED\n';
-  const file = await ws.createFile({ path: finalPath, source: text, strict: strictDefault(), working: workingDefault(), open });
+  const file = await ws.createFile({ path: finalPath, source: text, strict: strictDefault(), working: workingDefault(), level: defaultLevel(), open });
   // `initial` is what "Reset to its start" goes back to.
   await ws.updateFile(file.id, { initial: text, ...(origin ? { origin } : {}), ...(exercise ? { exercise } : {}) });
   setView("workspace");
@@ -717,13 +721,13 @@ async function importFiles(fileList) {
           if (!ACCEPTED_EXTENSIONS.test(entry.path)) continue;
           let path = ws.normalizePath(entry.path.replace(/\.(txt|md|proof)$/i, ".aether"));
           if (ws.pathProblem(ws.withExtension(path))) path = ws.freePath(`${ws.basename(path).replace(/\.aether$/, "")} (imported)`, ws.dirname(path));
-          added.push(await ws.createFile({ path, source: entry.text, strict: strictDefault(), working: workingDefault(), open: false }));
+          added.push(await ws.createFile({ path, source: entry.text, strict: strictDefault(), working: workingDefault(), level: defaultLevel(), open: false }));
         }
       } else if (ACCEPTED_EXTENSIONS.test(file.name)) {
         const text = await readTextFile(file);
         const stem = file.name.replace(/\.(aether|txt|md|proof)$/i, "");
         const path = ws.pathProblem(`${stem}.aether`) ? ws.freePath(stem) : `${stem}.aether`;
-        added.push(await ws.createFile({ path, source: text, strict: strictDefault(), working: workingDefault(), open: false }));
+        added.push(await ws.createFile({ path, source: text, strict: strictDefault(), working: workingDefault(), level: defaultLevel(), open: false }));
       } else {
         showToast(`“${file.name}” is not a proof file (.aether, .txt, .md), a .zip or a .pack.json`, { tone: "warning" });
       }
@@ -898,6 +902,11 @@ dom.working.addEventListener("change", () => {
   runCheck();
 });
 
+initLevelMenu(() => {
+  saveActive();
+  runCheck();
+});
+
 dom.downloadProof.addEventListener("click", async () => {
   const file = active();
   if (!file) return;
@@ -921,7 +930,7 @@ async function exportSession() {
     timeline: ws.model.timeline
       .filter((e) => !e.fileId || e.fileId === file?.id)
       .map(({ verdict, n, ts }) => ({ verdict, n, ts })),
-    snapshots: snaps.map(({ name, ts, strict, working, auto }) => ({ name, ts, strict: Boolean(strict), working: Boolean(working), auto: Boolean(auto) })),
+    snapshots: snaps.map(({ name, ts, strict, working, level, auto }) => ({ name, ts, strict: Boolean(strict), working: Boolean(working), level: level ?? "off", auto: Boolean(auto) })),
   };
 }
 
@@ -1103,6 +1112,16 @@ function paletteItems() {
     { kind: "command", label: "Go to Settings", shortcut: "Alt+4", run: () => setView("settings") },
     { kind: "command", label: "Show or hide the reading pane", shortcut: "Alt+B", run: () => setDeskOpen(document.documentElement.dataset.desk !== "open") },
     { kind: "command", label: "Toggle strict domains", run: () => dom.strict.shadowRoot?.querySelector("label")?.click() },
+    ...LEVELS.map((level) => ({
+      kind: "command",
+      label: `Checking level: ${level.label}`,
+      keywords: "level kernel exam course scratch step leap",
+      run: () => {
+        setLevel(level.id);
+        saveActive();
+        runCheck();
+      },
+    })),
     { kind: "command", label: "Toggle show your working", keywords: "steps working product rule exam", run: () => dom.working.shadowRoot?.querySelector("label")?.click() },
     { kind: "command", label: "Switch light / dark theme", run: () => applyTheme(currentTheme() === "dark" ? "light" : "dark", { persist: true }) },
     { kind: "command", label: "Toggle syntax colours", run: () => applySyntax(currentSyntax() === "vivid" ? "mono" : "vivid", { persist: true }) },
@@ -1277,6 +1296,7 @@ initHistory({
     editor.setContent(snapshot.source);
     dom.strict.checked = snapshot.strict;
     dom.working.checked = Boolean(snapshot.working);
+    setLevel(validLevel(snapshot.level, "off"));
     await saveActive();
     renderHistory();
     runCheck();
@@ -1297,7 +1317,7 @@ initHistory({
   },
   async onCopyLink() {
     await saveActive();
-    const ok = await copyText(permalinkFor(currentSource(), dom.strict.checked, dom.working.checked));
+    const ok = await copyText(permalinkFor(currentSource(), dom.strict.checked, dom.working.checked, getLevel()));
     showToast(ok ? "Link copied — it reproduces this exact proof" : "Could not reach the clipboard; copy the address bar instead", { tone: ok ? "info" : "warning" });
   },
   async onClearSnapshots() {
@@ -1480,7 +1500,7 @@ async function init() {
     const match = ws.filesSorted().find((f) => f.source === shared.source);
     if (match) ws.openFile(match.id);
     else {
-      const file = await ws.createFile({ path: ws.freePath("Shared proof"), source: shared.source, strict: shared.strict, working: shared.working, open: true });
+      const file = await ws.createFile({ path: ws.freePath("Shared proof"), source: shared.source, strict: shared.strict, working: shared.working, level: validLevel(shared.level, "off"), open: true });
       await ws.updateFile(file.id, { initial: shared.source });
       origin = "link";
     }
@@ -1488,7 +1508,7 @@ async function init() {
     // First visit: the starting example, beside its notes and the welcome card.
     const found = findEntry(STARTING_ENTRY);
     if (found) {
-      const file = await ws.createFile({ path: `Examples/${found.entry.title}.aether`, source: found.entry.source, strict: strictDefault(), working: workingDefault(), open: true });
+      const file = await ws.createFile({ path: `Examples/${found.entry.title}.aether`, source: found.entry.source, strict: strictDefault(), working: workingDefault(), level: defaultLevel(), open: true });
       await ws.updateFile(file.id, { initial: found.entry.source, origin: STARTING_ENTRY });
       setDeskPanel("notes");
     }

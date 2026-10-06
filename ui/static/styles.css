@@ -3002,6 +3002,9 @@ html[data-desk="closed"] .desk {
   flex: none;
 }
 
+/* The symbols give way first: when the strip is short of room (the level menu
+   made it so at 1440px), they scroll within themselves rather than pushing the
+   export and Lean buttons off the end of a strip that hides its scrollbar. */
 .symbols {
   display: flex;
   align-items: center;
@@ -3009,6 +3012,14 @@ html[data-desk="closed"] .desk {
   padding-left: 6px;
   margin-left: 2px;
   border-left: 1px solid var(--hairline);
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.symbols > * {
+  flex: none;
 }
 
 /* Each symbol is set at the size it will appear in the proof. */

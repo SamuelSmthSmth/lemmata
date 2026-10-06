@@ -132,6 +132,9 @@ class CheckRequest(BaseModel):
     # What each line used and the trace of its backend calls (the proof graph
     # and the Trace tab): ProofChecker(dependencies=True, trace=True).
     audit: bool = False
+    # The proof kernel's level (aether.kernel): how big a step one line may
+    # take, and premise selection for cited lines; None checks without it.
+    kernel: Optional[Literal["exam", "course", "scratch"]] = None
     # The browser workspace: other files `import` can resolve against, keyed by
     # workspace path, and the checked file's own path for relative imports.
     files: Optional[dict[str, str]] = None
@@ -365,6 +368,7 @@ def check_proof(request: CheckRequest) -> CheckResponse:
                 "strict_domains": request.strict_domains,
                 "show_working": request.show_working,
                 "audit": request.audit,
+                "kernel": request.kernel,
                 "files": request.files,
                 "citations": request.citations,
                 "path": request.path,

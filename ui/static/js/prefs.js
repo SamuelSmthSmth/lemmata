@@ -14,6 +14,8 @@ const SPEC = {
   debounce: { key: "aether-debounce", allowed: ["150", "300", "600", "1000"], fallback: "300" },
   strictDefault: { key: "aether-strict-default", allowed: ["on", "off"], fallback: "off" },
   workingDefault: { key: "aether-working-default", allowed: ["on", "off"], fallback: "off" },
+  // The checking level of new proofs (js/level.js; the proof kernel's levels).
+  levelDefault: { key: "aether-level-default", allowed: ["off", "exam", "course", "scratch"], fallback: "course" },
   // What each line used and the checker's trace: the proof graph and the Trace tab.
   audit: { key: "aether-audit", allowed: ["on", "off"], fallback: "on" },
   // The auditor's arcs: the selected line's only, or the whole graph.
