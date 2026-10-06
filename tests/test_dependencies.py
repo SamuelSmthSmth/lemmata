@@ -101,7 +101,8 @@ def test_a_conclusion_names_the_fact_it_restates(even_square):
 
 def test_z3_names_its_unsat_core(scratch):
     assert used(scratch[4]) == [("hypothesis", 2, "hx")]
-    assert used(scratch[5]) == [("hypothesis", 3, "hy"), ("hypothesis", 4, None)]
+    # Line 4 is both the chain so far and a fact; the canonical core keeps the line before.
+    assert used(scratch[5]) == [("chain", 4, None), ("hypothesis", 3, "hy")]
     assert used(scratch[7]) == [("chain", 6, None), ("hypothesis", 2, "hx")]
 
 

@@ -1082,19 +1082,19 @@ def _uses_set_functions(solver: z3.Solver) -> bool:
     return False
 
 
-def check_solver(solver: z3.Solver) -> z3.CheckSatResult:
+def check_solver(solver: z3.Solver, *assumptions: z3.ExprRef) -> z3.CheckSatResult:
     if trace.active() is None:
-        return _check_solver(solver)
+        return _check_solver(solver, *assumptions)
     start = time.perf_counter()
     result = z3.unknown
     try:
-        result = _check_solver(solver)
+        result = _check_solver(solver, *assumptions)
         return result
     finally:
         trace.solver_event(str(result), len(solver.assertions()), start)
 
 
-def _check_solver(solver: z3.Solver) -> z3.CheckSatResult:
+def _check_solver(solver: z3.Solver, *assumptions: z3.ExprRef) -> z3.CheckSatResult:
     """``solver.check()``, with the set axioms added when the problem needs them.
 
     A query that runs out of its budget is *unknown*, never an error.  Z3
@@ -1105,7 +1105,7 @@ def _check_solver(solver: z3.Solver) -> z3.CheckSatResult:
     if _uses_set_functions(solver):
         _add_set_axioms(solver)
     try:
-        return solver.check()
+        return solver.check(*assumptions)
     except z3.Z3Exception as exc:
         if _is_budget_exhausted(exc):
             return z3.unknown

@@ -102,7 +102,7 @@ class TestEvidence:
         assert report.is_valid, report.format_report()
         delta = next(r for r in report.results if r.line == 6)
         assert delta.backend == "Kernel: linarith"
-        assert delta.message.endswith("(from line 5 and line 4).")
+        assert delta.message.endswith("(from line 4 and line 5).")
 
 
 class TestLevels:
