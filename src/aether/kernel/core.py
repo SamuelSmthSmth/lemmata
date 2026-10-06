@@ -373,7 +373,20 @@ def to_sympy(term: Term):
     if isinstance(term, Var):
         return sympy_symbol(term.name, term.ty)
     if isinstance(term, App):
-        return sp.Function(term.fn)(*[to_sympy(a) for a in term.args])
+        args = [to_sympy(a) for a in term.args]
+        known = _SYMPY_FUNCTIONS.get(term.fn.lower())
+        if known is not None and len(args) == known[1]:
+            # A number-theoretic function is evaluated only on numbers:
+            # gcd(8, 2) is 2, but SymPy's gcd(n, k) of two symbols is the
+            # *polynomial* gcd, 1, and lcm(n, k) is n*k -- both false for
+            # integers (the Notation pack's traps; the shadow run caught it).
+            if term.fn.lower() in _NUMBERS_ONLY and not all(a.is_Number for a in args):
+                return sp.Function(term.fn)(*args)
+            # An analytic one reads as the engine's SymPy route reads it:
+            # sqrt(x)^2 is x (the radicand's sign is the domain check's
+            # question, not the identity's).
+            return getattr(sp, known[0])(*args)
+        return sp.Function(term.fn)(*args)
     if isinstance(term, Add):
         return sp.Add(*[to_sympy(a) for a in term.args])
     if isinstance(term, Mul):
@@ -387,6 +400,22 @@ def to_sympy(term: Term):
     if isinstance(term, Abs):
         return sp.Abs(to_sympy(term.arg))
     raise TypeError(term)
+
+
+#: Functions the identity tactics read as SymPy does (name -> (SymPy name,
+#: arity)).  Z3 still treats each application as an opaque atom.
+_SYMPY_FUNCTIONS = {
+    "factorial": ("factorial", 1), "gcd": ("gcd", 2), "lcm": ("lcm", 2), "binomial": ("binomial", 2),
+    "floor": ("floor", 1), "ceiling": ("ceiling", 1), "ceil": ("ceiling", 1), "sqrt": ("sqrt", 1),
+    "sin": ("sin", 1), "cos": ("cos", 1), "tan": ("tan", 1), "exp": ("exp", 1), "log": ("log", 1),
+    "ln": ("log", 1), "sinh": ("sinh", 1), "cosh": ("cosh", 1), "tanh": ("tanh", 1),
+    "arctan": ("atan", 1), "atan": ("atan", 1), "arcsin": ("asin", 1), "asin": ("asin", 1),
+    "arccos": ("acos", 1), "acos": ("acos", 1),
+}
+
+
+#: Functions SymPy reads as polynomial operations on symbols: numbers only.
+_NUMBERS_ONLY = {"factorial", "gcd", "lcm", "binomial", "floor", "ceiling", "ceil"}
 
 
 def has_division(term: Term) -> bool:

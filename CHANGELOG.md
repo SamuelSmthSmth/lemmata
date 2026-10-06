@@ -37,6 +37,8 @@ What changed between releases of Lemmata, newest first. The engine is the `aethe
   - **Separate tactics on those terms** (`aether.kernel.tactics`): `ring`, `field`, `subst`, `linarith` and `nlinarith`. The audit now names the weakest one that proves a line, rather than guessing from which solver answered.
   - **`linarith` treats products of unknowns as atoms**, so the Archimedean step (`nε ≤ β − ε` from `(n+1)ε ≤ β`) is linear, as it should be.
   - **The tactics label lines; they don't decide them.** All 133 course-pack entries still agree at *Course*.
+  - **Shadow mode** (`tests/lecture_notes/kernel_shadow.py`) compares the engine's verdict with the tactics' answer on every line of the packs and the tests (874 lines). The tactics never prove a line the engine refused on the mathematics. They miss 43 lines the engine proves (quantified premises, group operations), so they keep labelling rather than deciding.
+  - **Standard functions in the algebra tactics:** `factorial(3) = 6` and `gcd(8, 2) = 2` are evaluated, and `sqrt`, `sin`, `exp` and the rest are read as the engine reads them. Number-theoretic functions are evaluated only on numbers: on symbols, SymPy's `gcd(n, k)` is the polynomial gcd, 1, and shadow mode caught `ring` "proving" the Notation pack's `gcd(n, k) = 1` and `lcm(n, k) = nk` traps. A test now runs every pack trap and fails if any tactic proves its false line.
   - **Fixed:** with the kernel on, a hard induction step ("7ⁿ − 3ⁿ is divisible by 4") could come back "inconclusive". The kernel's own solver questions now run apart from the check's, so they can't change its answer.
 
 ### What each line used, and what was computed (engine only, opt in)
