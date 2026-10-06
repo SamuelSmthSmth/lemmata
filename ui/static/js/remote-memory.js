@@ -6,6 +6,16 @@
 // change once.  Used by the frontend checks to play several devices against
 // one account, and by the app when site.json asks for a demo remote.
 
+// Postgres's jsonb does not keep object key order (shorter keys first, then
+// by bytes), so neither does this: sync must not mistake a reordered record
+// for a changed one.
+function jsonbOrder(value) {
+  if (Array.isArray(value)) return value.map(jsonbOrder);
+  if (!value || typeof value !== "object") return value;
+  const keys = Object.keys(value).sort((a, b) => a.length - b.length || (a < b ? -1 : a > b ? 1 : 0));
+  return Object.fromEntries(keys.map((k) => [k, jsonbOrder(value[k])]));
+}
+
 export function createMemoryRemote() {
   const rows = new Map(); // "store:key" -> record with seq
   const subscribers = new Set();
@@ -23,7 +33,7 @@ export function createMemoryRemote() {
           rejected.push(key); // a newer edit is already here
           continue;
         }
-        const row = { ...structuredClone(rec), seq: ++seq };
+        const row = { ...structuredClone(rec), data: rec.deleted ? null : jsonbOrder(structuredClone(rec.data)), seq: ++seq };
         rows.set(key, row);
         accepted.push(row);
       }

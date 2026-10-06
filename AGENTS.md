@@ -212,6 +212,11 @@ A proved theorem in an installed pack can be imported into a student's proof:
 entries as `sources` keyed `@<name>/<entry-id>.aether`, and the engine finds
 them because the `.aether` extension may be left off an import.
 
+
+### Accounts and sync
+
+Optional, and only when `ui/site.json` has `accounts: {url, key}` (a Supabase project's URL and its *publishable* key; `ui/site.py` refuses a secret key). `js/sync.js` is the DOM-free core (an outbox, newest edit wins, the losing version of a proof kept as a History snapshot, tombstones); `js/sync-local.js` adapts it to IndexedDB and localStorage, `js/remote-supabase.js` to the database, and `js/account.js` signs in (PKCE: an emailed link or a provider the project has enabled). Every kept change reaches sync through `js/changes.js`, so new stores must write through `db.js` (or call `changed()`), and sync's own writes use the quiet paths. Device-only keys are listed in `sync.js` `DEVICE_ONLY`. The database is `supabase/migrations/`; apply a new migration in the project's SQL editor (or `supabase db push`), and keep `supabase/verify_supabase.mjs` passing. Supabase's Auth → URL Configuration must list every address the app is served from (production, previews, localhost) as a redirect URL.
+
 ---
 
 ## 5. Verification & Tooling
@@ -225,7 +230,8 @@ Every claim this repo makes is checked by a script you can run yourself:
 | `uv run python ui/verify_examples.py` | each bundled example still produces the verdict its blurb advertises |
 | `uv run python ui/verify_capabilities.py` | the CNL capability matrix listed in `USER_GUIDE.md` — and that the table published there still matches the pins; `--markdown` prints it as the doc table, and every snippet runs under a wall-clock budget (`--budget`, 10s) because Z3's soft `timeout` is not enforceable in-process |
 | `uv run python ui/verify_server.py` | the HTTP API (check budget and `TIMEOUT`, workspace imports, library, capabilities), both export styles, the vendored asset graph, and every *Try it* example in the Guide |
-| `node ui/verify_frontend.mjs` | the CodeMirror tokenizer, the frontend module graph, layout rules and the `.zip` reader/writer |
+| `node ui/verify_frontend.mjs` | the CodeMirror tokenizer, the frontend module graph, layout rules, the `.zip` reader/writer, and sync (`js/sync.js`) played as two devices against an in-memory server |
+| `npm --prefix supabase ci && node supabase/verify_supabase.mjs` | the account database (`supabase/migrations/`) on PGlite: newest edit wins, row-level security, no direct writes, deleting an account |
 | `lean` CI job (`uv run python lean/generate.py`, then `lake env lean Generated.lean` in `lean/`) | every "Show in Lean" skeleton of every pinned proof compiles against pinned Mathlib |
 | `node ui/verify_wasm.mjs` | every pinned verdict (course packs, examples, capability probes) gives the same answer inside Pyodide — the browser's Python — as natively, with timings; needs `uv run python ui/vendor_pyodide.py` once |
 | `uv run python ui/verify_browser.py --static` | the static build (`uv run python ui/build_static.py` → `dist/`): checking, imports, packs, LaTeX and the budget with the engine in the browser and no server |

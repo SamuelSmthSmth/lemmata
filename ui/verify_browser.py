@@ -1226,6 +1226,8 @@ def settings_checks() -> None:
     fresh()
     ab("click", ".rail-button[data-view='settings']")
     time.sleep(0.4)
+    groups = js("[...document.querySelectorAll('.settings-group h2')].map(h => h.textContent)")
+    check("Account" not in groups, f"a site without accounts in site.json shows no Account settings ({groups})")
     ab("click", "#setting-editor-size-label + .filters [data-value='15'], .filters[aria-labelledby='setting-editor-size-label'] [data-value='15']")
     time.sleep(0.3)
     size = js("document.documentElement.style.getPropertyValue('--editor-size')")

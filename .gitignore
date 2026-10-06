@@ -26,3 +26,4 @@ dist/
 # Vercel CLI project links
 .vercel
 .env*
+node_modules/

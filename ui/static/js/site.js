@@ -23,6 +23,8 @@ export const site = {
   registry: "",
   home: "https://lemmata.sous.systems/",
   preinstall: null,
+  // {url, key} of the Supabase project for accounts and sync, or null (off).
+  accounts: null,
 };
 
 const DEFAULT_ACCENT = { ...site.accent };

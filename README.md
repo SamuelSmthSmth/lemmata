@@ -49,7 +49,7 @@ What it can and can't do is listed exactly, and checked on every change, in the 
 - **Guide:** the handbook, with a *Try it* button on every example.
 - **Export** to LaTeX, PDF or Lean.
 
-It runs in the browser with nothing to install, as a desktop app that works offline, or self-hosted. There are no accounts, and your work stays on your machine.
+It runs in the browser with nothing to install, as a desktop app that works offline, or self-hosted. No account is needed and your work stays on your machine; an optional account syncs it between your devices.
 
 ## Documentation
 

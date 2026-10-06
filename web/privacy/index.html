@@ -10,19 +10,30 @@
     <main id="main">
       <article class="doc">
         <h1>Privacy</h1>
-        <p class="lede">{{ name }} has no accounts, no analytics and no tracking. Your proofs stay on your device, and we never receive them.</p>
+        <p class="lede">{{ name }} has no analytics and no tracking. Without an account your proofs stay on your device and we never receive them. An account is optional, and only syncs your own work between your own devices.</p>
         <p class="doc-meta">Last updated {{ updated }}</p>
 
         <h2>Who we are</h2>
-        <p>{{ name }} is made by Samuel Okwuonu, in England. For anything about your data, write to <a href="mailto:s.okwuonu07@gmail.com">s.okwuonu07@gmail.com</a>.</p>
+        <p>{{ name }} is made by Samuel Okwuonu, in England, who is the controller of the data described here. For anything about your data, write to <a href="mailto:s.okwuonu07@gmail.com">s.okwuonu07@gmail.com</a>.</p>
 
-        <h2>What is stored, and where</h2>
+        <h2>Without an account</h2>
         <p>Everything you make in {{ name }} is kept on your own device and nowhere else:</p>
         <ul>
-          <li><strong>Your work:</strong> proofs, folders, snapshots, installed packs and their checks. In the browser this lives in the browser's own storage (IndexedDB) for this site; in the desktop app, in the app's data folder.</li>
+          <li><strong>Your work:</strong> proofs, folders, snapshots, the check history, installed packs and their checks. In the browser this lives in the browser's own storage (IndexedDB) for this site; in the desktop app, in the app's data folder.</li>
           <li><strong>Your settings:</strong> theme, editor size, panel layout and similar choices, in the browser's local storage, along with a note that you have seen the storage notice.</li>
         </ul>
-        <p>The checker runs on your computer too, inside the page or the app. Your proofs are never sent to a server to be checked.</p>
+        <p>The checker runs on your computer too, inside the page or the app. Your proofs are never sent to a server to be checked, with or without an account.</p>
+
+        <h2>With an account</h2>
+        <p>Signing in (Settings → Account, in the web app) is optional. It exists to keep your work the same on every device you sign in on. When you sign in, we keep:</p>
+        <ul>
+          <li><strong>Who you are:</strong> your email address, and, if you sign in with Microsoft, GitHub, Google or Discord, the account identifier and basic profile (name, picture) that provider sends. We use these only to sign you in.</li>
+          <li><strong>A copy of your work and settings:</strong> everything listed above, except things that describe one device (which tabs are open, which panel is showing). Each record carries the time it was last changed, so the newest edit wins.</li>
+          <li><strong>Sign-in records:</strong> when you signed in, and from which IP address, kept by the sign-in service for security.</li>
+        </ul>
+        <p>These are kept by <a href="https://supabase.com/privacy">Supabase</a>, our database and sign-in provider, on servers in {{ accounts_region }}. Only you can read your records: the database refuses everyone else's requests. We do not read them, share them or use them for anything but syncing.</p>
+        <p>The lawful basis is the contract you ask for by signing in: we need the data to provide sync. Your copy is kept until you delete it or the account.</p>
+        <p>{{ name }} is a study tool for university students. If you are under 13, please use it without an account.</p>
 
         <h2>What reaches a server</h2>
         <p>Using {{ name }} means fetching files, and the services that serve them see ordinary request details: your IP address, your browser and the time.</p>
@@ -32,23 +43,26 @@
             <tr><td>Opening this site or the web app</td><td>Vercel, our host</td><td>Request details, kept in their logs for a short time. See <a href="https://vercel.com/legal/privacy-policy">Vercel's privacy policy</a>.</td></tr>
             <tr><td>Searching or installing packs from the registry</td><td>GitHub Pages</td><td>Request details. See <a href="https://docs.github.com/site-policy/privacy-policies/github-general-privacy-statement">GitHub's privacy statement</a>. You can turn the registry off by hosting your own copy.</td></tr>
             <tr><td>Sharing a pack you made</td><td>GitHub</td><td>Only if you choose to: you upload the pack yourself, with your GitHub account.</td></tr>
+            <tr><td>Signed in: syncing</td><td>Supabase</td><td>Your account and your synced work, as described above.</td></tr>
+            <tr><td>Signing in with a provider</td><td>Microsoft, GitHub, Google or Discord</td><td>That you are signing in to {{ name }}, under their own privacy policy.</td></tr>
           </tbody>
         </table>
-        <p>We do not receive these logs, and nothing else is sent: no proof contents, no identifiers, no usage statistics.</p>
+        <p>We do not receive the hosts' logs, and nothing else is sent: no usage statistics, and without an account no proof contents and no identifiers.</p>
 
         <h2>Cookies</h2>
-        <p>{{ name }} sets no cookies. The <a href="{{ root }}cookies/">cookies page</a> explains the local storage it uses instead.</p>
+        <p>{{ name }} sets no cookies. The <a href="{{ root }}cookies/">cookies page</a> explains the local storage it uses instead, including the sign-in session when you have an account.</p>
 
         <h2>Your rights</h2>
-        <p>Under UK data protection law you can ask what personal data we hold about you, and have it corrected or deleted. Because your work never leaves your device, we hold none of it; you can delete all of it yourself at any time:</p>
+        <p>Under UK data protection law you can ask for a copy of the personal data we hold about you, and have it corrected or deleted. You can do the most important of these yourself, at any time:</p>
         <ul>
-          <li>in the app, <strong>Settings → Delete everything</strong>;</li>
-          <li>or clear this site's data in your browser, or uninstall the desktop app and remove its data folder.</li>
+          <li><strong>A copy:</strong> Settings → Account → Download my data gives you everything your account holds, as one file.</li>
+          <li><strong>Deletion:</strong> Settings → Account → Delete account deletes the account and everything synced to it, at once. Your device keeps its own copy until you delete that too.</li>
+          <li><strong>On your device:</strong> Settings → Delete everything, or clear this site's data in your browser, or uninstall the desktop app and remove its data folder.</li>
         </ul>
-        <p>Export the workspace first if you want to keep a copy. If you are unhappy with how we handle data, you can complain to the <a href="https://ico.org.uk/make-a-complaint/">Information Commissioner's Office</a>.</p>
+        <p>Export the workspace first if you want to keep a copy. For anything else, write to the address above. If you are unhappy with how we handle data, you can complain to the <a href="https://ico.org.uk/make-a-complaint/">Information Commissioner's Office</a>.</p>
 
         <h2>Changes</h2>
-        <p>If this changes, for example if accounts are ever added, this page will say so first, with a new date at the top.</p>
+        <p>If this changes, this page will say so first, with a new date at the top.</p>
       </article>
     </main>
     {{ partial_footer }}

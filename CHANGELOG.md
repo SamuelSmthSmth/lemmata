@@ -2,6 +2,16 @@
 
 What changed between releases of Lemmata, newest first. The engine is the `aether` Python package; its public API (`ProofChecker`, `ProofReport`, `StepResult`, `StepStatus`, `ParseError`) stays backward compatible within these releases.
 
+## Unreleased
+
+### Accounts and sync
+
+- **An optional account keeps your work the same on every device.** Settings → Account: sign in with an emailed link, Microsoft, GitHub or Discord (Google when it is turned on). Your proofs, their History, folders, the check history, installed packs, settings and panel layout all sync; which tabs are open stays with each device.
+- **Nothing is lost when two devices disagree.** The newer edit wins everywhere, and the other is kept in the proof's History ("From your other device" or "Kept from this device"). Offline, changes wait and go up when you are back.
+- **Signing in on a second device merges, not duplicates.** The same proof at the same path is kept once; two different proofs at one path are both kept, one renamed "(2)".
+- **Download my data** and **Delete account** in Settings. Signing out, or deleting the account, leaves this browser's copy where it is.
+- Not in the desktop app yet.
+
 ## 0.3.0 (2026-10-06)
 
 The proof kernel release. Lemmata used to check whether each line was true; now it can check whether each line *follows*. A line that is true but skips the argument is refused as too big a step, with what to write instead. Underneath, a typed core and named tactics say what each line needed. You can also see what each line was proved from, as a graph, and what the checker did, as a log.

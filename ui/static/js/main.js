@@ -38,7 +38,8 @@ import { initPalette, openPalette } from "./palette.js";
 import { permalinkFor, readPermalink, writePermalink } from "./permalink.js";
 import { getPref, onPrefChange, setPref } from "./prefs.js";
 import { applyResponse } from "./render.js";
-import { initSettings, renderSettings } from "./settings.js";
+import { initSettings, renderSettings, syncSentence, updateAccountStatus } from "./settings.js";
+import * as accounts from "./account.js";
 import { holder, kept, loadSite, site } from "./site.js";
 import { state } from "./state.js";
 import { initTabs, renderTabs } from "./tabs.js";
@@ -1426,6 +1427,56 @@ async function applySynced(changes) {
 
 window.addEventListener("lemmata:synced", (event) => applySynced(event.detail));
 
+// ---------------------------------------------------------------------------
+// Accounts (js/account.js): only when site.json names a project
+// ---------------------------------------------------------------------------
+
+function showStorageState(account) {
+  if (!ws.model.persistent) return;
+  if (!account.user) {
+    dom.statusStorage.textContent = `Saved ${kept}`;
+    dom.statusStorage.removeAttribute("title");
+    return;
+  }
+  const { state } = account.status;
+  dom.statusStorage.textContent = state === "error" ? `Saved ${kept} · not synced` : state === "syncing" ? "Syncing…" : "Synced";
+  dom.statusStorage.title = `${account.user.email ?? "Signed in"}: ${syncSentence(account.status)}`;
+}
+
+async function startAccounts() {
+  // Back from a provider or an emailed link: say so once it has worked.
+  const returning = new URLSearchParams(location.search).has("code");
+  let signedIn = null;
+  let shown = false;
+  accounts.onAccount((account) => {
+    const who = account.user?.id ?? null;
+    if (who !== signedIn || account.available !== shown) {
+      shown = account.available;
+      if (returning && signedIn === null && who) showToast(`Signed in as ${account.user.email ?? "you"}. Syncing your work.`);
+      signedIn = who;
+      renderSettings();
+    } else {
+      updateAccountStatus(account);
+    }
+    showStorageState(account);
+  });
+  try {
+    await accounts.initAccount();
+  } catch (error) {
+    // The account service failing to load must never stop the app.
+    return;
+  }
+  const failed = accounts.returnedError();
+  if (failed) showToast(`Signing in did not finish: ${failed}`, { tone: "danger", ms: 8000 });
+  // The sign-in return leaves a one-time code (or an error) in the address.
+  const params = new URLSearchParams(location.search);
+  if (["code", "error", "error_description", "error_code"].some((k) => params.has(k))) {
+    for (const k of ["code", "error", "error_description", "error_code"]) params.delete(k);
+    const query = params.toString();
+    history.replaceState(history.state, "", `${location.pathname}${query ? `?${query}` : ""}${location.hash}`);
+  }
+}
+
 // A setting from another device is put on screen as if chosen here.
 onPrefChange((name, value, { remote } = {}) => {
   if (!remote) return;
@@ -1446,13 +1497,39 @@ initSettings({
   onAudit: () => runCheck(),
   onDesk: (on) => setDeskOpen(on),
   onExport: exportWorkspace,
+  account: () => accounts.account,
+  onSignInWith: (provider) =>
+    accounts.signInWith(provider).catch((error) => showToast(`Could not start signing in: ${error.message}`, { tone: "danger" })),
+  onSignInWithEmail: (email) => accounts.signInWithEmail(email),
+  onSyncNow: () => accounts.syncNow(),
+  onSignOut: async () => {
+    await accounts.signOut();
+    showToast(`Signed out. Your proofs stay ${kept}.`);
+  },
+  onDownloadAccount: async () => {
+    try {
+      const data = await accounts.exportAccount();
+      downloadText(JSON.stringify(data, null, 2), `${safeName(site.name)}-account.json`);
+    } catch (error) {
+      showToast(`Could not download your data: ${error.message}`, { tone: "danger" });
+    }
+  },
+  onDeleteAccount: async () => {
+    try {
+      await accounts.deleteAccount();
+      showToast(`Your account and everything synced to it are deleted. Your proofs stay ${kept}.`);
+    } catch (error) {
+      showToast(`Could not delete the account: ${error.message}`, { tone: "danger" });
+    }
+  },
   countFiles: async () => ws.model.files.size,
   storageSummary: async () => {
     const usage = await db.usage();
     const files = ws.model.files.size;
     const where = ws.model.persistent ? `kept ${kept}` : `not kept — ${holder} will not store data`;
     const size = usage ? ` · ${(usage.used / 1024).toFixed(0)} KB used` : "";
-    return `${files} proof${files === 1 ? "" : "s"}, ${where}${size}`;
+    const synced = accounts.account.user ? ", and synced to your account" : "";
+    return `${files} proof${files === 1 ? "" : "s"}, ${where}${synced}${size}`;
   },
   onWipe: async () => {
     await db.wipe();
@@ -1568,6 +1645,7 @@ async function init() {
   // static build may wait on the checker loading) say "Checking…" itself.
   await showActive({ check: false });
   finishBoot();
+  startAccounts();
   await runCheck();
   if (origin === "link") showToast("Loaded the proof from this link");
 }

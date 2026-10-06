@@ -99,6 +99,150 @@ function action({ label, hint, buttonLabel, tone = "", confirm = null, onClick }
   return field;
 }
 
+// ---------------------------------------------------------------------------
+// Account (js/account.js): sign in, and what sync is doing
+// ---------------------------------------------------------------------------
+
+function ago(at) {
+  const seconds = Math.round((Date.now() - at) / 1000);
+  if (seconds < 45) return "just now";
+  if (seconds < 3600) return `${Math.round(seconds / 60)} min ago`;
+  return `at ${new Date(at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`;
+}
+
+/** One sentence on what sync is doing, for the signed-in row and the status bar. */
+export function syncSentence(status) {
+  const waiting = status.pending ? ` · ${status.pending} ${status.pending === 1 ? "change" : "changes"} waiting` : "";
+  if (status.state === "syncing") return "Syncing…";
+  if (status.state === "synced") return `Synced ${ago(status.at)}${waiting}`;
+  if (status.state === "error") {
+    const why = navigator.onLine === false ? "you are offline" : status.error?.message || "the account could not be reached";
+    return `Not synced: ${why}. Your changes are kept ${holder === "this app" ? "here" : "in this browser"} and sent when it is back.`;
+  }
+  return "Connecting…";
+}
+
+/** Refresh the signed-in row's sentence without rebuilding the form. */
+export function updateAccountStatus(account) {
+  const line = document.getElementById("account-status");
+  if (line && account.user) {
+    line.textContent = syncSentence(account.status);
+    line.dataset.tone = account.status.state === "error" ? "warning" : "";
+  }
+}
+
+function accountFields(account) {
+  if (account.user) {
+    const who = el("div", "setting");
+    const text = el("div", "setting-text");
+    const status = el("span", "setting-hint account-status", syncSentence(account.status));
+    status.id = "account-status";
+    status.setAttribute("role", "status");
+    text.append(el("span", "setting-label account-email", account.user.email ?? "Signed in"), status);
+    const now = el("button", "text-button", "Sync now");
+    now.type = "button";
+    now.addEventListener("click", () => handlers.onSyncNow?.());
+    who.append(text, now);
+    return [
+      who,
+      action({
+        label: "Sign out",
+        hint: `Your proofs stay ${holder === "this app" ? "here" : "in this browser"}; sign in again to carry on syncing.`,
+        buttonLabel: "Sign out",
+        onClick: () => handlers.onSignOut?.(),
+      }),
+      action({
+        label: "Download my data",
+        hint: "Everything the account holds (proofs, history, packs and settings) as one .json file.",
+        buttonLabel: "Download .json",
+        onClick: () => handlers.onDownloadAccount?.(),
+      }),
+      action({
+        label: "Delete account",
+        hint: `Deletes the account and everything synced to it, for good. ${holder === "this app" ? "This app" : "This browser"} keeps its own copy.`,
+        buttonLabel: "Delete account",
+        tone: "danger",
+        confirm: async () => "Click again to delete your account",
+        onClick: () => handlers.onDeleteAccount?.(),
+      }),
+    ];
+  }
+
+  const intro = el("div", "setting");
+  const introText = el("div", "setting-text");
+  introText.append(
+    el("span", "setting-label", "Sync with an account"),
+    el("span", "setting-hint", `Your proofs, history, packs, settings and panel layout, the same on every device you sign in on. Without an account, everything stays ${holder === "this app" ? "in this app" : "in this browser"}.`),
+  );
+  intro.append(introText);
+  const fields = [intro];
+
+  const named = { google: "Google", azure: "Microsoft", github: "GitHub", discord: "Discord" };
+  if (account.providers.length) {
+    const row = el("div", "setting");
+    const text = el("div", "setting-text");
+    text.id = "account-providers-label";
+    text.append(el("span", "setting-label", "Sign in with"));
+    const buttons = el("div", "account-providers");
+    buttons.setAttribute("role", "group");
+    buttons.setAttribute("aria-labelledby", text.id);
+    for (const id of account.providers) {
+      const button = el("button", "text-button", named[id] ?? id);
+      button.type = "button";
+      button.dataset.provider = id;
+      button.addEventListener("click", () => handlers.onSignInWith?.(id));
+      buttons.append(button);
+    }
+    row.append(text, buttons);
+    fields.push(row);
+  }
+
+  if (account.email) {
+    const form = el("form", "setting account-email-form");
+    const text = el("div", "setting-text");
+    const hint = el("span", "setting-hint", "We email you a link that signs you in. Open it in this browser.");
+    hint.setAttribute("role", "status");
+    text.append(el("span", "setting-label", account.providers.length ? "Or by email" : "Sign in by email"), hint);
+    const controls = el("div", "account-email-controls");
+    const input = document.createElement("wa-input");
+    input.setAttribute("size", "s");
+    input.setAttribute("type", "email");
+    input.setAttribute("label", "Email address");
+    input.setAttribute("autocomplete", "email");
+    input.setAttribute("placeholder", "you@university.ac.uk");
+    input.setAttribute("required", "");
+    input.id = "account-email-input";
+    const send = el("button", "text-button text-button--primary", "Email me a link");
+    send.type = "submit";
+    controls.append(input, send);
+    form.append(text, controls);
+    form.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const email = String(input.value ?? "").trim();
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        hint.textContent = "That does not look like an email address.";
+        hint.dataset.tone = "danger";
+        input.focus();
+        return;
+      }
+      send.disabled = true;
+      hint.dataset.tone = "";
+      hint.textContent = "Sending…";
+      try {
+        await handlers.onSignInWithEmail?.(email);
+        hint.textContent = `Sent to ${email}. Open the link in this browser to finish signing in.`;
+      } catch (error) {
+        hint.textContent = `Not sent: ${error.message}.`;
+        hint.dataset.tone = "danger";
+      } finally {
+        send.disabled = false;
+      }
+    });
+    fields.push(form);
+  }
+  return fields;
+}
+
 function group(title, ...fields) {
   const section = el("section", "settings-group");
   section.append(el("h2", null, title), ...fields);
@@ -223,6 +367,7 @@ export function renderSettings() {
         onChange: (on) => handlers.onDesk?.(on),
       }),
     ),
+    ...(handlers.account?.()?.available ? [group("Account", ...accountFields(handlers.account()))] : []),
     group(
       "Your work",
       (() => {
@@ -240,7 +385,9 @@ export function renderSettings() {
       }),
       action({
         label: "Delete everything",
-        hint: `Removes every proof, snapshot and setting from ${holder}. Export first if you want to keep them.`,
+        hint: handlers.account?.()?.user
+          ? `Removes every proof, snapshot and setting from ${holder} and signs it out. Your account keeps its copy.`
+          : `Removes every proof, snapshot and setting from ${holder}. Export first if you want to keep them.`,
         buttonLabel: "Delete everything",
         tone: "danger",
         confirm: async () => `Click again to delete ${(await handlers.countFiles?.()) ?? "all"} proofs`,

@@ -98,8 +98,8 @@ function announce(changes) {
  * to the outbox; `onApplied(changes)` hears what arrived from elsewhere.
  * Returns the sync handle, with `disconnect()` to stop.
  */
-export function connectSync({ remote, owner, mergeLocal = true, onApplied = announce }) {
-  const sync = createSync({ local: localAdapter, remote, owner, mergeLocal, onApplied });
+export function connectSync({ remote, owner, mergeLocal = true, onApplied = announce, onStatus = () => {} }) {
+  const sync = createSync({ local: localAdapter, remote, owner, mergeLocal, onApplied, onStatus });
   const off = onChange((store, key) => {
     if (isSynced(store, key)) sync.record(store, key);
   });
