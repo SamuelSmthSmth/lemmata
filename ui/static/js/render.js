@@ -7,6 +7,7 @@ import { state, flatten } from "./state.js";
 import { renderVerdict } from "./verdict.js";
 import { renderAudit } from "./audit.js";
 import { renderContext } from "./context.js";
+import { renderTrace } from "./trace.js";
 
 export function applyResponse(data) {
   const previous =
@@ -44,4 +45,5 @@ export function applyResponse(data) {
   renderVerdict(data);
   renderAudit(data);
   renderContext();
+  renderTrace();
 }

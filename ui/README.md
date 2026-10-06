@@ -233,6 +233,15 @@ Below 1100px the reading pane overlays the work instead of squeezing it; below
 path; `import` resolves against it (relative to `path`, then the root) before
 the engine's disk search.
 
+`"audit": true` checks with `ProofChecker(dependencies=True, trace=True)`:
+each step then carries `premises` (`{"kind", "line", "label", "fact"}`),
+`premises_complete`, `trace` (`{"backend", "call", "query", "result",
+"ms", "depth"}`) and, for a block, `inner` (its own lines, each
+`{"line", "statement", "status", "trace", "inner"}`). The app sends it unless
+*What each line used* is off in Settings; the proof graph (`js/graph.js`),
+Context & state's Used and Used by (`js/context.js`) and the Trace tab
+(`js/trace.js`) read it.
+
 Returns:
 
 ```json

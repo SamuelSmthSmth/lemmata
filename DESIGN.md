@@ -613,6 +613,25 @@ What a step leaned on, named as the notes name it. The name in 12px mono 600 ink
 
 **The Named Once Rule.** A cited result has one name and it is the same everywhere: the step's message ("…, by MTH2008 Theorem 1.1 (the triangle inequality)."), the Cited result label and the hypothesis label. A step's reason echoes after its statement in square brackets (`[MTH2008 Theorem 1.1]`, `[h2]`), as the student wrote it.
 
+### Proof Graph (auditor)
+What each line was proved from, drawn in the auditor itself. The proof's lines are already its nodes, in reading order, so the graph needs no layout: it is an arc diagram in the gutter between the line numbers and the statements, a column that opens (33px of column gap instead of 11px) only when the check carried the audit.
+- **Selected step:** its premises are arcs in Proof Blue (1.25px) with a 2px dot at each end, and those rows' line numbers are lit, accent and bold (the Lit Key Rule, applied to the auditor). The lines that use it are arcs in Ink Quiet (1px) and their numbers turn ink. "The line before" (a chain continued, not a fact cited) is dotted.
+- **Whole graph:** a toggle in the pane head (three nodes tied by arcs, drawn in the icon buttons' stroke family; aria-pressed) adds every other line's arcs as hairlines in ink at 28%.
+- **Arc shape:** a cubic from the row's first line out and back, its bulge growing with the square root of the span and capped by the gutter; an arc never enters the left margin, which belongs to failure.
+- **Motion:** the one authored moment. On a new selection the premises draw in from the selected step (0.28s on the site's ease-out); a re-check while typing or a resize redraws them still, and reduced motion removes it.
+- **Accessible twin:** the arcs are aria-hidden; Context & state lists the same facts as *Used* and *Used by*.
+
+### Used and Used by (Context & state)
+After Cited result: *Used* lists what the selected line was proved from, *Used by* the lines that rest on it. Each is a flush, hairline-divided row of a 3.5ch tabular line number (accent and bold when it is a row of this proof, which makes the row a button that selects it), a name in ink 600 (the label, "the line before", or a cited result's name) and the fact in quiet mono. When the engine could not recover everything a line used, one dim prose sentence says so ("Possibly more: …"); a line that uses nothing earlier says that instead. A line that failed shows neither section.
+
+### Trace (reading pane)
+The CLI view: what the checker asked SymPy and Z3, line by line, as `lemmata --trace` prints it. A fourth reading-pane tab, a `role="log"` region in 11px mono at 1.5.
+- **Head:** the command, `$ lemmata --trace <path>`, the prompt in Ink Dim.
+- **Blocks:** one per auditor row, divided by hairlines. The block head is a button that selects the step: its line number in a 4ch tabular column, the statement in 12px ink (one line, ellipsised), the status word as the auditor sets it and the time its calls took in dim tabular figures. The selected step's block sits on Paper Lowered with its line number in ink 700, and the tab scrolls to it.
+- **Calls:** a 4ch right-aligned millisecond column, like a log's timestamps, then the backend in quiet 700, the call in dim, the query in ink mono, an arrow, and the answer: ink 600 when it holds, Caveat Amber when the solver ran out of budget, quiet otherwise. Nesting steps in 1.5ch per level behind 1px hairline guides.
+- **Blocks within blocks:** a case's or subproof's own lines step in 2ch under it behind a hairline, each with its own head (statement in quiet ink) and calls.
+- **Limits and states:** 40 calls per line, then a "N more calls" text button. Empty states are one dim prose sentence: off in Settings, no check yet, a parse error, or an exercise (the answers would give it away).
+
 ### Pane Head
 A label and a rule, with no fill: an uppercase tracked label in quiet ink, optional note in dim ink, tools aligned right, and a 1px Rule underline. A six-dot grip at the left drags the pane to swap slots.
 

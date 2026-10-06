@@ -132,6 +132,7 @@
             <button id="desk-tab-files" class="desk-tab" type="button" role="tab" aria-controls="desk-files" aria-selected="true" data-panel="files">Files</button>
             <button id="desk-tab-notes" class="desk-tab" type="button" role="tab" aria-controls="desk-notes" aria-selected="false" data-panel="notes">Notes</button>
             <button id="desk-tab-history" class="desk-tab" type="button" role="tab" aria-controls="desk-history" aria-selected="false" data-panel="history">History</button>
+            <button id="desk-tab-trace" class="desk-tab" type="button" role="tab" aria-controls="desk-trace" aria-selected="false" data-panel="trace">Trace</button>
           </div>
           <button id="desk-collapse" class="icon-button-native" type="button" aria-label="Hide the reading pane" aria-expanded="true" aria-controls="desk">
             <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -164,6 +165,10 @@
 
         <div id="desk-notes" class="desk-panel" role="tabpanel" aria-labelledby="desk-tab-notes" hidden>
           <div id="notes" class="notes scroll"></div>
+        </div>
+
+        <div id="desk-trace" class="desk-panel" role="tabpanel" aria-labelledby="desk-tab-trace" hidden>
+          <div id="trace" class="trace scroll" role="log" tabindex="0" aria-label="What the checker asked SymPy and Z3, line by line"></div>
         </div>
 
         <div id="desk-history" class="desk-panel" role="tabpanel" aria-labelledby="desk-tab-history" hidden>
@@ -279,6 +284,17 @@
             <div class="pane-head">
               <h2 id="audit-heading">Auditor</h2>
               <p class="pane-note">Click a step, or use <kbd>&#8593;</kbd><kbd>&#8595;</kbd> to inspect it</p>
+              <button id="graph-toggle" class="icon-button-native" type="button" aria-pressed="false" aria-label="Show what every line used" hidden>
+                <!-- Three lines down the margin, each tied to the ones above it. -->
+                <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true">
+                  <path d="M17 5C9 5 9 19 17 19"></path>
+                  <path d="M17 12c-4 0-4 7 0 7"></path>
+                  <circle cx="18" cy="5" r="1.6" fill="currentColor" stroke="none"></circle>
+                  <circle cx="18" cy="12" r="1.6" fill="currentColor" stroke="none"></circle>
+                  <circle cx="18" cy="19" r="1.6" fill="currentColor" stroke="none"></circle>
+                </svg>
+              </button>
+              <wa-tooltip for="graph-toggle" placement="bottom">What each line used</wa-tooltip>
             </div>
             <div id="audit" class="audit scroll"></div>
           </section>

@@ -8,6 +8,16 @@ What changed between releases of Lemmata, newest first. The engine is the `aethe
 
 - **Several names in one quantifier**, as the notes write them: `forall a, b : Int, …`, `∀ a, b ∈ ℤ, …` and `∀ ε, δ > 0, …`. Each name gets the type or bound. The User Guide already used the first form, and it didn't parse.
 
+### In the app
+
+- **What each line used.** Select a step and the auditor draws arcs to the lines it was proved from, with their line numbers lit, and to the lines that use it. Context & state lists both as *Used* and *Used by*, each a link to its line. A button in the auditor's head draws the whole proof's graph.
+- **The Trace tab:** the checker's log in the reading pane. For each line it shows what was asked of SymPy and Z3, the answer and the time, with a block's own lines nested under it.
+- Both can be turned off in Settings (*What each line used*), which makes checking about a tenth quicker.
+
+### On the command line
+
+- **`lemmata --used FILE`** lists what each line was proved from, and **`--trace`** lists the calls made to SymPy and Z3 per line: the same log as the Trace tab.
+
 ### The proof kernel, stage 1 (engine only, opt in)
 
 - **`ProofChecker(kernel="exam" | "course" | "scratch")`** checks whether each line *follows*, not only whether it is true. It is the first stage of the design in *A Proof Kernel for Lemmata*.

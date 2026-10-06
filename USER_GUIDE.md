@@ -514,6 +514,9 @@ Run `uv run python -m ui` and open `http://localhost:8000`. The rail on the left
    - Everything is kept **in this browser**. Export the whole workspace as a `.zip` from the Files tab or Settings to keep a copy; drop the `.zip` (or any `.aether` file) on the window to bring it back.
    - A proof can `import` another proof in the workspace by its path — relative to the importing proof, then from the top of the workspace (see §4).
    - The **History** tab shows the checks of the open proof and its snapshots: snapshot it, restore an earlier version, reset it to where it started, or copy a link that reproduces it exactly.
+   - **What each line used.** Select a step and the auditor draws arcs from it to the lines it was proved from, with their line numbers lit; the lines that rest on it are drawn in grey. Context & state lists both as *Used* and *Used by*, each a link to that line, and says when the engine could not recover everything a line used. The button at the right of the auditor's head draws every line's arcs at once.
+   - The **Trace** tab is the checker's log: for each line, every question it asked SymPy and Z3, the answer, and how long it took, with a case's or subproof's own lines nested under it. It is what `lemmata --trace FILE` prints on the command line (and `--used` lists what each line used).
+   - Both come from one switch in Settings, *What each line used*, which is on by default; with it off, checking is about a tenth quicker.
 3. **Library:**
    - Course packs for **MTH2008** (Real Analysis) and **MTH2010** (Algebra), keyed to the notes' own numbering, plus **Notation** (the notes' symbols and the traps around them) and the **Worked examples** of the language. Search by reference, title or topic.
    - **Open beside the proof** gives you your own copy of the entry's proof, with the entry kept in the **Notes** tab while you work.

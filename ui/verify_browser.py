@@ -593,6 +593,7 @@ def run_checks() -> None:
     settings_checks()
     boot_checks()
     working_checks()
+    graph_checks()
     visual_checks()
     zip_checks()
 
@@ -1254,6 +1255,79 @@ def working_checks() -> None:
     check(state["verdict"] == "VALID (with warnings)", f"switching on Show working makes it a warning, not a domain one ({state['verdict']})")
     check("product rule" in state["ctxHas"] or "product rule" in js("document.querySelector('#audit').textContent"), "the warning names the product rule")
     check("w=1" in (state["hash"] or ""), f"the proof's link carries Show working ({state['hash'][-12:]})")
+
+
+GRAPH_PROOF = """\
+Let x, y : Real
+Assume hx: x > 2
+Assume hy: y > 0
+Step: x^2 > 4
+Step: x^2 + y > 4
+Theorem: "n^2 + n is even"
+Claim: forall n : Int, Even(n^2 + n)
+Proof:
+    Given n : Int
+    Case Even(n):
+        Obtain k : Int such that n = 2 * k
+        Step: n^2 + n = 2 * (2 * k^2 + k)
+        Therefore Even(n^2 + n)
+    Case Odd(n):
+        Obtain k : Int such that n = 2 * k + 1
+        Step: n^2 + n = 2 * (2 * k^2 + 3 * k + 1)
+        Therefore Even(n^2 + n)
+    Therefore Even(n^2 + n)
+QED
+"""
+
+
+def graph_checks() -> None:
+    print("== the proof graph: arcs, Used and Used by, and the Trace tab ==")
+    ab("open", permalink(GRAPH_PROOF))
+    settle()
+    index = js("[...document.querySelectorAll('.step')].findIndex(r => r.textContent.includes('(x ^ 2) + y'))")
+    check(index >= 0, f"the step x^2 + y > 4 is in the auditor ({index})")
+    # The row is a button: activating it is what a click does, wherever the
+    # layout of this run has put it.
+    js(f"document.querySelector('.step[data-index=\"{index}\"]').click(); 'ok'")
+    time.sleep(0.4)
+    state = js(
+        "({ graph: document.querySelector('#audit').classList.contains('has-graph'),"
+        " arcs: document.querySelectorAll('.arcs-premises path').length,"
+        " lit: [...document.querySelectorAll('.step.is-premise .step-line')].map(n => n.textContent),"
+        " used: [...document.querySelectorAll('#context .ctx-used')].map(n => n.textContent),"
+        " toggle: !document.querySelector('#graph-toggle').hidden })"
+    )
+    check(state["graph"] and state["toggle"], f"a check with the audit draws the graph and shows its toggle ({state})")
+    check(state["arcs"] == 2 and sorted(state["lit"]) == ["3", "4"], f"its premises are drawn and their lines lit ({state['arcs']}, {state['lit']})")
+    check(any("the line before" in u for u in state["used"]) and any("hy" in u for u in state["used"]), f"Used names the line before and hy ({state['used']})")
+    js("document.querySelector('#context .ctx-used').click(); 'ok'")
+    time.sleep(0.3)
+    after = js("({ line: document.querySelector('#context-sub').textContent, by: [...document.querySelectorAll('#context .ctx-section h3')].map(h => h.textContent) })")
+    check(after["line"] == "Line 4" and "Used by" in after["by"], f"a Used row selects its line, which lists Used by ({after})")
+    js("document.querySelector('#graph-toggle').click(); 'ok'")
+    time.sleep(0.2)
+    check(js("document.querySelectorAll('.arcs-all path').length") > 0, "the toggle draws every line's arcs")
+    js("document.querySelector('#graph-toggle').click(); 'ok'")
+    js("document.querySelector('#desk-tab-trace').click(); 'ok'")
+    time.sleep(0.3)
+    trace = js(
+        "({ command: document.querySelector('.trace-command')?.textContent ?? '',"
+        " blocks: document.querySelectorAll('.trace-block').length,"
+        " inner: document.querySelectorAll('.trace-inner').length,"
+        " calls: document.querySelectorAll('.trace-event').length,"
+        " selected: document.querySelector('.trace-block.is-selected .trace-line')?.textContent })"
+    )
+    check("lemmata --trace" in trace["command"], f"the Trace tab names the command that prints the same log ({trace['command']})")
+    check(trace["blocks"] >= 8 and trace["calls"] > 5, f"it lists each line and its calls ({trace})")
+    check(trace["inner"] >= 6, f"a case block's own lines are nested under it ({trace['inner']})")
+    check(trace.get("selected") == "L4", f"it follows the selected step ({trace.get('selected')})")
+    js("document.querySelector('#desk-tab-files').click(); 'ok'")
+    js("localStorage.setItem('aether-audit', 'off'); 'ok'")
+    ab("open", permalink(GRAPH_PROOF))
+    settle()
+    off = js("({ graph: document.querySelector('#audit').classList.contains('has-graph'), arcs: document.querySelectorAll('.arcs path').length })")
+    check(not off["graph"] and off["arcs"] == 0, f"with the audit off in Settings, no graph is drawn ({off})")
+    js("localStorage.removeItem('aether-audit'); 'ok'")
 
 
 def boot_checks() -> None:

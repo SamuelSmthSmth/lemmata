@@ -820,6 +820,93 @@ kbd {
   padding-top: 1px;
 }
 
+/* The proof graph (js/graph.js).  The lines are the nodes, in reading order,
+   so the graph is arcs in the gutter between the line numbers and the
+   statements: the selected step's premises in the accent, with their line
+   numbers lit, the lines that use it in quiet ink, and (with the head's
+   toggle) every other arc as a faint hairline.  No arc touches the left
+   margin, which belongs to failure. */
+.audit {
+  position: relative;
+}
+
+.audit.has-graph .step {
+  column-gap: 33px;
+}
+
+.arcs {
+  position: absolute;
+  top: 0;
+  left: 0;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.arcs path {
+  fill: none;
+  stroke-linecap: round;
+}
+
+.arcs-all path {
+  stroke: color-mix(in oklab, var(--text) 28%, transparent);
+  stroke-width: 1;
+}
+
+.arcs-dependents path {
+  stroke: var(--muted);
+  stroke-width: 1;
+}
+
+.arcs-dependents circle {
+  fill: var(--muted);
+}
+
+.arcs-premises path {
+  stroke: var(--accent);
+  stroke-width: 1.25;
+}
+
+.arcs-premises circle {
+  fill: var(--accent);
+}
+
+/* "The previous line": a chain continued, not a fact cited. */
+.arcs .arc-chain {
+  stroke-dasharray: 1.5 3;
+}
+
+/* The one authored moment: the selected step's premises draw in from it. */
+.arcs-premises .arc-draw {
+  stroke-dasharray: 1 1;
+  animation: arc-draw 0.28s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes arc-draw {
+  from {
+    stroke-dashoffset: 1;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .arcs-premises .arc-draw {
+    animation: none;
+  }
+}
+
+/* A premise's line number is lit (the Lit Key Rule): accent, and only while
+   the step that rests on it is selected. */
+.step.is-premise .step-line {
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.step.is-dependent .step-line {
+  color: var(--text);
+}
+
 .step-body {
   min-width: 0;
 }
@@ -1006,6 +1093,77 @@ kbd {
   line-height: 1.55;
 }
 
+/* Used and Used by: flush hairline rows, the auditor's grammar at the
+   pane's scale.  A row of this proof is a button that selects it; its line
+   number is the accent, as the lit premise lines in the gutter are. */
+.ctx-used {
+  display: grid;
+  grid-template-columns: 3.5ch minmax(0, 1fr);
+  gap: 8px;
+  width: 100%;
+  margin: 0;
+  padding: 4px 6px 4px 0;
+  font: inherit;
+  font-size: 12px;
+  line-height: 1.45;
+  text-align: left;
+  color: inherit;
+  background: none;
+  border: 0;
+  border-bottom: 1px solid var(--hairline);
+  border-radius: 0;
+}
+
+button.ctx-used {
+  cursor: pointer;
+  transition: background 0.1s ease;
+}
+
+button.ctx-used:hover {
+  background: var(--panel-2);
+}
+
+button.ctx-used:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+.ctx-used-line {
+  font-size: 11px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  color: var(--muted-dim);
+  padding-top: 1px;
+}
+
+button.ctx-used .ctx-used-line {
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.ctx-used-text {
+  min-width: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 8px;
+  align-items: baseline;
+}
+
+.ctx-used-name {
+  font-weight: 600;
+  color: var(--text);
+}
+
+.ctx-used-fact {
+  font-family: var(--font-mono);
+  color: var(--muted);
+  word-break: break-word;
+}
+
+.ctx-used + .ctx-empty {
+  margin-top: 6px;
+}
+
 .ctx-title {
   font-size: 12px;
   color: var(--text);
@@ -1178,6 +1336,221 @@ kbd {
   letter-spacing: 0.9px;
   text-transform: uppercase;
   color: var(--muted-dim);
+}
+
+/* =========================================================================
+   Trace (js/trace.js): the checker's calls, as the terminal prints them.
+
+   A log, not a table: one block per line of the proof, its head a button
+   that selects the step, the calls beneath indented under the call that
+   made them, each with its time in a right-aligned column.  The same grammar
+   as the auditor (line numbers dim and tabular, status as type, hairlines
+   between blocks); the only colour is the status word of a line that failed
+   or warned, and a call that ran out of budget.
+   ========================================================================= */
+
+.trace {
+  padding: 6px 0 14px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.trace:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+.trace-empty {
+  margin: 10px 12px;
+  font-family: var(--font-prose);
+  font-size: 12px;
+  line-height: 1.55;
+  color: var(--muted-dim);
+}
+
+.trace-command {
+  margin: 0;
+  padding: 4px 12px 8px;
+  color: var(--muted);
+  word-break: break-all;
+}
+
+.trace-prompt {
+  color: var(--muted-dim);
+  user-select: none;
+}
+
+.trace-block {
+  border-top: 1px solid var(--hairline);
+  padding: 0 0 6px;
+}
+
+.trace-block.is-selected {
+  background: var(--panel-2);
+}
+
+.trace-head {
+  display: grid;
+  grid-template-columns: 4ch minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: baseline;
+  width: 100%;
+  margin: 0;
+  padding: 6px 12px 3px 8px;
+  font: inherit;
+  text-align: left;
+  color: inherit;
+  background: none;
+  border: 0;
+  border-radius: 0;
+  cursor: pointer;
+}
+
+.trace-head:hover .trace-statement {
+  color: var(--text);
+}
+
+.trace-head:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+.trace-line {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  color: var(--muted-dim);
+}
+
+.trace-block.is-selected .trace-line {
+  color: var(--text);
+  font-weight: 700;
+}
+
+.trace-statement {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.trace-meta {
+  display: flex;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.trace-total {
+  color: var(--muted-dim);
+  font-variant-numeric: tabular-nums;
+}
+
+.trace-events {
+  padding: 0 12px 0 8px;
+}
+
+/* Time on the left, as a log's timestamp column: right-aligned, tabular, so
+   the slow call is found by scanning one column. */
+.trace-event {
+  display: grid;
+  grid-template-columns: 4ch minmax(0, 1fr);
+  gap: 8px;
+  padding: 1px 0;
+}
+
+.trace-ms {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  color: var(--muted-dim);
+}
+
+/* Nesting: each level steps in by 1.5ch behind a 1px hairline guide. */
+.trace-call {
+  min-width: 0;
+  padding-left: calc(var(--depth, 0) * 1.5ch);
+  background-image: repeating-linear-gradient(
+    to right,
+    var(--hairline) 0 1px,
+    transparent 1px 1.5ch
+  );
+  background-size: calc(var(--depth, 0) * 1.5ch) 100%;
+  background-repeat: no-repeat;
+  word-break: break-word;
+}
+
+.trace-backend {
+  font-weight: 700;
+  color: var(--muted);
+  margin-right: 6px;
+}
+
+.trace-kind {
+  color: var(--muted-dim);
+  margin-right: 6px;
+}
+
+.trace-query {
+  font-family: var(--font-mono);
+  color: var(--text);
+}
+
+.trace-arrow {
+  color: var(--muted-dim);
+  margin: 0 5px;
+}
+
+.trace-answer {
+  color: var(--muted);
+}
+
+.trace-answer.is-yes {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.trace-answer.is-unknown {
+  color: var(--warning);
+  font-weight: 700;
+}
+
+/* A block's own lines step in under it, as the proof indents them. */
+.trace-inner {
+  margin-left: calc(var(--level, 1) * 2ch);
+  border-left: 1px solid var(--hairline);
+}
+
+.trace-subhead {
+  display: grid;
+  grid-template-columns: 4ch minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: baseline;
+  padding: 4px 12px 1px 8px;
+}
+
+.trace-subhead .trace-statement {
+  color: var(--muted);
+}
+
+.trace-quiet {
+  margin: 0;
+  padding: 0 12px 0 calc(8px + 4ch + 8px);
+  font-family: var(--font-prose);
+  font-size: 11px;
+  color: var(--muted-dim);
+}
+
+.trace-more {
+  margin: 2px 0 0 calc(8px + 4ch);
+}
+
+.trace-summary {
+  margin: 0;
+  padding: 8px 12px 0;
+  border-top: 1px solid var(--hairline);
+  color: var(--muted-dim);
+  font-variant-numeric: tabular-nums;
 }
 
 .history-note {

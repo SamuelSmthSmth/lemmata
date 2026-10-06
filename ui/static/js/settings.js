@@ -179,6 +179,16 @@ export function renderSettings() {
         checked: getPref("workingDefault") === "on",
         onChange: (on) => setPref("workingDefault", on ? "on" : "off"),
       }),
+      toggle({
+        name: "audit",
+        label: "What each line used",
+        hint: "Each check records what every line was proved from and what it asked SymPy and Z3: the arcs in the auditor, Used in Context & state, and the Trace tab. Checking takes about a tenth longer.",
+        checked: getPref("audit") === "on",
+        onChange: (on) => {
+          setPref("audit", on ? "on" : "off");
+          handlers.onAudit?.(on);
+        },
+      }),
       segmented({
         name: "debounce",
         label: "Check after typing pauses for",

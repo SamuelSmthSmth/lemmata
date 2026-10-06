@@ -55,7 +55,35 @@ def _step(result, lines: list[str]) -> dict[str, Any]:
         "subproof_metadata": getattr(result, "subproof_metadata", None),
         "citation": getattr(result, "citation", None),
         "hints": list(getattr(result, "hints", []) or []),
+        # What the line was proved from, and the backend calls that checked it
+        # (ProofChecker(dependencies=True, trace=True)); empty unless asked for.
+        "premises": [dict(p) for p in getattr(result, "premises", []) or []],
+        "premises_complete": bool(getattr(result, "premises_complete", False)),
+        "trace": [dict(e) for e in getattr(result, "trace", []) or []],
+        # A block's own lines, with their traces, for the Trace tab (the auditor
+        # shows a block as one row); only when the check was traced.
+        "inner": _inner(result),
     }
+
+
+def _inner(result) -> list[dict[str, Any]]:
+    subs = getattr(result, "sub_results", None) or []
+    if not subs or not any(_traced(s) for s in subs):
+        return []
+    return [
+        {
+            "line": s.line,
+            "statement": str(s.statement),
+            "status": s.status.value,
+            "trace": [dict(e) for e in getattr(s, "trace", []) or []],
+            "inner": _inner(s),
+        }
+        for s in subs
+    ]
+
+
+def _traced(result) -> bool:
+    return bool(getattr(result, "trace", None)) or any(_traced(s) for s in getattr(result, "sub_results", None) or [])
 
 
 def _empty_summary(invalid: int = 0) -> dict[str, int]:
@@ -70,14 +98,20 @@ def check_payload(
     path: Optional[str] = None,
     citations: Optional[Mapping[str, Any]] = None,
     show_working: bool = False,
+    audit: bool = False,
 ) -> dict[str, Any]:
-    """Check *source* and shape the result as the ``/api/check`` response body."""
+    """Check *source* and shape the result as the ``/api/check`` response body.
+
+    *audit* asks for what each line used and the trace of its backend calls,
+    which the app draws as the proof graph and the Trace tab."""
     from aether import ParseError, ProofChecker
 
     started = time.perf_counter()
     lines = source.splitlines()
     if checker is None:
-        checker = ProofChecker(strict_domains=strict_domains, show_working=show_working)
+        checker = ProofChecker(
+            strict_domains=strict_domains, show_working=show_working, dependencies=audit, trace=audit
+        )
 
     def elapsed() -> float:
         return (time.perf_counter() - started) * 1000.0
@@ -157,33 +191,41 @@ def check_payload(
 
 
 class Engine:
-    """One ready checker per mode (strict domains, show working); building the parser is the expensive part."""
+    """One ready checker per mode (strict domains, show working, audit); building the parser is the expensive part."""
 
     def __init__(self) -> None:
-        from aether import ProofChecker
+        self.checkers: dict[tuple[bool, bool, bool], Any] = {}
+        self.checker(False, False, True)
 
-        self.checkers = {
-            (strict, working): ProofChecker(strict_domains=strict, show_working=working)
-            for strict in (False, True)
-            for working in (False, True)
-        }
+    def checker(self, strict: bool, working: bool, audit: bool):
+        key = (strict, working, audit)
+        if key not in self.checkers:
+            from aether import ProofChecker
+
+            self.checkers[key] = ProofChecker(
+                strict_domains=strict, show_working=working, dependencies=audit, trace=audit
+            )
+        return self.checkers[key]
 
     def run(self, kind: str, payload: dict[str, Any]) -> Any:
         if kind == "check":
             strict = bool(payload["strict_domains"])
             working = bool(payload.get("show_working", False))
+            audit = bool(payload.get("audit", False))
+            checker = self.checker(strict, working, audit)
             try:
                 return check_payload(
                     payload["source"],
                     strict,
                     payload.get("files"),
-                    checker=self.checkers[(strict, working)],
+                    checker=checker,
                     path=payload.get("path"),
                     citations=payload.get("citations"),
                     show_working=working,
+                    audit=audit,
                 )
             finally:
-                self.checkers[(strict, working)].clear_cache()
+                checker.clear_cache()
         if kind == "latex":
             from .latex_report import export_report_latex
 

@@ -14,8 +14,12 @@ const SPEC = {
   debounce: { key: "aether-debounce", allowed: ["150", "300", "600", "1000"], fallback: "300" },
   strictDefault: { key: "aether-strict-default", allowed: ["on", "off"], fallback: "off" },
   workingDefault: { key: "aether-working-default", allowed: ["on", "off"], fallback: "off" },
+  // What each line used and the checker's trace: the proof graph and the Trace tab.
+  audit: { key: "aether-audit", allowed: ["on", "off"], fallback: "on" },
+  // The auditor's arcs: the selected line's only, or the whole graph.
+  graph: { key: "aether-graph", allowed: ["selected", "all"], fallback: "selected" },
   desk: { key: "aether-desk", allowed: ["open", "closed"], fallback: "open" },
-  deskPanel: { key: "aether-desk-panel", allowed: ["files", "notes", "history"], fallback: "files" },
+  deskPanel: { key: "aether-desk-panel", allowed: ["files", "notes", "history", "trace"], fallback: "files" },
   view: { key: "aether-view", allowed: ["workspace", "library", "guide", "settings"], fallback: "workspace" },
   welcomed: { key: "aether-welcomed", allowed: ["yes", "no"], fallback: "no" },
 };
