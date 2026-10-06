@@ -3,5 +3,9 @@
   "tagline": "Proof intern",
   "accent": { "light": "#0a5fbf", "dark": "#6cb0ff" },
   "registry": "https://samuelsmthsmth.github.io/lemmata-packs/",
-  "preinstall": ["core/examples", "core/mth2008", "core/mth2010", "core/notation"]
+  "preinstall": ["core/examples", "core/mth2008", "core/mth2010", "core/notation"],
+  "accounts": {
+    "url": "https://diazcwlekhmtpwrrjdun.supabase.co",
+    "key": "sb_publishable_nY92Npp2kCZ_aisiPDn9CQ_W5Tk3JMT"
+  }
 }

@@ -45,6 +45,8 @@ jobs:
       - run: uv run python ui/verify_capabilities.py
       - run: uv run python ui/verify_server.py
       - run: node ui/verify_frontend.mjs
+      - run: npm --prefix supabase ci
+      - run: node supabase/verify_supabase.mjs
 
   wasm:
     name: Engine in the browser's Python (Pyodide) and the static build

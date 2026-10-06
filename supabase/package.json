@@ -1,0 +1,9 @@
+{
+  "name": "lemmata-supabase-checks",
+  "private": true,
+  "type": "module",
+  "description": "Checks the database migrations on PGlite (Postgres in WASM): node supabase/verify_supabase.mjs",
+  "devDependencies": {
+    "@electric-sql/pglite": "^0.5.8"
+  }
+}

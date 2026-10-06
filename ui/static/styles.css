@@ -4086,6 +4086,53 @@ body[data-exercise="hidden"] .step::before {
   color: var(--muted);
 }
 
+.setting-hint[data-tone="danger"] {
+  color: var(--danger-text);
+}
+
+/* Not synced is a caveat, not a failure: the work is safe on this device. */
+.setting-hint[data-tone="warning"] {
+  color: var(--wa-color-warning-on-quiet);
+}
+
+/* Account: the providers and the email field sit where a row's control does. */
+.account-providers {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 4px;
+}
+
+.account-email-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.account-email-controls wa-input {
+  width: 240px;
+}
+
+/* The button takes the field's height, so the pair reads as one control. */
+.account-email-controls .text-button {
+  align-self: stretch;
+  height: auto;
+  flex: none;
+}
+
+/* The field's purpose is the row's label; the visible label would repeat it. */
+.account-email-controls wa-input::part(form-control-label) {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+}
+
+.account-email {
+  overflow-wrap: anywhere;
+}
+
 /* -------------------------------------------------------------------------
    Command palette
    ------------------------------------------------------------------------- */
@@ -4611,6 +4658,15 @@ body[data-exercise="hidden"] .tree-row.is-active .tree-mark {
     flex-direction: column;
     align-items: flex-start;
     gap: 8px;
+  }
+
+  .account-providers {
+    justify-content: flex-start;
+  }
+
+  .account-email-controls,
+  .account-email-controls wa-input {
+    width: 100%;
   }
 
   /* A phone has room for the verdict and the way to the problem; the counts,

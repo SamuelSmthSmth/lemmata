@@ -16,6 +16,12 @@ Fields (all optional; the defaults below are this repository's own site):
 * ``registry`` -- the pack registry's base URL (its ``index.json`` lives
   there); ``""`` turns the registry off.
 * ``preinstall`` -- the bundled packs a first visit installs.
+* ``accounts`` -- ``{"url": "https://<ref>.supabase.co", "key": "<publishable key>"}``,
+  the Supabase project that signs students in and syncs their work
+  (``supabase/migrations/``).  Absent, there is no account UI and work stays
+  in the browser.  It is not defaulted: a copy of this site that leaves it out
+  never talks to this repository's project.  The key is the *publishable*
+  (anon) one, which is meant to be public; never the secret key.
 """
 
 from __future__ import annotations
@@ -90,7 +96,35 @@ def _load() -> dict[str, Any]:
     site["registry"] = (registry.rstrip("/") + "/") if isinstance(registry, str) and registry.strip() else ""
     preinstall = data.get("preinstall", _DEFAULTS["preinstall"])
     site["preinstall"] = [p for p in preinstall if isinstance(p, str)] if isinstance(preinstall, list) else list(_DEFAULTS["preinstall"])
+    site["accounts"] = _accounts(data.get("accounts"))
     return site
+
+
+def _accounts(value: Any) -> dict[str, str] | None:
+    if value is None:
+        return None
+    url = value.get("url") if isinstance(value, dict) else None
+    key = value.get("key") if isinstance(value, dict) else None
+    if not (isinstance(url, str) and url.startswith("https://") and isinstance(key, str) and key.strip()):
+        print("site.json: accounts needs an https url and a key; accounts are off.", file=sys.stderr)
+        return None
+    if key.startswith("sb_secret_") or '"service_role"' in _jwt_payload(key):
+        print("site.json: accounts.key is a secret key, which must never reach a browser; accounts are off.", file=sys.stderr)
+        return None
+    return {"url": url.rstrip("/"), "key": key.strip()}
+
+
+def _jwt_payload(token: str) -> str:
+    """The middle of a JWT, decoded (a legacy anon or service_role key), or ""."""
+    import base64
+
+    parts = token.split(".")
+    if len(parts) != 3:
+        return ""
+    try:
+        return base64.urlsafe_b64decode(parts[1] + "=" * (-len(parts[1]) % 4)).decode("utf-8", "replace")
+    except ValueError:
+        return ""
 
 
 def _engine_version() -> str:

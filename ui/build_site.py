@@ -114,7 +114,10 @@ def render(out: Path, computed: dict[str, str]) -> list[str]:
             "tagline": escape(TAGLINE),
             "version": escape(VERSION),
             "year": str(date.today().year),
-            "updated": "3 October 2026",
+            "updated": "6 October 2026",
+            # Where the account database (site.json `accounts`) is hosted: the
+            # privacy page names it, so change it with the Supabase project.
+            "accounts_region": "Ireland, in the EU",
             "root": "../" * depth or "./",
             **computed,
         }

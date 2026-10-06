@@ -45,8 +45,21 @@ export function isSynced(store, key) {
 
 const id = (store, key) => `${store}:${key}`;
 
+/** JSON with object keys sorted: Postgres (jsonb) does not keep key order. */
+function canonical(value) {
+  if (Array.isArray(value)) return `[${value.map(canonical).join(",")}]`;
+  if (value && typeof value === "object") {
+    return `{${Object.keys(value)
+      .filter((k) => value[k] !== undefined)
+      .sort()
+      .map((k) => `${JSON.stringify(k)}:${canonical(value[k])}`)
+      .join(",")}}`;
+  }
+  return JSON.stringify(value ?? null);
+}
+
 function same(a, b) {
-  return JSON.stringify(a ?? null) === JSON.stringify(b ?? null);
+  return canonical(a) === canonical(b);
 }
 
 /** "sheets/week1.aether" taken: "sheets/week1 (2).aether", and so on. */
@@ -65,8 +78,14 @@ function snapshotId(clock) {
   return `s${clock().toString(36)}${(seq++).toString(36)}sync`;
 }
 
-export function createSync({ local, remote, owner, mergeLocal = true, clock = Date.now, onApplied = () => {}, batch = 200 }) {
+export function createSync({ local, remote, owner, mergeLocal = true, clock = Date.now, onApplied = () => {}, onStatus = () => {}, batch = 200 }) {
   let state = null;
+  // What this device pushed and the server kept, by record: a pull that
+  // brings it back is this device's own write, not another device's.
+  const sent = new Map();
+  let pullTimer = null;
+  let retryTimer = null;
+  let failures = 0;
   let unsubscribe = null;
   let pushTimer = null;
   let running = false;
@@ -115,8 +134,35 @@ export function createSync({ local, remote, owner, mergeLocal = true, clock = Da
     if (!running) return;
     clearTimeout(pushTimer);
     pushTimer = setTimeout(() => {
-      serial(push);
+      serial(cycle);
     }, delay);
+  }
+
+  /** One round: push, pull, push what the pull produced; with status. */
+  async function cycle() {
+    onStatus({ state: "syncing" });
+    try {
+      const s = await ensureState();
+      const first = s.cursor === 0;
+      if (!first) await push();
+      const changed = await pull();
+      // What the pull itself produced (a kept snapshot, a file moved aside)
+      // goes up now rather than waiting for the next edit.
+      if (Object.keys(s.outbox).length) await push();
+      failures = 0;
+      onStatus({ state: "synced", at: clock(), pending: Object.keys(s.outbox).length });
+      return changed;
+    } catch (error) {
+      // Offline, or the server said no: the outbox keeps everything, and we
+      // try again later (sooner when the browser says it is back online).
+      failures += 1;
+      onStatus({ state: "error", error, pending: Object.keys(state?.outbox ?? {}).length });
+      if (running) {
+        clearTimeout(retryTimer);
+        retryTimer = setTimeout(() => serial(cycle), Math.min(5 * 60_000, 5000 * 2 ** Math.min(failures, 6)));
+      }
+      return [];
+    }
   }
 
   function serial(fn) {
@@ -147,7 +193,9 @@ export function createSync({ local, remote, owner, mergeLocal = true, clock = Da
       // is newer, and one the server refused (it holds a newer edit) stays
       // until the pull meets that edit, which keeps this one as a snapshot.
       for (const [rid, modified] of slice) {
-        if (s.outbox[rid] === modified && !refused.has(rid)) delete s.outbox[rid];
+        if (refused.has(rid)) continue;
+        sent.set(rid, modified);
+        if (s.outbox[rid] === modified) delete s.outbox[rid];
       }
       await local.saveState(s);
     }
@@ -174,6 +222,7 @@ export function createSync({ local, remote, owner, mergeLocal = true, clock = Da
   async function apply(rec, s) {
     if (!isSynced(rec.store, rec.key)) return null;
     const rid = id(rec.store, rec.key);
+    if (sent.get(rid) === rec.modified) return null; // our own write, back again
     const pending = s.outbox[rid];
     const mine = await local.read(rec.store, rec.key);
     if (pending !== undefined && pending > rec.modified) {
@@ -205,6 +254,19 @@ export function createSync({ local, remote, owner, mergeLocal = true, clock = Da
       // device makes the same move, and the move syncs.
       const others = (await local.all("files")).filter((f) => f.key !== rec.key);
       const clash = others.find((f) => f.value.path === data.path);
+      if (clash && clash.value.source === data.source) {
+        // The same proof at the same path (the welcome example, or a file
+        // copied to both devices): one copy is enough.  The later id goes,
+        // so every device keeps the same one, and the removal syncs.
+        const [keep, drop] = rec.key < clash.key ? [rec.key, clash.key] : [clash.key, rec.key];
+        if (drop === clash.key) {
+          await local.remove("files", clash.key);
+          await local.write(rec.store, rec.key, data);
+        }
+        s.outbox[id("files", drop)] = clock();
+        schedulePush();
+        return drop === clash.key ? [{ store: "files", key: drop, deleted: true }, { store: "files", key: keep }] : null;
+      }
       if (clash) {
         const taken = new Set(others.map((f) => f.value.path));
         if (rec.key > clash.key) {
@@ -246,28 +308,30 @@ export function createSync({ local, remote, owner, mergeLocal = true, clock = Da
 
   return {
     record,
-    /** Push what is pending, then pull what is new. */
-    async syncNow() {
-      return serial(async () => {
-        await push();
-        const changed = await pull();
-        // What the pull itself produced (a kept snapshot, a file moved aside)
-        // goes up now rather than waiting for the next edit.
-        if (Object.keys(state.outbox).length) await push();
-        return changed;
-      });
-    },
+    /**
+     * Push what is pending, then pull what is new.  The first sync of an
+     * account on this device pulls first, so a proof both sides already have
+     * is recognised before it is uploaded twice.
+     */
+    syncNow: () => serial(cycle),
     pushNow: () => serial(push),
     pullNow: () => serial(pull),
     async start() {
       running = true;
       await ensureState();
-      unsubscribe = remote.subscribe?.(() => serial(pull)) ?? null;
-      return this.syncNow();
+      unsubscribe =
+        remote.subscribe?.(() => {
+          // Realtime says something changed: one pull for a burst of rows.
+          clearTimeout(pullTimer);
+          pullTimer = setTimeout(() => serial(cycle), 250);
+        }) ?? null;
+      return serial(cycle);
     },
     stop() {
       running = false;
       clearTimeout(pushTimer);
+      clearTimeout(pullTimer);
+      clearTimeout(retryTimer);
       unsubscribe?.();
       unsubscribe = null;
     },

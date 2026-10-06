@@ -966,6 +966,34 @@ console.log("registry checked");
     check(!remote.rows.has("files:local") && b.table("files").has("f1"), "sync: starting from the account's work does not upload this device's proofs");
   }
 
+  // 7. A device that edits again before its last push comes back does not
+  //    take its own earlier version for another device's.
+  {
+    const remote = createMemoryRemote();
+    const a = device(remote);
+    await a.put("files", "f1", file("f1", "Own.aether", "one"));
+    await a.sync.pushNow();
+    await a.put("files", "f1", { ...a.table("files").get("f1"), source: "two", updated: clock() });
+    await a.sync.pullNow();
+    check(a.table("snapshots").size === 0 && a.table("files").get("f1").source === "two", "sync: a device's own write coming back is not another device's edit");
+  }
+
+  // 8. The welcome proof on two new devices is one proof, not two.
+  {
+    const remote = createMemoryRemote();
+    const a = device(remote);
+    a.table("files").set("wa", file("wa", "Even square theorem.aether", "same text"));
+    await a.sync.syncNow();
+    const b = device(remote);
+    b.table("files").set("wb", file("wb", "Even square theorem.aether", "same text"));
+    await b.sync.syncNow();
+    await a.sync.syncNow();
+    const keys = (d) => [...d.table("files").keys()].join();
+    check(keys(a) === "wa" && keys(b) === "wa", `sync: the same proof on two devices is kept once (${keys(a)} / ${keys(b)})`);
+    check(!remote.rows.has("files:wb") || remote.rows.get("files:wb").deleted, "sync: and the second copy is never left in the account");
+    check(!b.table("snapshots").size, "sync: without a snapshot for a copy that was identical");
+  }
+
   check(freeCopyPath("a/Week 1.aether", new Set(["a/Week 1 (2).aether"])) === "a/Week 1 (3).aether", "sync: a moved-aside path finds the next free number");
   console.log("sync checked");
 }

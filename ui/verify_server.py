@@ -145,7 +145,8 @@ def main() -> int:
         status, _, body = server.request("/api/site")
         site = json.loads(body)
         check(status == 200 and site == {**SITE, "version": VERSION}, f"site identity from ui/site.json: {site['name']}, registry {site['registry']!r}")
-        check(set(site) == {"name", "tagline", "accent", "registry", "home", "preinstall", "version"}, f"with every site.json field ({sorted(site)})")
+        check(set(site) == {"name", "tagline", "accent", "registry", "home", "preinstall", "accounts", "version"}, f"with every site.json field ({sorted(site)})")
+        check(site["accounts"] is None or (site["accounts"]["url"].startswith("https://") and not site["accounts"]["key"].startswith("sb_secret_")), "accounts, when configured, carry an https URL and a publishable key only")
         status, _, body = server.request("/")
         check(f"<title>{NAME} · {TAGLINE}</title>".encode() in body, "the page <title> carries the site name")
 
