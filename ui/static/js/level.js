@@ -57,6 +57,15 @@ export function setLevel(id) {
   for (const item of dom.levelMenu.querySelectorAll("wa-dropdown-item")) {
     item.checked = item.value === current;
   }
+  // Exam already refuses what Show working would warn about (a derivative,
+  // limit or sum written down, a divisibility by remainders), so at Exam the
+  // switch says so and stands aside; the proof keeps its own setting for the
+  // other levels.
+  const exam = current === "exam";
+  dom.working.disabled = exam;
+  dom.workingTip.textContent = exam
+    ? "The Exam level already asks for the working: a step that skips it is refused"
+    : "A step that skips the working a question asks for (the product rule, a sum's closed form) gets a warning";
 }
 
 /** Fill the menu; *onChange* runs after the user picks a level. */
