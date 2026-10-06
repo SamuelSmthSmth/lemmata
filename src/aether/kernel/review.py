@@ -358,6 +358,47 @@ class Kernel:
         return policy.LINEAR
 
 
+def _matches(a: ExprNode, b: ExprNode, ctx: ProofContext) -> bool:
+    """Whether *a* states the fact *b* does: the engine's ``_exprs_match``, but
+    deciding equal sides by plain expansion on the typed core.  The engine's own
+    test checks each pair of sides with ``verify_algebraic_equality``, which on
+    a mismatch (the usual case here, one line against every fact) goes on to
+    search for a counterexample: most of the kernel's time went there."""
+    ua = ctx.expand_user_functions(a) or a
+    ub = ctx.expand_user_functions(b) or b
+    if str(ua) == str(ub):
+        return True
+    if isinstance(ua, QuantifierNode) or isinstance(ub, QuantifierNode):
+        if not (isinstance(ua, QuantifierNode) and isinstance(ub, QuantifierNode) and ua.quantifier == ub.quantifier):
+            # `Even(n)` states `exists k, n = 2k`: the engine's test unfolds
+            # the predicate; a quantifier against anything else is no match.
+            if isinstance(ua, FunctionCallNode) or isinstance(ub, FunctionCallNode):
+                return _exprs_match(ua, ub, ctx)
+            return False
+        alpha = SymbolNode(name="_alpha_var")
+        return _matches(substitute_expr(ua.formula, ua.var, alpha), substitute_expr(ub.formula, ub.var, alpha), ctx)
+    if isinstance(ua, RelationNode) and isinstance(ub, RelationNode):
+        from aether.engine.context import canonical_rel
+
+        if canonical_rel(ua.op) != canonical_rel(ub.op):
+            return False
+        left = core.same_value(ua.left, ub.left, ctx)
+        right = core.same_value(ua.right, ub.right, ctx)
+        if left is not None and right is not None:
+            return left and right
+        return _exprs_match(ua, ub, ctx)  # outside the core: the engine's own test
+    if isinstance(ua, FunctionCallNode) and isinstance(ub, FunctionCallNode):
+        if ua.func.lower() != ub.func.lower() or len(ua.args) != len(ub.args):
+            return False
+        verdicts = [core.same_value(x, y, ctx) for x, y in zip(ua.args, ub.args)]
+        if all(v is not None for v in verdicts):
+            return all(verdicts)
+        return _exprs_match(ua, ub, ctx)
+    if type(ua) is not type(ub):
+        return False
+    return _exprs_match(ua, ub, ctx)
+
+
 def _core_premises(ctx: ProofContext, known: list[HypothesisInfo], chain: Optional[ExprNode]) -> list:
     out = []
     for prop in [h.proposition for h in known] + ([chain] if chain is not None else []):
@@ -469,7 +510,7 @@ def _undischarged(node: ExprNode, ctx: ProofContext, known: list[HypothesisInfo]
     `exists δ, δ > 0 and (forall x, …) [witness: ε/3]` after a subproof that
     proved the `forall x` part asks only for ε/3 > 0: the quantified part is
     the subproof's, not a leap.  None when nothing is left."""
-    if any(_exprs_match(node, h.proposition, ctx) for h in known):
+    if any(_matches(node, h.proposition, ctx) for h in known):
         return None
     if isinstance(node, BinaryOpNode) and node.op.lower() in ("and", "\\land", "/\\"):
         left, right = _undischarged(node.left, ctx, known), _undischarged(node.right, ctx, known)
