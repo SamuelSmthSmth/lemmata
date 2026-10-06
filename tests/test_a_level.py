@@ -204,6 +204,29 @@ ODD_CASE = """\
 """
 
 
+class TestSeveralNamesInAQuantifier:
+    def test_a_claim_about_two_integers(self, checker: ProofChecker):
+        report = check(checker, """\
+Theorem: "The sum of two odd numbers is even"
+Claim: forall m, n : Int, Odd(m) and Odd(n) => Even(m + n)
+Proof:
+    Given m, n : Int
+    Assume hm: Odd(m)
+    Assume hn: Odd(n)
+    Obtain a : Int such that m = 2 * a + 1 from hm
+    Obtain b : Int such that n = 2 * b + 1 from hn
+    Step: m + n = 2 * (a + b + 1)
+    Therefore Even(m + n)
+QED
+""")
+        assert report.is_valid and not report.has_warnings, report.format_report()
+
+    def test_each_name_is_bound(self, checker: ProofChecker):
+        assert not check(checker, "Therefore forall a, b : Int, a * b > a\n").is_valid
+        assert not check(checker, "Therefore ∀ a, b > 0, a - b > 0\n").is_valid
+        assert check(checker, "Therefore ∀ ε, δ > 0, ε * δ > 0\n").is_valid
+
+
 class TestCaseCoverage:
     def test_complete_cases_are_plainly_valid(self, checker: ProofChecker):
         report = check(checker, CASES.format(odd=ODD_CASE))
