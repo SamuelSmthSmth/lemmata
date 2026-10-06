@@ -35,7 +35,9 @@ There's no type theory to learn first, unlike Lean or Coq. When you're ready for
 - **Algebra** with SymPy, and **logic and inequalities** with Z3. A failing step comes back with its reason and, where one exists, a concrete counterexample.
 - **Every proof method A Level and the notes use:** deduction, cases (it checks they cover everything), contradiction (√2 is irrational, as the textbook writes it), counterexample, and induction. Induction works from any starting value, and with recurrences that use several earlier terms.
 - **Domains:** a division or square root that nothing rules out is flagged.
+- **Whether each line follows, not just whether it's true.** At the *Course* level (the default), a true line that skips the argument is refused as too big a step: a whole ε–δ statement at once, or a divisibility settled by checking remainders. The message says what to write instead. *Exam* also wants a derivative, limit or sum worked; *Off* checks only truth.
 - **Show your working (optional):** a step that skips what an exam question wants to see, like the product rule or a sum's closed form, gets a warning naming it.
+- **What each line used, and what the checker did:** arcs in the auditor from each line to the lines it rests on, and a Trace tab with every question put to SymPy and Z3 (`lemmata --trace` on the command line).
 - **The proof state at every line:** the variables, the hypotheses, and what each step relied on.
 
 What it can and can't do is listed exactly, and checked on every change, in the [capability matrix](USER_GUIDE.md#9-capability-matrix-what-parses-verifies-and-refuses).
