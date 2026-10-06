@@ -340,6 +340,10 @@ class _Builder:
             return App(fn, tuple(self.term(a) for a in node.args), _FROM_MATH[result])
         if fn.lower() in _BINDERS or info is not None:
             raise _Outside
+        if fn in self.ctx.structure_names():
+            # A group's op or inv, a ring's add: they mean what the structure's
+            # axioms say, which the core does not state yet.  Outside.
+            raise _Outside
         # Any other function (sin, sqrt, a function the notes name f): an
         # uninterpreted real value.  The tactics know nothing about it, so this
         # is always sound; a line that needs a fact about it (sqrt(x)^2 = x)
@@ -411,11 +415,15 @@ _SYMPY_FUNCTIONS = {
     "ln": ("log", 1), "sinh": ("sinh", 1), "cosh": ("cosh", 1), "tanh": ("tanh", 1),
     "arctan": ("atan", 1), "atan": ("atan", 1), "arcsin": ("asin", 1), "asin": ("asin", 1),
     "arccos": ("acos", 1), "acos": ("acos", 1),
+    "min": ("Min", 2), "max": ("Max", 2),
 }
 
 
-#: Functions SymPy reads as polynomial operations on symbols: numbers only.
-_NUMBERS_ONLY = {"factorial", "gcd", "lcm", "binomial", "floor", "ceiling", "ceil"}
+#: Functions SymPy reads as polynomial operations on symbols, so numbers only:
+#: SymPy's gcd and lcm of two symbols are the polynomial gcd (1) and lcm (n*k),
+#: false for integers.  Its factorial, binomial, floor and ceiling of a symbol
+#: are the true functions, and stay interpreted.
+_NUMBERS_ONLY = {"gcd", "lcm"}
 
 
 def has_division(term: Term) -> bool:

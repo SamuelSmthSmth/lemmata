@@ -233,7 +233,7 @@ class Kernel:
         elaborated = core.elaborate(goal, ctx)
         if elaborated is None:
             return None
-        return tactics.weakest(elaborated.prop, _core_premises(ctx, known, self._chain))
+        return tactics.weakest(elaborated.prop, _core_premises(ctx, known, self._chain, goal))
 
     @staticmethod
     def _by_cases(claim: ExprNode, ctx: ProofContext) -> Optional[str]:
@@ -399,13 +399,78 @@ def _matches(a: ExprNode, b: ExprNode, ctx: ProofContext) -> bool:
     return _exprs_match(ua, ub, ctx)
 
 
-def _core_premises(ctx: ProofContext, known: list[HypothesisInfo], chain: Optional[ExprNode]) -> list:
+def _core_premises(
+    ctx: ProofContext, known: list[HypothesisInfo], chain: Optional[ExprNode], goal: Optional[ExprNode] = None
+) -> list:
+    """What a line could see, as core propositions.  A universal fact is
+    outside the core, so it is used through its instances at the goal's own
+    terms (`forall x, f(x) > 0` gives `f(2) > 0` for a goal about f(2))."""
     out = []
-    for prop in [h.proposition for h in known] + ([chain] if chain is not None else []):
-        elaborated = core.elaborate(prop, ctx)
-        if elaborated is not None:
-            out.append(elaborated.prop)
+    props = [h.proposition for h in known] + ([chain] if chain is not None else [])
+    terms = _goal_terms(goal, ctx) if goal is not None else []
+    for prop in props:
+        candidates = [prop]
+        if isinstance(prop, QuantifierNode) and prop.quantifier == "forall" and terms:
+            candidates = _instances(prop, terms, ctx)
+        for candidate in candidates:
+            elaborated = core.elaborate(candidate, ctx)
+            if elaborated is not None:
+                out.append(elaborated.prop)
     return out
+
+
+#: Instances of one universal fact, at most.
+_INSTANCES = 40
+
+
+def _goal_terms(goal: ExprNode, ctx: ProofContext) -> list[tuple[ExprNode, "core.Ty"]]:
+    """The terms a universal fact may be instantiated at: the goal's variables
+    and the arguments of its applications (k and k + 1 for u(k + 1) = 2u(k) - 1),
+    each with its core type."""
+    found: dict[str, tuple[ExprNode, core.Ty]] = {}
+
+    def add(node: ExprNode) -> None:
+        term = core.elaborate_term(node, ctx)
+        if term is not None:
+            found.setdefault(str(node), (node, term.ty))
+
+    def walk(node: object) -> None:
+        if isinstance(node, (SymbolNode,)) or type(node).__name__ == "GreekSymbolNode":
+            add(node)  # type: ignore[arg-type]
+        if isinstance(node, FunctionCallNode):
+            for arg in node.args:
+                add(arg)
+        for child in _children(node):
+            walk(child)
+
+    walk(ctx.expand_user_functions(goal) or goal)
+    return list(found.values())
+
+
+def _instances(prop: QuantifierNode, terms: list, ctx: ProofContext, depth: int = 0) -> list[ExprNode]:
+    """*prop*'s instances at *terms* whose type fits the bound variable's, two
+    quantifiers deep.  A ground instance of a true universal is true, so this
+    adds nothing false: `forall n : Nat` is never instantiated at a real."""
+    from aether.core.types import normalize_type_name
+
+    try:
+        bound = core._FROM_MATH.get(normalize_type_name(prop.var_type), None) if prop.var_type else core.Ty.REAL
+    except Exception:  # noqa: BLE001 - a structure's carrier, a set: not a number type
+        bound = None
+    if bound is None:
+        return []
+    out: list[ExprNode] = []
+    for node, ty in terms:
+        if ty > bound:
+            continue
+        body = substitute_expr(prop.formula, prop.var, node)
+        if isinstance(body, QuantifierNode) and body.quantifier == "forall" and depth == 0:
+            out.extend(_instances(body, terms, ctx, depth=1))
+        else:
+            out.append(body)
+        if len(out) >= _INSTANCES:
+            break
+    return out[:_INSTANCES]
 
 
 def _instance(claim: ExprNode, witness: Optional[ExprNode]) -> ExprNode:

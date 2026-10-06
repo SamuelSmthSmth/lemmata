@@ -91,10 +91,41 @@ class TestTactics:
         assert tactic(ctx, "x^2 > 25", "x = x") is None
         assert tactic(ctx, "x > 1", "x > 0") is None
 
-    def test_a_remainder_argument_is_not_a_tactic(self):
-        # True for every integer, but only by checking remainders: no core
-        # tactic proves it, so the kernel keeps calling it what it is.
-        assert tactic(ctx_with(n="Int"), "MultipleOf(n^3 - n, 6)") is None
+    def test_a_remainder_argument_is_the_residues_tactic(self):
+        # True for every integer, but only by checking remainders: residues
+        # (strength 4) proves it, and nothing weaker does, so the levels that
+        # cap at 3 still refuse it as too big a step.
+        ctx = ctx_with(n="Int")
+        assert tactic(ctx, "MultipleOf(n^3 - n, 6)") == "residues"
+        g = elaborate(claim("MultipleOf(n^3 - n, 6)"), ctx)
+        assert weakest(g.prop, [], up_to=3) is None
+        assert tactic(ctx, "MultipleOf(n^2 + n + 1, 3)") is None  # false at n = 1
+
+    def test_residues_steps_aside_when_a_premise_mentions_the_variable(self):
+        assert tactic(ctx_with(n="Int"), "MultipleOf(n^3 - n, 6)", "n > 5") is None
+
+    def test_range_facts_of_standard_functions(self):
+        ctx = ctx_with(x="Real")
+        assert tactic(ctx, "exp(x) > 0") == "linarith"
+        assert tactic(ctx, "abs(sin(x)) <= 1") == "linarith"
+        assert tactic(ctx, "sqrt(x) >= 0", "x >= 0") == "linarith"
+        assert tactic(ctx, "sin(x) <= 0") is None
+
+    def test_a_square_root_is_non_negative_only_where_it_is_real(self):
+        # sqrt(x - 1) >= 0 fails at x = 0, where the root is not real: an
+        # unconditional sqrt >= 0 proved it (shadow mode caught it).
+        ctx = ctx_with(x="Real")
+        assert tactic(ctx, "sqrt(x - 1) >= 0") is None
+        assert tactic(ctx, "sqrt(x - 1) >= 0", "x >= 1") == "linarith"
+
+    def test_min_and_max_mean_what_they_say(self):
+        ctx = ctx_with(e="Real", d="Real")
+        assert tactic(ctx, "d <= e / 2", "e > 0", "d = min(1, e / 2)") == "linarith"
+
+    def test_simp_for_identities_of_standard_functions(self):
+        ctx = ctx_with(x="Real", n="Nat")
+        assert tactic(ctx, "cosh(x)^2 - sinh(x)^2 = 1") == "simp"
+        assert tactic(ctx, "factorial(n) = n * factorial(n - 1)") == "simp"
 
     def test_a_function_the_notes_name_proves_nothing_about_itself(self):
         assert tactic(ctx_with(x="Real"), "f(x)^2 = x", "x >= 0") is None
@@ -144,6 +175,35 @@ class TestTheKernelChangesNoVerdict:
         assert ProofChecker().check_source(SEVEN)[0].is_valid
         report = ProofChecker(kernel=level).check_source(SEVEN)[0]
         assert report.is_valid, report.format_report()
+
+
+class TestUniversalPremises:
+    """A universal fact is used through its instances at the goal's terms."""
+
+    def test_an_instance_at_the_goal(self):
+        from aether import ProofChecker
+
+        src = "Given f : Real -> Real\nAssume h: forall x : Real, f(x) > 0\nTherefore f(2) > 0\n"
+        line = ProofChecker(kernel="course").check_source(src)[0].results[-1]
+        assert line.status.value == "VALID" and line.backend == "Kernel: linarith", line.backend
+
+    def test_a_recurrence_at_k(self):
+        from aether import ProofChecker
+
+        src = (
+            "Given u : Nat -> Int\nAssume rec: forall n : Nat, n >= 1 => u(n + 1) = 2 * u(n) - 1\n"
+            "Let k : Nat\nAssume hk: k >= 1\nTherefore u(k + 1) = 2 * u(k) - 1\n"
+        )
+        line = ProofChecker(kernel="course").check_source(src)[0].results[-1]
+        assert line.status.value == "VALID" and line.backend == "Kernel: linarith", line.backend
+
+    def test_a_natural_quantifier_is_not_instantiated_at_a_real(self):
+        from aether.kernel.review import _instances
+
+        ctx = ctx_with(x="Real", k="Nat")
+        fact = claim("forall n : Nat, n >= 0")
+        terms = [(claim("x = x").left, Ty.REAL), (claim("k = k").left, Ty.NAT)]
+        assert [str(i) for i in _instances(fact, terms, ctx)] == ["k >= 0"]
 
 
 class TestTheKernelUsesTheCore:

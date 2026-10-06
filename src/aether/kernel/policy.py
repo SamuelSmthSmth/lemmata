@@ -30,6 +30,7 @@ INDUCTION = Fragment("induction", 0, "the induction its blocks set up")
 RING = Fragment("ring", 1, "algebra on the two sides")
 FIELD = Fragment("field", 1, "algebra with division, where the denominators are not 0")
 SUBST = Fragment("subst", 1, "substituting an equation in scope, then algebra")
+SIMP = Fragment("simp", 1, "an identity of the standard functions")
 LINEAR = Fragment("linarith", 2, "linear arithmetic and logic")
 NONLINEAR = Fragment(
     "nlinarith",
@@ -57,8 +58,10 @@ TACTIC_FRAGMENTS: dict[str, Fragment] = {
     "ring": RING,
     "field": FIELD,
     "subst": SUBST,
+    "simp": SIMP,
     "linarith": LINEAR,
     "nlinarith": NONLINEAR,
+    "residues": RESIDUES,
 }
 
 
