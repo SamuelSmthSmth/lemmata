@@ -1637,6 +1637,27 @@ class ProofChecker:
             sub_results=sub_results,
         )
 
+    def _closure_refused(
+        self, target: ExprNode, backend: str, message: str, ctx: ProofContext, qed_node: QEDNode
+    ) -> Optional[StepResult]:
+        """Under the kernel, QED closes the goal only if the proof reached it (see ``Kernel.review_closure``)."""
+        if self.kernel is None:
+            return None
+        refusal = self.kernel.review_closure(target, backend, message, ctx)
+        if refusal is None:
+            return None
+        vars_snap, hyps_snap = self._snapshot(ctx)
+        return StepResult(
+            statement=qed_node,
+            line=qed_node.line,
+            status=StepStatus.INVALID,
+            message=refusal[1],
+            backend=refusal[0],
+            scope_depth=0,
+            active_variables=vars_snap,
+            active_hypotheses=hyps_snap,
+        )
+
     def _verify_qed_claim(
         self,
         claim: ExprNode,
@@ -1798,6 +1819,9 @@ class ProofChecker:
             # Check target via SymPy (if equality) or Z3/Logic
             if isinstance(target, RelationNode) and canonical_rel(target.op) == "=":
                 alg_res = verify_algebraic_equality(target.left, target.right, ctx)
+                refused = self._closure_refused(target, "SymPy", alg_res.message, ctx, qed_node) if alg_res.valid else None
+                if refused is not None:
+                    return refused
                 if alg_res.valid:
                     return StepResult(
                         statement=qed_node,
@@ -1811,6 +1835,9 @@ class ProofChecker:
                     )
 
             log_res = verify_entailment(target, ctx)
+            refused = self._closure_refused(target, log_res.backend, log_res.message, ctx, qed_node) if log_res.valid else None
+            if refused is not None:
+                return refused
             if log_res.valid:
                 return StepResult(
                     statement=qed_node,

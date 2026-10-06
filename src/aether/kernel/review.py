@@ -14,6 +14,19 @@ changes what they are allowed to see and what their answer means:
    oversized line is one finding, not a cascade.
 3. **Evidence.**  A line Z3 settled names the premises it used, from the
    unsat core (``evidence``), so the audit reads "linarith, from h1".
+
+Stage 2 adds the structural rules:
+
+4. **Goal closure.**  QED no longer decides the claim: once its `forall`s
+   and `=>`s are matched to the proof's `Given`s and `Assume`s, what is left
+   must be something the level would accept as a line (``review_closure``).
+5. **The case rule.**  A conclusion that every case of a complete split
+   showed is accepted by or-elimination ("By cases: …"), not by a solver.
+6. **Working, recognised.**  Peeling the last term off a sum and replacing
+   a sum by what the inductive hypothesis says of it are the working an
+   induction shows, not evaluations; and a line the engine settled by
+   checking remainders is classified by the simpler argument when the
+   premises it could see already give it.
 """
 
 from __future__ import annotations
@@ -150,9 +163,14 @@ class Kernel:
         obligation = _instance(claim, stmt.witness)
         allowed = premises.select(cited, ctx, is_definition)
         self._chain = chain_fact(ctx)
+        by_cases = self._by_cases(claim, ctx)
         with premises.restricted(ctx, allowed):
             result = check(target, ctx)
         result = replace(result, statement=stmt)
+        if by_cases is not None and result.status.value != "INVALID":
+            # Or-elimination: each case showed the claim, and the cases cover
+            # every possibility.  The rule settles it; no solver decides it.
+            return replace(result, message=by_cases, backend="Kernel: cases")
         before_, after_ = (claim.left, claim.right) if isinstance(claim, RelationNode) else (None, None)
         witnessed = (
             (claim.formula, claim.var, _witness_value(claim, stmt.witness))
@@ -182,7 +200,7 @@ class Kernel:
         if result.status.value == "INVALID":
             return self._missing_premise(result, obligation, cited, ctx) if cited else result
 
-        fragment = self._fragment(result, obligation, before, after, ctx, allowed, witnessed)
+        fragment = self._fragment(result.backend or "", result.message, obligation, before, after, ctx, allowed, witnessed)
         used: Optional[list[object]] = None
         if fragment.strength >= policy.LINEAR.strength and fragment.tactic in ("linarith", "nlinarith", "auto"):
             used = evidence.premises_used(obligation, allowed, ctx, chain=self._chain)
@@ -209,6 +227,44 @@ class Kernel:
         if used and not cited:
             message = f"{message.rstrip('.')} (from {self.names(used)})."
         return replace(result, message=message, backend=f"Kernel: {fragment.tactic}")
+
+    @staticmethod
+    def _by_cases(claim: ExprNode, ctx: ProofContext) -> Optional[str]:
+        """The case rule's message, if *claim* is what every case of a complete split showed."""
+        frame = ctx.current_frame
+        if not frame.cases or not frame.cases_exhaustive:
+            return None
+        if not all(_exprs_match(shown, claim, ctx) for _, shown in frame.cases):
+            return None
+        conditions = ", ".join(str(c) for c, _ in frame.cases)
+        return f"By cases: {claim} holds in each case ({conditions}), and the cases cover every possibility."
+
+    def review_closure(self, target: ExprNode, backend: str, message: str, ctx: ProofContext) -> Optional[tuple[str, str]]:
+        """QED as goal closure: what is left of the claim must already be shown.
+
+        After the claim's `forall`s and `=>`s are matched to the proof's
+        `Given`s and `Assume`s, *target* is what the proof had to reach.  The
+        engine settled it (by *backend*); the kernel accepts that only if it is
+        a step the level would allow as a line of the proof.  A bare `QED`
+        cannot decide a whole quantified claim, a divisibility by remainders,
+        or anything else no line of the proof shows.  Returns None to accept,
+        or the backend and message of the refusal."""
+        self._chain = chain_fact(ctx)
+        known = ctx.all_hypotheses()
+        before, after = (target.left, target.right) if isinstance(target, RelationNode) else (None, None)
+        fragment = self._fragment(backend, message, target, before, after, ctx, known, None)
+        if self.policy.allows(fragment, "deduce"):
+            return None
+        if fragment.tactic == "calculus.eval":
+            why = fragment.advice[0].upper() + fragment.advice[1:]
+        else:
+            why = f"Deciding it here needs {fragment.needs}. {fragment.advice}".rstrip()
+        return (
+            f"Kernel: {fragment.tactic}",
+            f"QED: the proof never shows '{target}', which the claim needs, and QED does not "
+            f"prove it for you at the {self.policy.name} level. {why} Then finish with a line "
+            f"that states it.",
+        )
 
     def _missing_premise(
         self,
@@ -237,7 +293,8 @@ class Kernel:
 
     def _fragment(
         self,
-        result: "StepResult",
+        backend: str,
+        message: str,
         obligation: ExprNode,
         before: Optional[ExprNode],
         after: Optional[ExprNode],
@@ -245,16 +302,27 @@ class Kernel:
         known: list[HypothesisInfo],
         witnessed: Optional[tuple[ExprNode, str, ExprNode]],
     ) -> Fragment:
-        """Which kind of reasoning settled the line."""
-        backend = result.backend or ""
+        """Which kind of reasoning settled the line.
+
+        The engine tries its routes in a fixed order, so the one that answered
+        is not always the simplest that would have: `Even(n^2 + n)` right after
+        `n^2 + n = 2 * (2k^2 + k)` is settled by checking remainders, though it
+        follows from that line directly.  A remainder check that the solver can
+        reproduce from the premises the line could see is classified by that
+        argument instead."""
         if backend == "Induction":
             return policy.INDUCTION
         if backend == "Residues":
-            return policy.RESIDUES
-        if result.message.startswith("Verified from established hypothesis"):
+            if evidence.premises_used(obligation, known, ctx, chain=self._chain) is None:
+                return policy.RESIDUES
+            backend = "Z3"
+        if message.startswith("Verified from established hypothesis"):
             return policy.HYPOTHESIS
         if before is not None and after is not None:
-            gap = working_gap(before, after, ctx)
+            # A sum or derivative replaced by what an equation in scope says it
+            # is (the inductive hypothesis, usually) is substitution, not an
+            # evaluation: rewrite with those equations before looking for a gap.
+            gap = working_gap(_rewrite_with(before, known), after, ctx)
             if gap:
                 return policy.evaluation(gap)
         if backend.startswith("SymPy") and backend != "SymPy+Logic":
@@ -288,6 +356,88 @@ def _witness_value(claim: QuantifierNode, witness: ExprNode) -> ExprNode:
     if isinstance(witness, RelationNode) and isinstance(witness.left, SymbolNode) and witness.left.name == claim.var:
         return witness.right
     return witness
+
+
+_OPERATORS = ("sum", "diff", "integrate", "lim")
+
+
+def _has_operator(node: ExprNode) -> bool:
+    from aether.core.ast import IntegralNode, LimitNode
+
+    if isinstance(node, (IntegralNode, LimitNode)):
+        return True
+    if isinstance(node, FunctionCallNode) and node.func.lower() in _OPERATORS:
+        return True
+    return any(_has_operator(c) for c in _children(node))
+
+
+def _rewrite_with(node: ExprNode, known: list[HypothesisInfo]) -> ExprNode:
+    """*node* as the working would rewrite it: a sum to `k + 1` peeled into the
+    sum to `k` plus its last term, then each side of an established relation
+    that holds a sum, derivative, integral or limit replaced by the other side
+    (an equation, or a bound: `ih: sum(…) <= 2 - 1/k` is used by replacing the
+    sum with its bound; whether the step's direction is right is the solver's
+    question, not this one)."""
+    node = _peel(node)
+    rules: dict[str, ExprNode] = {}
+    for h in known:
+        prop = h.proposition
+        if isinstance(prop, RelationNode) and prop.op in ("=", "==", "<", "<=", ">", ">="):
+            if _has_operator(prop.left) and not _has_operator(prop.right):
+                rules[str(prop.left)] = prop.right
+            elif _has_operator(prop.right) and not _has_operator(prop.left):
+                rules[str(prop.right)] = prop.left
+    if not rules:
+        return node
+    return _replace(node, rules)
+
+
+def _peel(node: ExprNode) -> ExprNode:
+    """`sum(r, a, k + 1, f)` is `sum(r, a, k, f) + f(k + 1)`: the step every
+    induction on a sum takes, written or not."""
+    if (
+        isinstance(node, FunctionCallNode)
+        and node.func.lower() == "sum"
+        and len(node.args) == 4
+        and isinstance(node.args[0], SymbolNode)
+        and isinstance(node.args[2], BinaryOpNode)
+        and node.args[2].op == "+"
+        and isinstance(node.args[2].right, NumberNode)
+        and node.args[2].right.value == "1"
+    ):
+        index, lower, upper, body = node.args
+        shorter = replace(node, args=[index, lower, upper.left, body])
+        return BinaryOpNode(op="+", left=shorter, right=substitute_expr(body, index.name, upper))
+    if not hasattr(node, "__dataclass_fields__"):
+        return node
+    changes: dict[str, object] = {}
+    for name in node.__dataclass_fields__:
+        value = getattr(node, name)
+        if isinstance(value, ExprNode):
+            new = _peel(value)
+            if new is not value:
+                changes[name] = new
+    return replace(node, **changes) if changes else node
+
+
+def _replace(node: ExprNode, rules: dict[str, ExprNode]) -> ExprNode:
+    hit = rules.get(str(node))
+    if hit is not None:
+        return hit
+    if not hasattr(node, "__dataclass_fields__"):
+        return node
+    changes: dict[str, object] = {}
+    for name in node.__dataclass_fields__:
+        value = getattr(node, name)
+        if isinstance(value, ExprNode):
+            new = _replace(value, rules)
+            if new is not value:
+                changes[name] = new
+        elif isinstance(value, list) and any(isinstance(v, ExprNode) for v in value):
+            new_list = [_replace(v, rules) if isinstance(v, ExprNode) else v for v in value]
+            if any(a is not b for a, b in zip(new_list, value)):
+                changes[name] = new_list
+    return replace(node, **changes) if changes else node
 
 
 def _undischarged(node: ExprNode, ctx: ProofContext, known: list[HypothesisInfo]) -> Optional[ExprNode]:
