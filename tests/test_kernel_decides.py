@@ -33,14 +33,15 @@ def test_no_tactic_and_every_premise_read_is_the_solver_alone(monkeypatch):
 
 
 def test_premises_the_core_cannot_read_leave_the_engine_to_decide():
-    # Group cancellation: the goal x = y is in the core, its premises (a
-    # group's axioms) are not.  No tactic can prove it, and that is no reason
-    # to doubt it.
+    # |h(5)| <= 1 is in the core; its premise, a definition's predicate
+    # (Bounded(h)), is not.  No tactic can prove it, and that is no reason to
+    # doubt it.  (Group cancellation used to be the example: the structure
+    # rules now show it.)
     source = (
-        "Assume Group(G, op, e, inv)\n"
-        "Given a, x, y : Real\n"
-        "Assume h1: op(a, x) = op(a, y)\n"
-        "Therefore x = y\n"
+        "Definition: Bounded(f) <=> forall x : Real, abs(f(x)) <= 1\n"
+        "Given h : Real -> Real\n"
+        "Assume Bounded(h)\n"
+        "Therefore abs(h(5)) <= 1\n"
     )
     result = last(source)
     assert result.status == last(source, kernel=None).status

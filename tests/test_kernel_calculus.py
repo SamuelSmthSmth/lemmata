@@ -155,3 +155,13 @@ def test_the_geometric_sum_needs_r_not_1_before_the_rules_show_it():
     assumed = ProofChecker(kernel="course").check_source(head + "Assume h: r != 1\n" + step)[0].results[-1]
     assert assumed.status.value == "VALID"
     assert "closed form, by induction" in assumed.backend
+
+
+def test_a_line_named_by_the_rules_keeps_its_premises_complete():
+    # The dependency audit reads a line's premises from the engine's algebra
+    # when its backend says that is where the verdict came from; the named
+    # rules' backends must count, or the proof graph loses every such line.
+    src = HEAD + "Assume h: x > 0\nStep: lim(x + 1, x, 2) = 3\nStep: diff(x^3, x) = 3*x^2"
+    for result in ProofChecker(kernel="course", dependencies=True).check_source(src)[0].results[-2:]:
+        assert result.backend.startswith("Kernel: ")
+        assert result.premises_complete, result.backend

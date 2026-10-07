@@ -60,7 +60,7 @@ from aether.core.ast import (
 from aether.engine.context import ChainError, HypothesisInfo, MonotonicityError, ProofContext, collect_free_symbols
 from aether.engine.logic import _exprs_match, chain_fact, substitute_expr
 from aether.engine.working import working_gap
-from aether.kernel import calculus, core, evidence, policy, premises, tactics
+from aether.kernel import calculus, core, evidence, policy, premises, structures, tactics
 from aether.kernel.policy import Fragment, Policy
 
 if TYPE_CHECKING:
@@ -246,10 +246,10 @@ class Kernel:
                 counterexample_dict=None,
             )
 
-        # A derivative or integral the kernel's own calculus rules showed is
+        # A line the kernel's own named rules (calculus, structures) showed is
         # named by them ("Kernel: product rule"); a refusal above keeps the
         # level's own name for what it refused (calculus.eval).
-        rule = _calculus_rule(how)
+        rule = _named_rule(how)
         if how == SOLVER:
             # Inside the core, every premise read, and no tactic proves it: the
             # solver's word alone.  Not refused (it may well be true), but not
@@ -262,7 +262,7 @@ class Kernel:
             )
         message = result.message
         if rule is not None and result.status.value == "VALID":
-            message = f"Shown by the kernel's own calculus rules ({rule}); SymPy agrees."
+            message = f"Shown by the kernel's own rules ({rule}); the solver agrees."
         if used and not cited:
             message = f"{message.rstrip('.')} (from {self.names(used)})."
         if how == PREMISES:
@@ -371,7 +371,7 @@ class Kernel:
             # evaluation: rewrite with those equations before looking for a gap.
             gap = working_gap(_rewrite_with(before, known), after, ctx)
             if gap:
-                return policy.evaluation(gap), _by_calculus(obligation, ctx)
+                return policy.evaluation(gap), _by_rules(obligation, ctx, known)
         # Only facts the line could see count as already established: by now
         # its own conclusion has been recorded too.
         if witnessed is not None:
@@ -389,9 +389,14 @@ class Kernel:
             tactic = tactics.weakest(elaborated.prop, _core_premises(ctx, known, self._chain, expanded))
             if tactic is not None:
                 return policy.TACTIC_FRAGMENTS[tactic], TACTIC
-            how = PREMISES if _unread_premises(ctx, known, self._chain, expanded) else SOLVER
+            if _unread_premises(ctx, known, self._chain, expanded):
+                # A premise the core cannot read (a group's axioms, say): the
+                # structure rules may still show the line.
+                how = _by_rules(expanded, ctx, known, otherwise=PREMISES)
+            else:
+                how = SOLVER
         else:
-            how = _by_calculus(expanded, ctx)
+            how = _by_rules(expanded, ctx, known)
         # Outside the core, or beyond its tactics: stage 1's reading of how the
         # engine settled it still holds the line to the level.
         if backend == "Residues":
@@ -407,19 +412,24 @@ class Kernel:
         return policy.LINEAR, how
 
 
-#: How a calculus line the kernel's own rules showed is marked: CALCULUS + the rules.
-CALCULUS = "calculus:"
+#: How a line the kernel's own named rules showed (calculus, structures) is
+#: marked: NAMED + the rules.
+NAMED = "rules:"
 
 
-def _by_calculus(goal: ExprNode, ctx: ProofContext) -> str:
+def _by_rules(goal: ExprNode, ctx: ProofContext, known: list[HypothesisInfo], otherwise: str = OUTSIDE) -> str:
     """A derivative or definite integral the kernel's rules show (``calculus``):
     decided by those rules, and named by them.  Otherwise outside the core."""
-    rules = calculus.verify(goal, ctx)
-    return CALCULUS + ", ".join(rules[:2]) if rules else OUTSIDE
+    with premises.restricted(ctx, known):
+        rules = calculus.verify(goal, ctx)
+    if rules:
+        return NAMED + ", ".join(rules[:2])
+    rule = structures.verify(goal, ctx, known)
+    return NAMED + rule if rule else otherwise
 
 
-def _calculus_rule(how: str) -> Optional[str]:
-    return how[len(CALCULUS) :] if how.startswith(CALCULUS) else None
+def _named_rule(how: str) -> Optional[str]:
+    return how[len(NAMED) :] if how.startswith(NAMED) else None
 
 
 def _matches(a: ExprNode, b: ExprNode, ctx: ProofContext) -> bool:

@@ -23,6 +23,18 @@ What changed between releases of Lemmata, newest first. The engine is the `aethe
   - **Still the solver's:** infinite series and `ρⁿ → 0` need a convergence or |ρ| < 1 premise, so they stay with the solver.
 - A line the rules do not reach (an integral up to a symbolic bound of a function like log) keeps the solver's verdict, as before. No verdict changes.
 
+### Groups, subgroups and rings by named rules
+
+- **Group identities by word reduction:** `Kernel: group axioms`.
+  - An element built from `op`, `inv` and the identity, in either notation (`op(a, b)` or `a * b`, `a^-1`), is reduced the way the group axioms allow. Two sides that reduce to the same word are equal in every group.
+  - No solver is asked.
+- **Hypotheses join in:** `Kernel: group axioms and hypotheses`.
+  - Equations, and ∀-statements such as a homomorphism's `f(op(x, y)) = star(f(x), f(y))`, count only at elements known to lie in the group.
+  - This covers cancellation, uniqueness of the identity, and the image-and-kernel proofs.
+- **Subgroup membership:** `Kernel: subgroup closure` or `normal subgroup`. A product of members, an inverse, the identity, or a conjugate in a normal subgroup.
+- **Rings and fields:** `Kernel: ring axioms` or `field axioms`. A field's `inv(x)` counts only where `x ≠ zero` is assumed.
+- **Traps stay refused:** "a group is abelian", `(ab)⁻¹ = a⁻¹b⁻¹` and `a²b² = (ab)²`, outside an abelian group.
+
 ### Honest counterexamples
 
 - **A counterexample is shown only when it is one.** The solver knows only what it is told about functions like `sin` or `arctan`, so it could call x = 2 a counterexample to `sin²x + cos²x ≥ 1`. Now the line is checked at those values with each function's real meaning first; if it holds there, the step says it could not be verified and that the solver's values are not a counterexample.
