@@ -109,15 +109,16 @@ way.
 `aether.core.lean_export.export_to_lean(source, *, sources=None, citations=None,
 file_path=None, namespace="Lemmata")` returns a `LeanExport` (`lean`, `rows`,
 `untranslated`, `to_dict()`): the proof as a Lean 4 + Mathlib skeleton, each
-step's proof a `sorry` with a comment naming the backend that checked it and a
-tactic to try. It raises `ParseError` like `check_source`. The UI runs it as the
+step's proof the Lean tactic for the rule the proof kernel checked it by, with
+`sorry` as the fallback (`first | (ring; done) | … | sorry`; the mapping is
+`_LEAN_TACTICS` in `lean_export.py`, and every attempt must prove or fail). It raises `ParseError` like `check_source`. The UI runs it as the
 `lean` job (`ui/engine_jobs.py`, server and Pyodide alike) behind
 `POST /api/export/lean`. **Every skeleton must compile:** `uv run python
 lean/generate.py` writes `lean/Generated.lean` from every example, pack entry,
 capability probe and Guide example, and the `lean` CI workflow compiles it
 against the Mathlib pinned in `lean/lakefile.toml` (there is no local Lean
 toolchain to rely on; push a `lean/**` branch to iterate). Raise Mathlib's
-`rev` and `lean/lean-toolchain` together.
+`rev` and `lean/lean-toolchain` together. The CI log also reports how many steps Lean proved (`--explain`: a fallback Lean's linter calls unused is a step its tactic proved); raise that number, never lower it.
 
 ### Data Structures Returned by `checker.check_source(source_text)`
 

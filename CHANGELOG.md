@@ -23,6 +23,13 @@ What changed between releases of Lemmata, newest first. The engine is the `aethe
   - **Still the solver's:** infinite series and `ρⁿ → 0` need a convergence or |ρ| < 1 premise, so they stay with the solver.
 - A line the rules do not reach (an integral up to a symbolic bound of a function like log) keeps the solver's verdict, as before. No verdict changes.
 
+### Show in Lean proves steps
+
+- **Each step now tries the Lean tactic for the rule Lemmata's kernel checked it by,** falling back to `sorry` only where that tactic can't finish it: `first | (ring; done) | … | sorry  -- Kernel: ring`.
+- **On every pinned proof, Lean itself proves 268 of the 440 steps it is asked to try.** The rest stay `sorry`, as before.
+- **Every skeleton still compiles** against the pinned Mathlib.
+- **Stays `sorry`:** calculus steps (Lean's `deriv` and `Tendsto` goals need lemmas, not one tactic) and steps that did not check.
+
 ### Quantified statements by natural deduction
 
 - **A quantified line is taken apart as a written proof would:** ∧-introduction (each part), ∀-introduction (a fresh variable), ⇒-introduction (assume the left, prove the right). Each leaf goes to a core tactic.
