@@ -262,7 +262,7 @@ class Kernel:
             )
         message = result.message
         if rule is not None and result.status.value == "VALID":
-            message = f"By the {rule}, checked by the kernel's own calculus rules; SymPy agrees."
+            message = f"Shown by the kernel's own calculus rules ({rule}); SymPy agrees."
         if used and not cited:
             message = f"{message.rstrip('.')} (from {self.names(used)})."
         if how == PREMISES:
