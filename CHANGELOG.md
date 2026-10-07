@@ -52,6 +52,7 @@ What changed between releases of Lemmata, newest first. The engine is the `aethe
 ### Honest counterexamples
 
 - **A counterexample is shown only when it is one.** The solver knows only what it is told about functions like `sin` or `arctan`, so it could call x = 2 a counterexample to `sin²x + cos²x ≥ 1`. Now the line is checked at those values with each function's real meaning first; if it holds there, the step says it could not be verified and that the solver's values are not a counterexample.
+- **Two more true lines are proved:** `3ⁿ ≥ 3` from `n ≥ 1` (a claim about powers gets a second try with the fact that a base of at least 1 only grows), and `∀x, x ≥ 0 ⇒ sqrt(x)² = x`, which was refused with the false counterexample x = 0.
 - **`floor`, `ceiling` and `n!` are understood:** `floor(x) ≤ x`, `ceiling(x) ≥ x`, `n! ≥ 1` and `n! ≥ n` are proved, where before they were refused with counterexamples that were wrong (x = −1, n = 0).
 
 ## 0.3.0 (2026-10-06)

@@ -53,7 +53,6 @@ def test_false_claims_keep_their_real_counterexample(source, counterexample):
     [
         "Let x : Real\nStep: sin(x)^2 + cos(x)^2 >= 1",
         "Let x : Real\nStep: arctan(x) < 2",
-        "Let n : Nat\nAssume n >= 1\nStep: 3^n >= 3",
     ],
 )
 def test_a_model_at_which_the_claim_holds_is_not_a_counterexample(source):
@@ -61,3 +60,17 @@ def test_a_model_at_which_the_claim_holds_is_not_a_counterexample(source):
     assert result.status.value == "INVALID"  # still unproved: the solver lacks a fact
     assert result.counterexample is None
     assert "is not a counterexample" in result.message
+
+
+def test_a_power_claim_gets_a_second_try_with_the_growth_fact():
+    # 3^n >= 3 from n >= 1 needs b^e >= b; stated for every power it slowed the
+    # divisibility inductions, so it is only tried when the first query fails.
+    assert last("Let n : Nat\nAssume n >= 1\nStep: 3^n >= 3").status.value == "VALID"
+    false = last("Let n : Nat\nStep: 3^n >= 3")
+    assert false.status.value == "INVALID" and false.counterexample.startswith("n=0")
+
+
+def test_a_square_root_under_a_quantifier_depends_on_its_variable():
+    assert last("Therefore forall x : Real, (x >= 0 => sqrt(x)^2 = x)").status.value == "VALID"
+    unguarded = last("Therefore forall x : Real, sqrt(x)^2 = x")
+    assert unguarded.status.value == "INVALID"
