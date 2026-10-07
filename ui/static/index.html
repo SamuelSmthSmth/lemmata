@@ -403,7 +403,7 @@
 
     <wa-dialog id="lean-dialog" class="lean-dialog" label="Show in Lean" light-dismiss>
       <div class="lean-body">
-        <p class="lean-lede">Your proof stated in Lean&nbsp;4 with Mathlib, line by line. Each <code>sorry</code> is a step left for Lean&rsquo;s tactics; the comment beside it says how <span data-site-name>Lemmata</span> checked it.</p>
+        <p class="lean-lede">Your proof stated in Lean&nbsp;4 with Mathlib, line by line. Each step tries the Lean tactic for the rule <span data-site-name>Lemmata</span> checked it by, and falls back to <code>sorry</code> where that tactic cannot finish it; the comment names the rule.</p>
         <p id="lean-untranslated" class="lean-untranslated" hidden></p>
         <div id="lean-table" class="lean-table" role="table" aria-label="Your proof beside its Lean" aria-busy="false" tabindex="0">
           <div class="lean-row lean-row--head" role="row">
