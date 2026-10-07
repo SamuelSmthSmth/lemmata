@@ -60,7 +60,7 @@ from aether.core.ast import (
 from aether.engine.context import ChainError, HypothesisInfo, MonotonicityError, ProofContext, collect_free_symbols
 from aether.engine.logic import _exprs_match, chain_fact, substitute_expr
 from aether.engine.working import working_gap
-from aether.kernel import calculus, core, evidence, policy, premises, structures, tactics
+from aether.kernel import calculus, core, evidence, logic_rules, policy, premises, structures, tactics
 from aether.kernel.policy import Fragment, Policy
 
 if TYPE_CHECKING:
@@ -424,7 +424,7 @@ def _by_rules(goal: ExprNode, ctx: ProofContext, known: list[HypothesisInfo], ot
         rules = calculus.verify(goal, ctx)
     if rules:
         return NAMED + ", ".join(rules[:2])
-    rule = structures.verify(goal, ctx, known)
+    rule = structures.verify(goal, ctx, known) or logic_rules.verify(goal, ctx, known)
     return NAMED + rule if rule else otherwise
 
 
