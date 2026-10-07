@@ -2,7 +2,7 @@
 
 They read core terms (``core``) only.  ``weakest`` tries them in order of
 strength and names the first that proves the goal from the premises given.
-Inside the typed core that answer is the verdict (stage 3, ``review``): a line
+Inside the typed core that answer is the verdict (``review``): a line
 passes because a named tactic proved it, and the audit says which:
 
 | tactic      | decides                                                   | strength |

@@ -1,4 +1,4 @@
-"""Stage 3 of the proof kernel: inside the typed core, the tactics decide.
+"""The proof kernel decides: inside the typed core, the tactics give the verdict.
 
 A line inside the core passes only when a named tactic proves it from the
 premises it could see.  When none does, the kernel either defers to the engine
