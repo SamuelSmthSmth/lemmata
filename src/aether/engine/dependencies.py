@@ -64,6 +64,22 @@ if TYPE_CHECKING:
 #: Backends whose verdict can come from ``verify_algebraic_equality`` (the kernel
 #: renames them by fragment); one that did leaves its sources on the context.
 _ALGEBRA_BACKENDS = {"SymPy", "Kernel: ring", "Kernel: calculus.eval"}
+def _algebra_backend(backend: str) -> bool:
+    """Whether *backend* can have come from ``verify_algebraic_equality``: one
+    of the above, or the kernel's named rules (``Kernel: product rule``,
+    ``Kernel: group axioms``), which rename a line the engine's algebra
+    checked too.  When it did, its sources are on the context."""
+    if backend in _ALGEBRA_BACKENDS:
+        return True
+    if not backend.startswith("Kernel: "):
+        return False
+    from aether.kernel.calculus import RULES as CALCULUS_RULES
+    from aether.kernel.structures import RULES as STRUCTURE_RULES
+
+    names = backend[len("Kernel: ") :].split(", ")
+    return all(n in CALCULUS_RULES or n in STRUCTURE_RULES for n in names)
+
+
 #: Backends whose verdict came from ``verify_induction_schema``.
 _INDUCTION_BACKENDS = {"Induction", "Kernel: induction"}
 #: How ``verify_entailment`` says it matched an established fact.
@@ -229,7 +245,7 @@ class Dependencies:
             if source is not None:
                 found.append(self.describe(source, ctx, state))
                 complete = True
-        elif result.backend in _ALGEBRA_BACKENDS and ctx.algebra_sources is not None:
+        elif _algebra_backend(result.backend) and ctx.algebra_sources is not None:
             found.extend(self.describe(s, ctx, state) for s in ctx.algebra_sources)
             complete = True
         elif result.backend in _INDUCTION_BACKENDS and ctx.induction_sources:

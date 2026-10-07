@@ -44,7 +44,7 @@ def sources():
 def run(item):
     key, src = item
     from aether import ParseError, ProofChecker
-    from aether.kernel import calculus, core, review, tactics
+    from aether.kernel import calculus, core, review, structures, tactics
 
     rows = []
     original = review.Kernel._review
@@ -57,14 +57,19 @@ def run(item):
         el = core.elaborate(goal, ctx)
         verdict = None
         if el is None:
-            # Outside the core: a derivative or integral the calculus rules show.
-            rules = calculus.verify(goal, ctx)
+            # Outside the core: a line the named rules (calculus, structures) show.
+            rule = structures.verify(goal, ctx, allowed)
+            rules = calculus.verify(goal, ctx) or ([rule] if rule else None)
             if rules:
-                verdict = "calculus: " + ", ".join(rules)
+                verdict = "rules: " + ", ".join(rules)
         if el is not None:
             verdict = tactics.weakest(el.prop, review._core_premises(ctx, allowed, self._chain, goal))
             if verdict is None:
-                verdict = "premises outside" if review._unread_premises(ctx, allowed, self._chain, goal) else "none"
+                if review._unread_premises(ctx, allowed, self._chain, goal):
+                    rule = structures.verify(goal, ctx, allowed)
+                    verdict = "rules: " + rule if rule else "premises outside"
+                else:
+                    verdict = "none"
         rows.append((key, result.line, result.status.value, result.backend, verdict, str(goal)[:100], result.message[:120]))
         return original(self, result, obligation, kind, cited, allowed, ctx, before, after, witnessed)
 
@@ -89,8 +94,8 @@ if __name__ == "__main__":
     for key, line, status, backend, verdict, goal, msg in rows:
         if verdict is None:
             c["outside the core"] += 1
-        elif verdict.startswith("calculus: ") and status != "INVALID":
-            c["calculus rules agree"] += 1
+        elif verdict.startswith("rules: ") and status != "INVALID":
+            c["named rules agree"] += 1
         elif verdict == "premises outside":
             c["premises outside the core"] += 1
         elif status == "INVALID" and verdict != "none":

@@ -64,6 +64,10 @@ _ORDER = (
 )
 
 
+#: The rules this module names (what a line's backend reads, after "Kernel: ").
+RULES = _ORDER + ("calculus rules",)
+
+
 class _Unproven(Exception):
     """The rules do not reach this: leave the line to the engine."""
 
