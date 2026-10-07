@@ -12,6 +12,11 @@ What changed between releases of Lemmata, newest first. The engine is the `aethe
 - A line resting on facts the rules cannot read (a group's axioms, `Bounded(h)`) keeps the solver's verdict, and says so.
 - *Off* is unchanged.
 
+### Calculus by named rules
+
+- **At a level, a derivative or a definite integral is checked by the kernel's own rules,** and the badge names them: `Kernel: power rule`, `product rule`, `quotient rule`, `chain rule`, `FTC`. The kernel differentiates by those rules itself, never by asking SymPy. For an integral, SymPy may *propose* an antiderivative, but the kernel checks it (its derivative is the integrand, and the integrand is continuous on the interval) before using F(b) − F(a). 37 of the course packs' derivative and integral lines are now checked this way.
+- A line the rules do not reach (an integral up to a symbolic bound of a function like log) keeps the solver's verdict, as before. No verdict changes.
+
 ### Honest counterexamples
 
 - **A counterexample is shown only when it is one.** The solver knows only what it is told about functions like `sin` or `arctan`, so it could call x = 2 a counterexample to `sin²x + cos²x ≥ 1`. Now the line is checked at those values with each function's real meaning first; if it holds there, the step says it could not be verified and that the solver's values are not a counterexample.
