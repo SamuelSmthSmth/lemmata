@@ -1865,7 +1865,20 @@ def _lean_attempts(backend: str, s: StatementNode, algebra: Optional[str]) -> li
     if any(r in _INTROS for r in rules):
         # ∀/⇒-introduction: take the binders and hypotheses apart, then the leaf.
         tactics = [f"(intros; {t})" for t in tactics]
-    return tactics
+    return [_closing(t) for t in tactics]
+
+
+#: Tactics that either prove the goal or fail.  The rest can succeed with the
+#: goal still open (`ring` falls back to `ring_nf`, `field_simp` and `simp`
+#: make progress), which `first` would take as done: they get `; done`.
+_CLOSES = frozenset({"linarith", "nlinarith", "positivity", "omega", "decide", "assumption"})
+
+
+def _closing(tactic: str) -> str:
+    if tactic in _CLOSES:
+        return tactic
+    inner = tactic[1:-1] if tactic.startswith("(") and tactic.endswith(")") else tactic
+    return f"({inner}; done)"
 
 
 #: Calls whose steps no one-word tactic proves.

@@ -33,10 +33,10 @@ theorem even_square_theorem :
   obtain ⟨k, h5⟩ : ∃ k : ℤ, n = 2 * k := by
     sorry  -- from h1
   have s6 : n ^ 2 = 2 * (2 * k ^ 2) := by
-    calc n ^ 2 = (2 * k) ^ 2 := by first | (subst_vars; ring) | ring | sorry  -- Kernel: subst
-      _ = 4 * k ^ 2 := by first | ring | sorry  -- Kernel: ring
-      _ = 2 * (2 * k ^ 2) := by first | ring | sorry  -- Kernel: ring
-  have s9 : ∃ m : ℤ, n ^ 2 = 4 * m := ⟨(k ^ 2 : ℤ), by first | (subst_vars; ring) | ring | sorry⟩  -- Kernel: subst
+    calc n ^ 2 = (2 * k) ^ 2 := by first | (subst_vars; ring; done) | (ring; done) | sorry  -- Kernel: subst
+      _ = 4 * k ^ 2 := by first | (ring; done) | sorry  -- Kernel: ring
+      _ = 2 * (2 * k ^ 2) := by first | (ring; done) | sorry  -- Kernel: ring
+  have s9 : ∃ m : ℤ, n ^ 2 = 4 * m := ⟨(k ^ 2 : ℤ), by first | (subst_vars; ring; done) | (ring; done) | sorry⟩  -- Kernel: subst
   have s10 : (4 : ℤ) ∣ n ^ 2 := by
     first | assumption | sorry  -- Kernel: hypothesis
   exact s10
@@ -129,8 +129,8 @@ QED
     lean = body(source)
     assert "theorem left_cancellation {G : Type*} [Group G] :" in lean
     assert "∀ a : G, ∀ u : G, ∀ v : G, a * u = a * v → u = v := by" in lean
-    assert "calc u = a⁻¹ * (a * u) := by first | group | sorry  -- Kernel: group axioms" in lean
-    assert ":= by first | simp_all | (simp only [mul_assoc] at *; group) | sorry  -- Kernel: group axioms and hypotheses" in lean
+    assert "calc u = a⁻¹ * (a * u) := by first | (group; done) | sorry  -- Kernel: group axioms" in lean
+    assert ":= by first | (simp_all; done) | (simp only [mul_assoc] at *; group; done) | sorry  -- Kernel: group axioms and hypotheses" in lean
 
 
 def test_cases_split_with_rcases_and_bullets():
