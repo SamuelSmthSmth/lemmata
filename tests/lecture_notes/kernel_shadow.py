@@ -5,7 +5,7 @@
 For every chain link and deduction in the course packs and the proofs in the
 tests, with the kernel at scratch: what the engine said, and which core tactic
 (if any) proves the line from the premises it could see.  Inside the core the
-tactics decide (stage 3), so two lists matter:
+tactics decide, so two lists matter:
 
 - the tactics prove what the engine refused: a soundness alarm unless the
   engine refused for a reason that is not mathematics (an unknown label);

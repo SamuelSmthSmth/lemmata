@@ -28,7 +28,7 @@ Stage 2 adds the structural rules:
    checking remainders is classified by the simpler argument when the
    premises it could see already give it.
 
-Stage 3: inside the typed core, the tactics decide.
+Then the tactics decide, inside the typed core (after the paper's stage 3, the levels):
 
 7. **A line passes because a tactic proved it.**  The weakest core tactic that
    proves the line from the premises it could see is the verdict, and the
