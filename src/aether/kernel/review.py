@@ -60,7 +60,7 @@ from aether.core.ast import (
 from aether.engine.context import ChainError, HypothesisInfo, MonotonicityError, ProofContext, collect_free_symbols
 from aether.engine.logic import _exprs_match, chain_fact, substitute_expr
 from aether.engine.working import working_gap
-from aether.kernel import core, evidence, policy, premises, tactics
+from aether.kernel import calculus, core, evidence, policy, premises, tactics
 from aether.kernel.policy import Fragment, Policy
 
 if TYPE_CHECKING:
@@ -246,6 +246,10 @@ class Kernel:
                 counterexample_dict=None,
             )
 
+        # A derivative or integral the kernel's own calculus rules showed is
+        # named by them ("Kernel: product rule"); a refusal above keeps the
+        # level's own name for what it refused (calculus.eval).
+        rule = _calculus_rule(how)
         if how == SOLVER:
             # Inside the core, every premise read, and no tactic proves it: the
             # solver's word alone.  Not refused (it may well be true), but not
@@ -257,9 +261,14 @@ class Kernel:
                 backend="Kernel: solver only",
             )
         message = result.message
+        if rule is not None and result.status.value == "VALID":
+            message = f"By the {rule}, checked by the kernel's own calculus rules; SymPy agrees."
         if used and not cited:
             message = f"{message.rstrip('.')} (from {self.names(used)})."
-        backend = "Kernel: outside the core (premises)" if how == PREMISES else f"Kernel: {fragment.tactic}"
+        if how == PREMISES:
+            backend = "Kernel: outside the core (premises)"
+        else:
+            backend = f"Kernel: {rule or fragment.tactic}"
         return replace(result, message=message, backend=backend)
 
 
@@ -362,7 +371,7 @@ class Kernel:
             # evaluation: rewrite with those equations before looking for a gap.
             gap = working_gap(_rewrite_with(before, known), after, ctx)
             if gap:
-                return policy.evaluation(gap), OUTSIDE
+                return policy.evaluation(gap), _by_calculus(obligation, ctx)
         # Only facts the line could see count as already established: by now
         # its own conclusion has been recorded too.
         if witnessed is not None:
@@ -382,7 +391,7 @@ class Kernel:
                 return policy.TACTIC_FRAGMENTS[tactic], TACTIC
             how = PREMISES if _unread_premises(ctx, known, self._chain, expanded) else SOLVER
         else:
-            how = OUTSIDE
+            how = _by_calculus(expanded, ctx)
         # Outside the core, or beyond its tactics: stage 1's reading of how the
         # engine settled it still holds the line to the level.
         if backend == "Residues":
@@ -396,6 +405,21 @@ class Kernel:
         if _nonlinear(expanded, ctx):
             return policy.NONLINEAR, how
         return policy.LINEAR, how
+
+
+#: How a calculus line the kernel's own rules showed is marked: CALCULUS + the rules.
+CALCULUS = "calculus:"
+
+
+def _by_calculus(goal: ExprNode, ctx: ProofContext) -> str:
+    """A derivative or definite integral the kernel's rules show (``calculus``):
+    decided by those rules, and named by them.  Otherwise outside the core."""
+    rules = calculus.verify(goal, ctx)
+    return CALCULUS + ", ".join(rules[:2]) if rules else OUTSIDE
+
+
+def _calculus_rule(how: str) -> Optional[str]:
+    return how[len(CALCULUS) :] if how.startswith(CALCULUS) else None
 
 
 def _matches(a: ExprNode, b: ExprNode, ctx: ProofContext) -> bool:
