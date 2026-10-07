@@ -73,12 +73,24 @@ def generate() -> int:
         body = export.lean.splitlines()
         assert body[0] == "import Mathlib", name
         start = len(lines) + 1
-        lines.extend(body[1:])
+        lines.extend(_instrument(line) for line in body[1:])
         index.append({"name": name, "from": start, "to": len(lines)})
     OUT.write_text("\n".join(lines) + "\n", encoding="utf-8")
     INDEX.write_text(json.dumps(index, indent=1), encoding="utf-8")
     print(f"wrote {len(index)} skeletons, {len(lines)} lines, to {OUT.name}")
     return 0
+
+
+#: In Generated.lean only: a step whose tactic did not finish it reaches its
+#: fallback `sorry` through this trace, so the log counts the steps Lean left
+#: open.  The skeleton a student sees keeps the plain `| sorry`.
+OPEN = "lemmata:open"
+
+
+def _instrument(line: str) -> str:
+    if "first | " not in line or " | sorry" not in line or "`first |" in line:
+        return line
+    return line.replace(" | sorry", f' | (trace "{OPEN}"; sorry)', 1)
 
 
 def explain(log_path: str) -> int:
@@ -93,6 +105,12 @@ def explain(log_path: str) -> int:
         print(f"{owner}: line {line}: {match.group(3)}")
         print(f"    {generated[line - 1].strip()}")
     print(f"{errors} error(s)")
+    # A fallback Lean never reached is one its linter calls unused: the tactic
+    # before it proved the step.  Counted once per fallback.
+    attempted = sum(1 for line in generated if f'(trace "{OPEN}"; sorry)' in line)
+    unused = set(re.findall(rf'(Generated\.lean:\d+:\d+): warning: Unused tactic linter: `\(trace "{OPEN}"; sorry\)`', Path(log_path).read_text(encoding="utf-8")))
+    proved = len(unused)
+    print(f"steps Lean was asked to prove: {attempted}; proved by Lean: {proved}; left as sorry: {attempted - proved}")
     return 1 if errors else 0
 
 
