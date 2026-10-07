@@ -963,8 +963,9 @@ class LeanExporter:
     def export(self, doc: DocumentNode) -> LeanExport:
         self.emit("import Mathlib")
         self.emit("")
-        self.emit("/-! Each `sorry` is a step left for Lean's tactics to prove; the comment")
-        self.emit("    beside it says how the step was checked, and what to try. -/")
+        self.emit("/-! Each step tries the Lean tactic for the rule Lemmata's kernel checked it")
+        self.emit("    by (`first | ring | sorry`); where that tactic cannot finish it, the step")
+        self.emit("    falls back to `sorry`.  The comment beside it names the rule. -/")
         self.emit("")
         self.emit(f"namespace {self.namespace}")
         self.emit("")
@@ -1396,7 +1397,7 @@ class LeanExporter:
             text = expr.prop(s.rhs)
             name = self._fact_name(line)
             self.emit(f"{indent}have {name} : {text} := by", line)
-            self.emit(f"{indent}  sorry{self._hint(s, line)}", line)
+            self.emit(f"{indent}  {self._attempt(s, line)}{self._hint(s, line)}", line)
             return _Fact(name, text)
         if isinstance(s, SubProofNode):
             return self._subproof(s, scope, indent)
@@ -1485,10 +1486,10 @@ class LeanExporter:
             if s.claim.var_type in scope.carriers:
                 t = scope.carriers[s.claim.var_type]  # type: ignore[index]
             w = expr.term(s.witness)
-            self.emit(f"{indent}have {name} : {text} := ⟨({w} : {t}), by sorry⟩{self._hint(s, line)}", line)
+            self.emit(f"{indent}have {name} : {text} := ⟨({w} : {t}), by {self._attempt(s, line)}⟩{self._hint(s, line)}", line)
         else:
             self.emit(f"{indent}have {name} : {text} := by", line)
-            self.emit(f"{indent}  sorry{self._hint(s, line)}", line)
+            self.emit(f"{indent}  {self._attempt(s, line)}{self._hint(s, line)}", line)
         return _Fact(name, text)
 
     def _hyp_name(self, label: Optional[str], line: Optional[int]) -> str:
@@ -1531,7 +1532,7 @@ class LeanExporter:
                 text = _Expr(scope, self.untranslated, s.line).prop(node)
                 name = self._fact_name(s.line)
                 self.emit(f"{indent}have {name} : {text} := by", s.line)
-                self.emit(f"{indent}  sorry{self._hint(s, s.line)}", s.line)
+                self.emit(f"{indent}  {self._attempt(s, s.line)}{self._hint(s, s.line)}", s.line)
                 fact = _Fact(name, text)
                 left = right
             return fact, _Chain(links[-1][1])
@@ -1543,9 +1544,9 @@ class LeanExporter:
             e = _Expr(scope, self.untranslated, s.line)
             rhs = e.term(right, _P_REL + 1)
             if k == 0:
-                self.emit(f"{indent}  calc {e.term(head, _P_REL + 1)} {rel} {rhs} := by sorry{self._hint(s, s.line)}", s.line)
+                self.emit(f"{indent}  calc {e.term(head, _P_REL + 1)} {rel} {rhs} := by {self._attempt(s, s.line)}{self._hint(s, s.line)}", s.line)
             else:
-                self.emit(f"{indent}    _ {rel} {rhs} := by sorry{self._hint(s, s.line)}", s.line)
+                self.emit(f"{indent}    _ {rel} {rhs} := by {self._attempt(s, s.line)}{self._hint(s, s.line)}", s.line)
         return _Fact(name, whole_text), _Chain(links[-1][1])
 
     # -- blocks -----------------------------------------------------------------
@@ -1664,6 +1665,18 @@ class LeanExporter:
             f"| succ {k} ih => exact {step.name} {k} ih",
         ]
 
+    # -- step proofs ------------------------------------------------------------
+
+    def _attempt(self, s: StatementNode, line: Optional[int]) -> str:
+        """The step's proof: the Lean tactic for the rule the kernel checked it
+        by, falling back to `sorry` (``first | ring | sorry``), or `sorry` alone
+        when the step did not check or no one tactic does what the rule did."""
+        result = self.results.get(line) if line is not None else None
+        if result is None or getattr(result.status, "value", str(result.status)) == "INVALID":
+            return "sorry"
+        attempts = _lean_attempts(result.backend, s, self.algebra)
+        return "first | " + " | ".join(attempts) + " | sorry" if attempts else "sorry"
+
     # -- hints ------------------------------------------------------------------
 
     def _hint(self, s: StatementNode, line: Optional[int]) -> str:
@@ -1673,13 +1686,7 @@ class LeanExporter:
         status = getattr(result.status, "value", str(result.status))
         if status == "INVALID":
             return "  -- did not check"
-        backend = result.backend
-        tactic = _tactic_for(s, backend)
-        if tactic in ("ring", "ring_nf") and self.algebra in ("Group", "CommGroup"):
-            tactic = "group"
-        note = f"  -- {backend}"
-        if tactic:
-            note += f": try {tactic}"
+        note = f"  -- {result.backend}"
         if status == "WARNING":
             note += " (Lemmata warned about its domain)"
         if isinstance(s, DeduceNode) and s.justification:
@@ -1823,32 +1830,42 @@ def _alpha_normal(text: str) -> str:
     return re.sub(rf"(?<![\w']){re.escape(name)}(?![\w'])", "k", text)
 
 
-def _tactic_for(s: StatementNode, backend: str) -> Optional[str]:
-    """The Mathlib tactic most likely to do what Lemmata's backend did."""
-    rel: Optional[str] = None
-    node: Optional[ExprNode] = None
-    if isinstance(s, StepNode):
-        rel = s.relation
-        node = RelationNode(op=s.relation, left=s.lhs, right=s.rhs) if s.lhs is not None and s.relation else s.rhs
-    elif isinstance(s, DeduceNode):
-        node = s.claim
-        rel = node.op if isinstance(node, RelationNode) else None
-    if node is not None and (_contains(node, (LimitNode, IntegralNode, MatrixNode, VectorNode)) or _calls(node, _NO_TACTIC_CALLS)):
-        return None
-    if backend.startswith("SymPy") and rel == "=":
-        return "ring_nf" if node is not None and _Expr._has_division(node) else "ring"
-    if backend.startswith("Z3") or backend == "SymPy+Logic":
-        if rel in ("<", ">", "<=", ">=", "!="):
-            return "nlinarith" if _nonlinear(node) else "linarith"
-        if isinstance(node, (QuantifierNode,)):
-            return None
-        if isinstance(node, FunctionCallNode) and node.func.lower() in ("even", "odd", "multipleof", "divides"):
-            return "omega"
-        if isinstance(node, BinaryOpNode) and node.op in _AND | _OR | _IMPLIES | _IFF:
-            return "tauto"
-    if backend.startswith("Definition"):
-        return "unfold it, then linarith"
-    return None
+#: The Lean tactics for each rule Lemmata's kernel names (``Kernel: <rule>``),
+#: tried in order inside ``first | … | sorry``.  Only rules one tactic can
+#: redo are here: the calculus rules (Lean's ``deriv`` and ``Tendsto`` goals
+#: need lemmas), "solver only" and "outside the core" stay ``sorry``.
+_LEAN_TACTICS: dict[str, tuple[str, ...]] = {
+    "ring": ("ring",),
+    "subst": ("(subst_vars; ring)", "ring"),
+    "field": ("(field_simp; ring)", "field_simp"),
+    "simp": ("simp",),
+    "linarith": ("linarith",),
+    "nlinarith": ("nlinarith", "positivity"),
+    "residues": ("omega", "decide"),
+    "hypothesis": ("assumption",),
+    "closed form, by induction": (),
+    "group axioms": ("group",),
+    "group axioms and hypotheses": ("simp_all", "(simp only [mul_assoc] at *; group)"),
+    "ring axioms": ("noncomm_ring",),
+    "field axioms": ("(field_simp)",),
+}
+_INTROS = ("∀-intro", "⇒-intro", "∧-intro")
+
+
+def _lean_attempts(backend: str, s: StatementNode, algebra: Optional[str]) -> list[str]:
+    """What to try for a step the kernel checked by *backend*."""
+    if not backend.startswith("Kernel: "):
+        return []
+    rules = backend[len("Kernel: ") :].split(", ")
+    tactics = list(_LEAN_TACTICS.get(rules[-1], ()))
+    if not tactics:
+        return []
+    if algebra in ("Group", "CommGroup") and rules[-1] in ("ring", "subst"):
+        tactics = ["group"]
+    if any(r in _INTROS for r in rules):
+        # ∀/⇒-introduction: take the binders and hypotheses apart, then the leaf.
+        tactics = [f"(intros; {t})" for t in tactics]
+    return tactics
 
 
 #: Calls whose steps no one-word tactic proves.
@@ -1920,11 +1937,13 @@ def export_to_lean(
     """*source* as a Lean 4 + Mathlib skeleton, lined up with its lines.
 
     Raises the parser's ``ParseError`` when *source* does not parse.  The proof
-    is checked too, so each ``sorry`` can say which backend checked its step.
+    is checked too, with the proof kernel at its most permissive level
+    (scratch: it decides as the engine does, refusing nothing as too big a
+    step), so each step can try the Lean tactic for the rule that checked it.
     """
     from aether.engine.checker import ProofChecker
 
-    checker = ProofChecker()
+    checker = ProofChecker(kernel="scratch")
     doc = checker._parser.parse(source)
     try:
         reports = checker.check_source(source, file_path=file_path, sources=sources, citations=citations)

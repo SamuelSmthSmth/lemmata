@@ -33,12 +33,12 @@ theorem even_square_theorem :
   obtain ⟨k, h5⟩ : ∃ k : ℤ, n = 2 * k := by
     sorry  -- from h1
   have s6 : n ^ 2 = 2 * (2 * k ^ 2) := by
-    calc n ^ 2 = (2 * k) ^ 2 := by sorry  -- SymPy: try ring
-      _ = 4 * k ^ 2 := by sorry  -- SymPy: try ring
-      _ = 2 * (2 * k ^ 2) := by sorry  -- SymPy: try ring
-  have s9 : ∃ m : ℤ, n ^ 2 = 4 * m := ⟨(k ^ 2 : ℤ), by sorry⟩  -- SymPy (Witness)
+    calc n ^ 2 = (2 * k) ^ 2 := by first | (subst_vars; ring) | ring | sorry  -- Kernel: subst
+      _ = 4 * k ^ 2 := by first | ring | sorry  -- Kernel: ring
+      _ = 2 * (2 * k ^ 2) := by first | ring | sorry  -- Kernel: ring
+  have s9 : ∃ m : ℤ, n ^ 2 = 4 * m := ⟨(k ^ 2 : ℤ), by first | (subst_vars; ring) | ring | sorry⟩  -- Kernel: subst
   have s10 : (4 : ℤ) ∣ n ^ 2 := by
-    sorry  -- Z3: try omega
+    first | assumption | sorry  -- Kernel: hypothesis
   exact s10
 """
 
@@ -86,7 +86,7 @@ def test_a_failing_step_is_marked_in_its_row_and_its_comment():
 def test_a_scratchpad_states_what_it_shows():
     lean = body("Let x, y : Real\nAssume x > 2\nStep: (x^2 - 4) / (x - 2) = x + 2\nStep: > 4")
     assert "example :\n    ∀ x : ℝ, ∀ y : ℝ, x > 2 → (x ^ 2 - 4) / (x - 2) > 4 := by" in lean
-    assert "_ > 4 := by sorry  -- Z3: try linarith" in lean
+    assert "_ > 4 := by first | linarith | sorry  -- Kernel: linarith" in lean
     assert lean.rstrip().endswith("exact s3")
 
 
@@ -129,7 +129,8 @@ QED
     lean = body(source)
     assert "theorem left_cancellation {G : Type*} [Group G] :" in lean
     assert "∀ a : G, ∀ u : G, ∀ v : G, a * u = a * v → u = v := by" in lean
-    assert "calc u = a⁻¹ * (a * u) := by sorry  -- SymPy: try group" in lean
+    assert "calc u = a⁻¹ * (a * u) := by first | group | sorry  -- Kernel: group axioms" in lean
+    assert ":= by first | simp_all | (simp only [mul_assoc] at *; group) | sorry  -- Kernel: group axioms and hypotheses" in lean
 
 
 def test_cases_split_with_rcases_and_bullets():
@@ -220,3 +221,20 @@ def test_names_lean_reserves_are_quoted():
 def test_a_parse_error_is_raised_not_exported():
     with pytest.raises(ParseError):
         export_to_lean("Theorem: \"Bad\"\nProof:\nGiven n : Int\nQED")
+
+
+def test_a_step_the_kernel_checked_tries_its_tactic_and_falls_back_to_sorry():
+    lean = body("Let x : Real\nAssume h: x > 2\nTherefore x > 1")
+    assert "first | linarith | sorry  -- Kernel: linarith" in lean
+
+
+def test_a_calculus_step_stays_sorry():
+    # Lean's deriv goal needs lemmas, not one tactic: the rule is named, not tried.
+    lean = body("Let x : Real\nStep: diff(x^3, x) = 3*x^2")
+    assert "sorry  -- Kernel: power rule" in lean
+    assert "first |" not in lean
+
+
+def test_the_header_says_how_the_steps_are_proved():
+    lean = export_to_lean("Let x : Real\nStep: x = x").lean
+    assert "Each step tries the Lean tactic for the rule" in lean
