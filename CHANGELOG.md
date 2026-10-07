@@ -23,6 +23,13 @@ What changed between releases of Lemmata, newest first. The engine is the `aethe
   - **Still the solver's:** infinite series and `ρⁿ → 0` need a convergence or |ρ| < 1 premise, so they stay with the solver.
 - A line the rules do not reach (an integral up to a symbolic bound of a function like log) keeps the solver's verdict, as before. No verdict changes.
 
+### Quantified statements by natural deduction
+
+- **A quantified line is taken apart as a written proof would:** ∧-introduction (each part), ∀-introduction (a fresh variable), ⇒-introduction (assume the left, prove the right). Each leaf goes to a core tactic.
+- **The badge shows the whole argument,** for example `Kernel: ∀-intro, ⇒-intro, nlinarith`.
+- **An `exists` without a witness is left to the proof,** since choosing one isn't a rule's job.
+- **Levels behave as before:** at *Course* a whole ∀-statement in one line is still refused as too big a step.
+
 ### Groups, subgroups and rings by named rules
 
 - **Group identities by word reduction:** `Kernel: group axioms`.

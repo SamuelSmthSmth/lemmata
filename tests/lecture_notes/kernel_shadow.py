@@ -44,7 +44,7 @@ def sources():
 def run(item):
     key, src = item
     from aether import ParseError, ProofChecker
-    from aether.kernel import calculus, core, review, structures, tactics
+    from aether.kernel import calculus, core, logic_rules, review, structures, tactics
 
     rows = []
     original = review.Kernel._review
@@ -58,7 +58,7 @@ def run(item):
         verdict = None
         if el is None:
             # Outside the core: a line the named rules (calculus, structures) show.
-            rule = structures.verify(goal, ctx, allowed)
+            rule = structures.verify(goal, ctx, allowed) or logic_rules.verify(goal, ctx, allowed)
             rules = calculus.verify(goal, ctx) or ([rule] if rule else None)
             if rules:
                 verdict = "rules: " + ", ".join(rules)
