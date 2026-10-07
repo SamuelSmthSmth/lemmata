@@ -201,7 +201,7 @@ class _Z3:
             return self._root(expr.args[0], value)
         if isinstance(expr, sp.Function) and len(expr.args) == 1:
             name = type(expr).__name__.lower()
-            if name in ("sin", "cos", "exp", "cosh", "tanh", "log"):
+            if name in ("sin", "cos", "exp", "cosh", "tanh", "log", "floor", "ceiling", "factorial"):
                 try:
                     return _range_facts(name, z3.ToReal(value) if z3.is_int(value) else value, self.expr(expr.args[0]))
                 except Exception:  # noqa: BLE001 - an argument the fragment cannot state

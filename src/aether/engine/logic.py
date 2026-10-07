@@ -176,6 +176,16 @@ def _range_facts(fn: str, value: z3.ExprRef, arg: z3.ExprRef) -> list[z3.ExprRef
     if fn in ("log", "ln"):
         # For t > 0, log lies below its tangent at 1: log(t) <= t - 1.
         return [z3.Implies(arg > 0, value <= arg - 1)]  # type: ignore[operator]
+    if fn == "floor":
+        # The whole number at or just below t.
+        return [z3.IsInt(value), value <= arg, value > arg - 1]  # type: ignore[operator]
+    if fn in ("ceiling", "ceil"):
+        return [z3.IsInt(value), value >= arg, value < arg + 1]  # type: ignore[operator]
+    if fn == "factorial":
+        # n! for a whole number n >= 0: a whole number, at least 1 and at least n.
+        arg = z3.ToReal(arg) if z3.is_int(arg) else arg
+        whole = z3.And(z3.IsInt(arg), arg >= 0)  # type: ignore[operator]
+        return [z3.Implies(whole, z3.And(z3.IsInt(value), value >= 1, value >= arg))]  # type: ignore[operator]
     return []
 
 
@@ -1754,6 +1764,71 @@ def _try_sympy_divisibility_or_existential(
     return None
 
 
+_COMPARE = {
+    "=": lambda d: d.is_zero,
+    "==": lambda d: d.is_zero,
+    "!=": lambda d: None if d.is_zero is None else not d.is_zero,
+    "<": lambda d: d.is_negative,
+    "<=": lambda d: d.is_nonpositive,
+    ">": lambda d: d.is_positive,
+    ">=": lambda d: d.is_nonnegative,
+}
+
+
+def _holds_at(node: ExprNode, values: dict[str, sp.Rational], ctx: ProofContext) -> Optional[bool]:
+    """Whether *node* is true at *values*, in the mathematics (SymPy's floor,
+    factorial, powers), not the solver's model; None when that cannot be said
+    exactly (a name it cannot evaluate, a variable without a value)."""
+    if isinstance(node, RelationNode) and node.op in _COMPARE:
+        try:
+            diff = ast_to_sympy(node.left, ctx) - ast_to_sympy(node.right, ctx)
+        except Exception:  # noqa: BLE001 - not arithmetic SymPy can read
+            return None
+        if any(s.name not in values for s in diff.free_symbols):
+            return None
+        try:
+            value = sp.simplify(diff.subs({s: values[s.name] for s in diff.free_symbols}))
+        except Exception:  # noqa: BLE001
+            return None
+        if not value.is_number or value.has(sp.zoo, sp.nan, sp.oo, -sp.oo):
+            return None
+        return _COMPARE[node.op](value)
+    if isinstance(node, BinaryOpNode) and node.op.lower() in ("and", "or"):
+        left, right = _holds_at(node.left, values, ctx), _holds_at(node.right, values, ctx)
+        if node.op.lower() == "and":
+            return False if False in (left, right) else (True if left and right else None)
+        return True if True in (left, right) else (False if left is False and right is False else None)
+    if isinstance(node, UnaryOpNode) and node.op.lower() in ("not", "\\neg", "¬"):
+        inner = _holds_at(node.operand, values, ctx)
+        return None if inner is None else not inner
+    return None
+
+
+def _not_a_counterexample(claim: ExprNode, model: dict[str, str], ctx: ProofContext) -> Optional[str]:
+    """Why the solver's model is not a real counterexample, or None.
+
+    Z3 reasons about what it was told: a function it has no theory of is any
+    function at all, so its model can give floor(-1) the value 7.  Before a
+    model is shown to a student as a counterexample, the claim and the
+    hypotheses are evaluated at its values with their real meaning.  If the
+    claim holds there, or a hypothesis fails there, the model shows only the
+    solver's ignorance."""
+    values: dict[str, sp.Rational] = {}
+    for name, text in model.items():
+        try:
+            values[name] = sp.Rational(text)
+        except (TypeError, ValueError):
+            return None  # an algebraic number, a function: nothing to evaluate
+    if not values:
+        return None
+    if _holds_at(claim, values, ctx) is True:
+        return "the claim holds there"
+    for h in ctx.all_hypotheses():
+        if _holds_at(h.proposition, values, ctx) is False:
+            return f"{h.label or h.proposition} does not hold there"
+    return None
+
+
 def _explain_solver_limits(message: str, claim: ExprNode, ctx: ProofContext) -> str:
     """Say why a failed SMT query may not mean the claim is actually false.
 
@@ -1995,6 +2070,20 @@ def verify_entailment(
         model = solver.model()
         ce_dict = extract_z3_model_dict(model, ctx)
         ce_str = ", ".join(f"{k}={v}" for k, v in ce_dict.items())
+        bogus = _not_a_counterexample(claim, ce_dict, ctx) if ce_dict else None
+        if bogus is not None:
+            # Honest about limits: unproved, but no counterexample to show.
+            return LogicResult(
+                valid=False,
+                message=_explain_solver_limits(
+                    f"Could not verify '{claim}' from current hypotheses. The solver's model "
+                    f"({ce_str}) is not a counterexample: {bogus}. The solver lacks a fact this "
+                    f"line needs; state it as a step, or cite where it comes from.",
+                    claim,
+                    ctx,
+                ),
+                backend="Z3",
+            )
         ce_msg = f"Counterexample: {ce_str}" if ce_str else "Z3 found a counterexample model."
         return LogicResult(
             valid=False,
