@@ -16,10 +16,12 @@ expression is elaborated once into typed terms --
 
 Any other function (`sin`, `sqrt`, an `f` the notes name) is an
 uninterpreted real value, which no tactic knows anything about: sound, and a
-line that needs a fact about it is simply left to stage 1's reading.
-Quantifiers, sums, limits, derivatives, integrals, sets, matrices, complex
-numbers and the constants pi, e and oo are outside the core: ``elaborate``
-returns None and the kernel falls back to stage 1's reading.
+line that needs a fact about it beyond the tactics' range facts is proved by
+no tactic (``review`` says what the line's verdict is then).  Quantifiers,
+sums, limits, derivatives, integrals, sets, matrices, complex numbers and the
+constants pi, e and oo are outside the core: ``elaborate`` returns None, and
+the kernel's named rules (``calculus``, ``structures``, ``logic_rules``) or
+the engine's verdict, held to the level, decide the line.
 
 The tactics (``tactics``) read core terms only: SymPy and Z3 each get them
 from one translator here, typed the same way.
