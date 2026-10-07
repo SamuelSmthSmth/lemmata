@@ -27,6 +27,18 @@ Stage 2 adds the structural rules:
    induction shows, not evaluations; and a line the engine settled by
    checking remainders is classified by the simpler argument when the
    premises it could see already give it.
+
+Stage 3: inside the typed core, the tactics decide.
+
+7. **A line passes because a tactic proved it.**  The weakest core tactic that
+   proves the line from the premises it could see is the verdict, and the
+   engine is the independent cross-check: its refusals (a counterexample, a
+   scope or chain rule, an unknown label) always stand.  When no tactic proves
+   a line the engine accepts, the kernel defers to the engine if the line
+   rests on a premise the core cannot read ("outside the core (premises)"),
+   and otherwise passes it with a warning: checked by the solver only.
+   Outside the core (limits, sums, structures, quantified statements) the
+   engine still decides, held to the level as in stage 1.
 """
 
 from __future__ import annotations
@@ -53,6 +65,17 @@ from aether.kernel.policy import Fragment, Policy
 
 if TYPE_CHECKING:
     from aether.engine.checker import StepResult
+
+#: How a line was decided (``Kernel._fragment``): by a rule of the kernel (a
+#: restated fact, induction, the case rule), by a core tactic, outside the core
+#: (the engine's verdict), with premises the core cannot read (the engine's
+#: verdict), or by the solver alone with every premise read (a warning).
+RULE, TACTIC, OUTSIDE, PREMISES, SOLVER = "rule", "tactic", "outside", "premises", "solver"
+
+SOLVER_ONLY = (
+    "Checked by the solver only: no rule shows this from what the line can see, so it is not "
+    "fully checked. Split the step, or cite the facts it uses."
+)
 
 #: Functions whose value is not a polynomial in their argument.
 _TRANSCENDENTAL = {
@@ -200,7 +223,7 @@ class Kernel:
         if result.status.value == "INVALID":
             return self._missing_premise(result, obligation, cited, ctx) if cited else result
 
-        fragment = self._fragment(result.backend or "", result.message, obligation, before, after, ctx, allowed, witnessed)
+        fragment, how = self._fragment(result.backend or "", result.message, obligation, before, after, ctx, allowed, witnessed)
         used: Optional[list[object]] = None
         if fragment.strength >= policy.LINEAR.strength and fragment.tactic in ("linarith", "nlinarith", "auto"):
             used = evidence.premises_used(obligation, allowed, ctx, chain=self._chain)
@@ -223,17 +246,22 @@ class Kernel:
                 counterexample_dict=None,
             )
 
+        if how == SOLVER:
+            # Inside the core, every premise read, and no tactic proves it: the
+            # solver's word alone.  Not refused (it may well be true), but not
+            # passed as checked either.
+            return replace(
+                result,
+                status=type(result.status)("WARNING") if result.status.value == "VALID" else result.status,
+                message=SOLVER_ONLY,
+                backend="Kernel: solver only",
+            )
         message = result.message
         if used and not cited:
             message = f"{message.rstrip('.')} (from {self.names(used)})."
-        return replace(result, message=message, backend=f"Kernel: {fragment.tactic}")
+        backend = "Kernel: outside the core (premises)" if how == PREMISES else f"Kernel: {fragment.tactic}"
+        return replace(result, message=message, backend=backend)
 
-    def _by_tactics(self, goal: ExprNode, ctx: ProofContext, known: list[HypothesisInfo]) -> Optional[str]:
-        """The weakest core tactic that proves *goal* from what the line could see."""
-        elaborated = core.elaborate(goal, ctx)
-        if elaborated is None:
-            return None
-        return tactics.weakest(elaborated.prop, _core_premises(ctx, known, self._chain, goal))
 
     @staticmethod
     def _by_cases(claim: ExprNode, ctx: ProofContext) -> Optional[str]:
@@ -259,7 +287,7 @@ class Kernel:
         self._chain = chain_fact(ctx)
         known = ctx.all_hypotheses()
         before, after = (target.left, target.right) if isinstance(target, RelationNode) else (None, None)
-        fragment = self._fragment(backend, message, target, before, after, ctx, known, None)
+        fragment, _how = self._fragment(backend, message, target, before, after, ctx, known, None)
         if self.policy.allows(fragment, "deduce"):
             return None
         if fragment.tactic == "calculus.eval":
@@ -308,8 +336,15 @@ class Kernel:
         ctx: ProofContext,
         known: list[HypothesisInfo],
         witnessed: Optional[tuple[ExprNode, str, ExprNode]],
-    ) -> Fragment:
-        """Which kind of reasoning settled the line.
+    ) -> tuple[Fragment, str]:
+        """Which kind of reasoning settled the line, and how it was decided
+        (``RULE``, ``TACTIC``, ``OUTSIDE``, ``PREMISES`` or ``SOLVER``).
+
+        Inside the typed core the tactics decide: the weakest that proves what
+        is left, from the premises the line could see, is the reasoning it
+        needed.  When none does, either the core could not read a premise the
+        line relies on (the engine's verdict stands, labelled so) or it read
+        them all and still nothing proves it (the solver alone said so).
 
         The engine tries its routes in a fixed order, so the one that answered
         is not always the simplest that would have: `Even(n^2 + n)` right after
@@ -318,16 +353,16 @@ class Kernel:
         reproduce from the premises the line could see is classified by that
         argument instead."""
         if backend == "Induction":
-            return policy.INDUCTION
+            return policy.INDUCTION, RULE
         if message.startswith("Verified from established hypothesis"):
-            return policy.HYPOTHESIS
+            return policy.HYPOTHESIS, RULE
         if before is not None and after is not None:
             # A sum or derivative replaced by what an equation in scope says it
             # is (the inductive hypothesis, usually) is substitution, not an
             # evaluation: rewrite with those equations before looking for a gap.
             gap = working_gap(_rewrite_with(before, known), after, ctx)
             if gap:
-                return policy.evaluation(gap)
+                return policy.evaluation(gap), OUTSIDE
         # Only facts the line could see count as already established: by now
         # its own conclusion has been recorded too.
         if witnessed is not None:
@@ -337,25 +372,30 @@ class Kernel:
         else:
             expanded = _undischarged(ctx.expand_user_functions(obligation) or obligation, ctx, known)
         if expanded is None:
-            return policy.HYPOTHESIS
+            return policy.HYPOTHESIS, RULE
         # The typed core: the weakest tactic that proves what is left, from the
-        # premises the line could see, names the reasoning it needed.
-        tactic = self._by_tactics(expanded, ctx, known)
-        if tactic is not None:
-            return policy.TACTIC_FRAGMENTS[tactic]
-        # Outside the core (or beyond its tactics): stage 1's reading of how
-        # the engine settled it.
+        # premises the line could see, decides it and names the reasoning.
+        elaborated = core.elaborate(expanded, ctx)
+        if elaborated is not None:
+            tactic = tactics.weakest(elaborated.prop, _core_premises(ctx, known, self._chain, expanded))
+            if tactic is not None:
+                return policy.TACTIC_FRAGMENTS[tactic], TACTIC
+            how = PREMISES if _unread_premises(ctx, known, self._chain, expanded) else SOLVER
+        else:
+            how = OUTSIDE
+        # Outside the core, or beyond its tactics: stage 1's reading of how the
+        # engine settled it still holds the line to the level.
         if backend == "Residues":
             if evidence.premises_used(obligation, known, ctx, chain=self._chain) is None:
-                return policy.RESIDUES
+                return policy.RESIDUES, how
             backend = "Z3"
         if backend.startswith("SymPy") and backend != "SymPy+Logic":
-            return policy.RING
+            return policy.RING, how
         if _has_quantifier(expanded):
-            return policy.QUANTIFIED
+            return policy.QUANTIFIED, how
         if _nonlinear(expanded, ctx):
-            return policy.NONLINEAR
-        return policy.LINEAR
+            return policy.NONLINEAR, how
+        return policy.LINEAR, how
 
 
 def _matches(a: ExprNode, b: ExprNode, ctx: ProofContext) -> bool:
@@ -405,18 +445,38 @@ def _core_premises(
     """What a line could see, as core propositions.  A universal fact is
     outside the core, so it is used through its instances at the goal's own
     terms (`forall x, f(x) > 0` gives `f(2) > 0` for a goal about f(2))."""
-    out = []
+    return _read_premises(ctx, known, chain, goal)[0]
+
+
+def _unread_premises(
+    ctx: ProofContext, known: list[HypothesisInfo], chain: Optional[ExprNode], goal: Optional[ExprNode] = None
+) -> list[ExprNode]:
+    """The facts a line could see that the core cannot read: a predicate it
+    does not model (`Bounded(h)`), a group's axioms, a universal fact with no
+    instance at the goal's terms.  When the tactics cannot prove a line, these
+    are why the kernel defers to the engine rather than doubting it."""
+    return _read_premises(ctx, known, chain, goal)[1]
+
+
+def _read_premises(
+    ctx: ProofContext, known: list[HypothesisInfo], chain: Optional[ExprNode], goal: Optional[ExprNode]
+) -> tuple[list, list[ExprNode]]:
+    out, unread = [], []
     props = [h.proposition for h in known] + ([chain] if chain is not None else [])
     terms = _goal_terms(goal, ctx) if goal is not None else []
     for prop in props:
         candidates = [prop]
         if isinstance(prop, QuantifierNode) and prop.quantifier == "forall" and terms:
             candidates = _instances(prop, terms, ctx)
+        read = False
         for candidate in candidates:
             elaborated = core.elaborate(candidate, ctx)
             if elaborated is not None:
                 out.append(elaborated.prop)
-    return out
+                read = True
+        if not read:
+            unread.append(prop)
+    return out, unread
 
 
 #: Instances of one universal fact, at most.

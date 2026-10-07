@@ -2,6 +2,16 @@
 
 What changed between releases of Lemmata, newest first. The engine is the `aether` Python package; its public API (`ProofChecker`, `ProofReport`, `StepResult`, `StepStatus`, `ParseError`) stays backward compatible within these releases.
 
+## Unreleased
+
+### The kernel decides
+
+- **At the Exam, Course and Scratch levels, a line passes because a named rule proved it,** not because the solver agreed. The badge names the rule (`Kernel: ring`, `linarith`, `nlinarith`, …), and the solver now checks the rule's answer: any refusal it makes still stands.
+- **A true line no rule can show is passed with a warning,** "Checked by the solver only", with advice to split it or cite what it uses. No pinned proof has one.
+- **Square roots are understood:** `√a·√b = √(ab)` for a, b ≥ 0, the root of a difference written as a quotient, and bounds such as `√2 > 1` are now proved by the rules, so the lecture notes' density and continuity proofs are checked step by step.
+- A line resting on facts the rules cannot read (a group's axioms, `Bounded(h)`) keeps the solver's verdict, and says so.
+- *Off* is unchanged.
+
 ## 0.3.0 (2026-10-06)
 
 The proof kernel release. Lemmata used to check whether each line was true; now it can check whether each line *follows*. A line that is true but skips the argument is refused as too big a step, with what to write instead. Underneath, a typed core and named tactics say what each line needed. You can also see what each line was proved from, as a graph, and what the checker did, as a log.
