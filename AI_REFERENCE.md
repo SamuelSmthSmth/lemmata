@@ -59,6 +59,9 @@ Source Code (.aether or string)
       │      - The premises each line was proved from (SymPy substitutions, Z3 unsat cores)
       │      - Each backend call made checking a line, with its answer and timing
       │
+      ├──> Proof kernel (`aether.kernel`, opt-in: §7)
+      │      - What a line may use, which named rule shows it, how big a step the level allows
+      │
       └──> SMT Solver (`Z3` Backend)
              - Inequalities, propositional logic, boolean connectives
              - Quantifiers (`exists`, `forall`) and witness validation
@@ -406,9 +409,101 @@ After a `Case` block, `ProofContext` frames carry `cases_exhaustive` and `cases_
 
 ---
 
-## 7. LaTeX Export & PDF Compilation
+## 7. The Proof Kernel (`aether.kernel`)
 
-### 7.1 LaTeX Formatter (`aether.core.latex_export`)
+The engine of §5 and §6 asks whether each line is *true*. The kernel asks whether it *follows*: from which premises, by which named rule, and in a step small enough for the level. It is opt-in, with `ProofChecker(kernel="exam" | "course" | "scratch")` (`kernel` on `/api/check`, the app's *Level* menu). The default, `None`, checks exactly as the engine always has. The design, and how each stage was measured, is the paper *A Proof Kernel for Lemmata*.
+
+The engine still checks every line first, and its refusals always stand: a counterexample, a scope or chain rule, an unknown label. The kernel then reviews a line the engine accepted.
+
+### 7.1 Where It Runs
+- **Chain links and deductions:** `Kernel.check_step` and `Kernel.check_deduce` wrap the checker's `_check_step` and `_check_deduce` (`aether.engine.checker`).
+- **`QED`:** `Kernel.review_closure` is goal closure. The claim's `forall`s and `=>`s are matched to the proof's `Given`s and `Assume`s, and what is left must be something the level would accept as a line. A bare `QED` proves nothing.
+- **Cases and induction:** a conclusion every case of a complete split showed is accepted by the case rule ("By cases: …"), and a `forall` after `Base case` / `Inductive step` by the induction rule (§6.5).
+- **Everything else** (`Given`, `Assume`, `Obtain`, `Let`) is checked by the engine, as without the kernel.
+
+### 7.2 What a Line May Use (`premises`)
+A line that cites its premises (`[using h1]`, `Since A, …`, `By h1, …`, a result cited by name) is checked with those alone. Two things are part of the setting rather than the argument, so they are always available: a structure assumption (`Assume Group(G, op, e, inv)`) and the definition of a sequence the proof declared.
+
+When a cited line fails but would pass with more, `Kernel._missing_premise` says which facts it follows from ("It follows using h1: cite it too"), with the backend `Kernel: premises`. Those facts come from Z3's unsat core (`evidence.premises_used`). A line that cites nothing may use everything in scope; for a `linarith`, `nlinarith` or `auto` line, the audit then names what it used ("… (from h1 and line 6)").
+
+**For a new rule:** read only the line's *visible* premises (`known`), never `ctx` directly. By review time, the context already holds the line's own conclusion.
+
+### 7.3 How a Line Is Decided (`Kernel._fragment`)
+In order:
+
+1. **A rule of the kernel.** A restated fact or an induction: no tactic needed.
+2. **An evaluation.** A derivative, integral, limit or sum that the line writes down without the working (`working_gap`) is the fragment `calculus.eval`, which the named rules may still show (§7.5).
+3. **The typed core.** The line is elaborated (§7.4). If it elaborates, the weakest tactic that proves it from the visible premises (`tactics.weakest`) is the verdict, and the badge names it (`Kernel: linarith`).
+4. **Inside the core, no tactic proves it:**
+   - If the line rests on a premise the core cannot read (a group's axioms, `Bounded(h)`), the structure rules may show it. Otherwise the engine's verdict stands, with the badge `Kernel: outside the core (premises)`.
+   - If every premise was read, the line is a **WARNING**, `Kernel: solver only`: the solver believes it, but nothing checked it step by step.
+5. **Outside the core** (quantifiers, limits, sums, derivatives, structures): the named rules (§7.5), or the engine's verdict, classified by how the engine settled it (`SymPy` → `ring`, quantified → `auto`, non-linear → `nlinarith`, otherwise `linarith`; `Residues` → `residues`).
+
+Last, the fragment is held to the level (§7.6). A line too strong for it is **INVALID**: "True, but too big a step for the course level: this line needs …", with what to write instead. Its conclusion is still recorded, so one leap is one finding, not a cascade.
+
+### 7.4 The Typed Core and Its Tactics (`core`, `tactics`)
+`core.elaborate(expr, ctx)` translates an expression once into typed terms, and both solvers read that one translation:
+- **Types:** every term has a number type (`Nat < Int < Rat < Real`). Subtraction of naturals is an integer, and division is rational.
+- **Side conditions:** each division records that its denominator is not 0.
+- **Divisibility:** divisibility by a number is a proposition of its own (`Even`, `Odd`, `MultipleOf`, `Divides`).
+- **Sequences:** a declared `u : Nat -> Int` is a typed, uninterpreted application.
+- **Other functions:** `sin`, `sqrt` or a named `f` is an uninterpreted real.
+- **Outside the core:** quantifiers, sums, limits, derivatives, integrals, sets, matrices, complex numbers, `pi`, `e`, `oo`, and a symbolic exponent. For these, `elaborate` returns `None`.
+
+| Tactic | Decides | Engine | Strength |
+| --- | --- | --- | --- |
+| `ring` | a polynomial identity: both sides expand to the same | SymPy | 1 |
+| `field` | an identity with division, under its side conditions | SymPy | 1 |
+| `subst` | an identity after substituting `x = t` premises | SymPy | 1 |
+| `simp` | an identity of the standard functions | SymPy | 1 |
+| `linarith` | linear arithmetic and logic, with products of unknowns as atoms (as Lean's does after `ring_nf`) | Z3 | 2 |
+| `nlinarith` | non-linear arithmetic | Z3 (NRA / NIA) | 3 |
+| `residues` | a divisibility, by checking every remainder | the residue decision (§6.4) | 4 |
+
+Every Z3 query runs on a context of its own (`logic.SolverContext`), so a tactic cannot change how a later line is decided. The facts the tactics add about standard functions hold for every real. These are ranges, a square root squared is its radicand where that is ≥ 0, and exact rational bounds on the root of a number (`√2 > 1`).
+
+### 7.5 Named Rules (`calculus`, `structures`, `logic_rules`)
+Lines outside the core are shown by rules a course teaches, and the badge names them. One principle holds throughout: **SymPy may propose; the kernel checks.** A line no rule reaches keeps the engine's verdict, so the rules change no verdict. They only say why a line holds.
+
+| Module | Rules (badge) | How |
+| --- | --- | --- |
+| `calculus` | `power rule`, `product rule`, `quotient rule`, `chain rule`, `sum rule`, `standard derivative` | the kernel's own differentiator; it never calls `sp.diff` |
+| | `FTC` | SymPy proposes an antiderivative F. The kernel checks F′ = f and that f is continuous on the interval, then uses F(b) − F(a). |
+| | `substitution`, `cancel, then substitute`, `algebra of limits`, `L'Hôpital's rule`, `dominant terms`, `squeeze`, `sign near the point`, `standard limit` | limits, with L'Hôpital using the kernel's own derivatives |
+| | `direct sum`, `empty sum`, `telescoping`, `peeling the last term`, `closed form, by induction` | finite sums. A proposed closed form S is checked by S(first) and S(N) − S(N − 1). A closed form SymPy splits into cases (r = 1) is used only when the hypotheses rule the other case out. |
+| `structures` | `group axioms` | both sides reduce to the same word (free-group normal form) |
+| | `group axioms and hypotheses` | hypotheses as rewrites and relators; a ∀-hypothesis is instantiated only at terms known to lie in the group |
+| | `subgroup closure`, `normal subgroup`, `ring axioms`, `field axioms` | a field's `inv(x)` is used only where `x ≠ zero` is assumed |
+| `logic_rules` | `∧-intro`, `∀-intro`, `⇒-intro`, then a core tactic at each leaf (`∀-intro, ⇒-intro, nlinarith`) | natural deduction. Each leaf proves its own domain: denominator ≠ 0, radicand ≥ 0, log argument > 0. An `exists` without a witness is not taken apart. |
+
+Infinite series are not handled by these rules: their convergence is not checked here, so the engine decides them.
+
+### 7.6 Levels (`policy`)
+A fragment's strength runs from 1 (identities) through 2 (linear), 3 (non-linear) and 4 (evaluations and decision procedures) to 5 (a quantified statement decided outright). A level caps the strength a line may use:
+
+| Level | Cap | Also allowed | Refused as too big a step |
+| --- | --- | --- | --- |
+| `exam` | 3 | — | `auto`, `residues`, `calculus.eval` |
+| `course` | 3 | `calculus.eval` (the notes write standard results down) | `auto`, `residues` |
+| `scratch` | 5 | — | nothing |
+
+The levels were calibrated on the course packs. With the kernel at Course, no pack verdict changes. Exam differs only on the notes' one-line evaluations.
+
+### 7.7 Measuring It
+Run these before any change to the kernel. None of them is part of `pytest`, apart from the trap half of shadow mode (`tests/test_kernel_shadow.py`):
+
+| Command | Must show |
+| --- | --- |
+| `uv run python tests/lecture_notes/kernel_shadow.py` | every chain link and deduction in the packs and tests, with the engine's verdict beside the tactics'. It exits 1 on a soundness alarm (a tactic proves what the engine refused) or a gap (the engine proves, inside the core, what no tactic does). |
+| `uv run python tests/lecture_notes/kernel_parity.py course` | no disagreement with the kernel off |
+| `uv run python tests/lecture_notes/kernel_parity.py exam` | only the notes' one-line evaluations |
+| `uv run python tests/lecture_notes/dependency_parity.py [level]` | the dependency audit changes no verdict |
+
+---
+
+## 8. LaTeX Export & PDF Compilation
+
+### 8.1 LaTeX Formatter (`aether.core.latex_export`)
 - Function: `export_to_latex(source: str, report: Optional[ProofReport] = None, standalone: bool = True) -> str`
 - **Features:**
   - Emits `align*` mathematical step chains with proper `& =` and `&& \text{([by algebra])}` alignment.
@@ -417,15 +512,29 @@ After a `Case` block, `ProofContext` frames carry `cases_exhaustive` and `cases_
   - Exports imports as descriptive LaTeX comments (`% import "..."`).
   - Supports standalone mode (with `\documentclass{article}`, `amsmath`, `amssymb`, `geometry`) or embeddable snippet mode.
 
-### 7.2 PDF Compiler (`/usr/bin/pdflatex` via `ui.app`)
+### 8.2 PDF Compiler (`/usr/bin/pdflatex` via `ui.app`)
 - In `POST /api/export/pdf`:
   - Runs in a clean `tempfile.TemporaryDirectory`.
   - Executes `pdflatex -interaction=nonstopmode document.tex`.
   - Captures errors and compiles to a valid PDF, returning `application/pdf` binary stream.
 
+### 8.3 Show in Lean (`aether.core.lean_export`)
+`export_to_lean(source, *, sources=None, citations=None, file_path=None, namespace="Lemmata")` returns a `LeanExport` (`lean`, `rows`, `untranslated`). It is the proof as Lean 4 + Mathlib: one `theorem` per claim, and one `have` per step.
+
+**Each step's proof is a cascade of tactics.** The proof is checked with the kernel at `scratch`. `_LEAN_TACTICS` maps the rule in each step's `Kernel: …` badge to Lean tactics, and the step is emitted as `first | (ring; done) | (norm_num; done) | sorry`.
+- **Every attempt must prove or fail.** Mathlib's `ring`, `field_simp` and `simp` can "succeed" with goals left, so each one is wrapped as `(t; done)` (`_closing`).
+- **Natural deduction:** a badge with `∀-intro` or `⇒-intro` prefixes `intros`.
+- **Groups:** a group step uses `group`.
+
+**Calculus stays `sorry`.** Lean's `deriv` and `Tendsto` goals need lemmas, not one tactic. A step that did not check also stays `sorry`.
+
+**Measured in CI.** `lean/generate.py` writes `lean/Generated.lean` from every pinned proof, and the `lean` workflow compiles it against the pinned Mathlib. There is no local Lean toolchain, so push a `lean/**` branch to iterate.
+- `--explain <log>` counts the steps Lean proved: a `sorry` fallback that Lean's "unused tactic" linter flags is a step its tactic proved.
+- Raise that count, never lower it. The baseline is 268 of 440 steps.
+
 ---
 
-## 8. Web API Specification (`ui/app.py`)
+## 9. Web API Specification (`ui/app.py`)
 
 FastAPI, served by `uv run python -m ui`. Each check runs in a worker process under a wall-clock budget; one that overruns answers with verdict `TIMEOUT` instead of hanging. The static build (`ui/build_static.py`) runs the same engine in the browser through Pyodide and answers the same shapes without a server. `ui/README.md` documents both in full.
 
@@ -447,6 +556,8 @@ FastAPI, served by `uv run python -m ui`. Each check runs in a worker process un
   "source": "Let x : Real\nAssume h: x > 2\nStep: (x^2 - 4) / (x - 2) = x + 2\n",
   "strict_domains": false,
   "show_working": false,
+  "audit": false,                        // what each line used, and the trace: ProofChecker(dependencies=True, trace=True)
+  "kernel": "course",                    // exam | course | scratch: the proof kernel (§7); null or absent checks without it
   "files": {"lemmas.aether": "…"},       // the workspace, for `import`
   "path": "main.aether",                 // this file's path, for relative imports
   "citations": {"Theorem 1.1": [["MTH2008 Theorem 1.1 · …", "@core/mth2008/1-1.aether"]]}
@@ -476,13 +587,13 @@ FastAPI, served by `uv run python -m ui`. Each check runs in a worker process un
 
 ### `POST /api/export/lean`
 - **Request:** `{"source", "files", "path", "citations"}`, as for `/api/check`.
-- **Response:** `{"lean", "rows", "untranslated", "error"}`. `lean` is the Lean 4 + Mathlib skeleton, with each step a `sorry` and a suggested tactic. `rows` pairs each source line with the Lean it became. `untranslated` names what has no faithful Lean.
+- **Response:** `{"lean", "rows", "untranslated", "error"}`. `lean` is the Lean 4 + Mathlib skeleton. Each step tries the Lean tactics for the rule the kernel checked it by (`first | (ring; done) | … | sorry`), with `sorry` as the fallback (§8.3). `rows` pairs each source line with the Lean it became. `untranslated` names what has no faithful Lean.
 
 A step result also carries `source_line`, `counterexample_dict`, `diagnostic_range` (for the editor's underline) and `subproof_metadata`.
 
 ---
 
-## 9. AI Proof Generation Rules & Best Practices
+## 10. AI Proof Generation Rules & Best Practices
 
 When generating Lemmata proofs, follow these rules. Check every proof you generate with `uv run lemmata file.aether`; a proof that only *looks* right is the failure this tool exists to catch.
 
