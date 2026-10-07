@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import functools
+from contextvars import ContextVar
 import itertools
 import re
 import time
@@ -654,6 +655,22 @@ def ast_to_z3(
         if fn == "sqrt" and len(expr.args) == 1:
             arg = ast_to_z3(expr.args[0], ctx, bound_vars, extra_constraints)
             arg_real = z3.ToReal(arg) if z3.is_int(arg) else arg
+            if _mentions_any(arg_real, bound_vars or {}):
+                # Under a quantifier the root depends on the bound variable: one
+                # constant cannot stand for it.  A function, with what every
+                # root satisfies stated once for all arguments (matched on
+                # sqrt(t)), so `forall x, x >= 0 => sqrt(x)^2 = x` is provable.
+                sqrt_fn = z3.Function("_sqrt", z3.RealSort(), z3.RealSort())
+                if extra_constraints is not None:
+                    t = z3.Real("_sqrt_t")
+                    axiom = z3.ForAll(
+                        [t],
+                        z3.Implies(t >= 0, z3.And(sqrt_fn(t) >= 0, sqrt_fn(t) * sqrt_fn(t) == t)),  # type: ignore[operator]
+                        patterns=[sqrt_fn(t)],
+                    )
+                    if not any(axiom.eq(c) for c in extra_constraints):
+                        extra_constraints.append(axiom)
+                return sqrt_fn(arg_real)
             s_var = z3.Real(f"_sqrt_{expr.args[0]}")
             if extra_constraints is not None:
                 extra_constraints.append(
@@ -845,6 +862,10 @@ def _power_atom(base: z3.ExprRef, exponent: z3.ExprRef) -> z3.ExprRef:
     return z3.Real(f"pow!{base.sexpr()}!{z3.simplify(exponent).sexpr()}")
 
 
+#: Set for a second try at a claim about powers: see ``_symbolic_power``.
+_POWER_GROWTH: ContextVar[bool] = ContextVar("_POWER_GROWTH", default=False)
+
+
 def _symbolic_power(
     base: z3.ExprRef,
     exponent: z3.ExprRef,
@@ -878,6 +899,11 @@ def _symbolic_power(
         extra_constraints.append(z3.Implies(e == 1, power == real_base))  # type: ignore[operator]
         extra_constraints.append(z3.Implies(z3.And(nonneg, real_base >= 1), power >= 1))  # type: ignore[operator]
         extra_constraints.append(z3.Implies(real_base > 0, power > 0))  # type: ignore[operator]
+        if _POWER_GROWTH.get():
+            # From the first power on, a base of at least 1 only grows: b^e >= b.
+            # Only on a second try (see verify_entailment): stated for every
+            # power, it slows the divisibility inductions past their budget.
+            extra_constraints.append(z3.Implies(z3.And(e >= 1, real_base >= 1), power >= real_base))  # type: ignore[operator]
 
     facts(atom, exponent)
 
@@ -2058,6 +2084,25 @@ def verify_entailment(
         solver.add(c)
     solver.add(z3.Not(z3_claim))
     result = check_solver(solver)
+
+    if result != z3.unsat and "^" in str(claim) and not _POWER_GROWTH.get():
+        # A claim about powers the solver could not settle: once more, with the
+        # growth fact b^e >= b (e >= 1, b >= 1) on every power.
+        token = _POWER_GROWTH.set(True)
+        try:
+            again = new_solver(timeout_ms)
+            _populate_solver_context(again, ctx)
+            more: list[z3.ExprRef] = []
+            claim_again = ast_to_z3(claim, ctx, extra_constraints=more)
+            for c in more:
+                again.add(c)
+            again.add(z3.Not(claim_again))
+            if check_solver(again) == z3.unsat:
+                return LogicResult(valid=True, message=f"Verified logically by Z3 ({claim}).", backend="Z3")
+        except LogicConversionError:
+            pass
+        finally:
+            _POWER_GROWTH.reset(token)
 
     if result == z3.unsat:
         return LogicResult(
