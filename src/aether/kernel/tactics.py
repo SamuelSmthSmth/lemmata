@@ -1,8 +1,9 @@
 """The tactics: each decides one kind of obligation, and says how strong it is.
 
 They read core terms (``core``) only.  ``weakest`` tries them in order of
-strength and names the first that proves the goal from the premises given, so
-the kernel's audit says what a line actually needed:
+strength and names the first that proves the goal from the premises given.
+Inside the typed core that answer is the verdict (stage 3, ``review``): a line
+passes because a named tactic proved it, and the audit says which:
 
 | tactic      | decides                                                   | strength |
 | ----------- | --------------------------------------------------------- | -------- |
@@ -17,9 +18,13 @@ Lean's does after `ring_nf`: `(n + 1)ε ≤ β` gives `nε ≤ β − ε` linear
 because `nε` is the same atom on both sides.  Only when the atoms must be
 multiplied out does a line need `nlinarith`.
 
-Every Z3 query runs on a Z3 context of its own (``logic.SolverContext``):
-the tactics only label a line, and must not change how a later line is
-decided, nor depend on what was decided before.
+Every Z3 query runs on a Z3 context of its own (``logic.SolverContext``): a
+tactic must not change how a later line is decided, nor depend on what was
+decided before.  The facts the tactics add about standard functions (ranges,
+what a square root squares to, bounds on the root of a number) hold for every
+real, so they only remove models that were never real; shadow mode
+(tests/lecture_notes/kernel_shadow.py) checks the tactics against the engine on
+every pinned proof.
 """
 
 from __future__ import annotations
@@ -193,14 +198,7 @@ class _Z3:
         and exp(t) >= 1 + t, cosh >= 1, |tanh| < 1, log(t) <= t - 1 for t > 0,
         and a square root >= 0.  They only remove models that were never real."""
         if isinstance(expr, sp.Pow) and expr.args[1] == sp.Rational(1, 2):
-            # Only where the root is real: sqrt(x - 1) >= 0 is not true at x = 0
-            # (the engine refuses it there; shadow mode caught an unconditional
-            # fact proving it).
-            try:
-                radicand = self.expr(expr.args[0])
-            except Exception:  # noqa: BLE001
-                return []
-            return [z3.Implies(radicand >= 0, value >= 0)]  # type: ignore[operator]
+            return self._root(expr.args[0], value)
         if isinstance(expr, sp.Function) and len(expr.args) == 1:
             name = type(expr).__name__.lower()
             if name in ("sin", "cos", "exp", "cosh", "tanh", "log"):
@@ -209,6 +207,29 @@ class _Z3:
                 except Exception:  # noqa: BLE001 - an argument the fragment cannot state
                     return []
         return []
+
+    def _root(self, radicand_expr, value: z3.ExprRef) -> list:
+        """What a square root is, only where it is real: sqrt(x - 1) >= 0 is not
+        true at x = 0 (the engine refuses it there; shadow mode caught an
+        unconditional fact proving it).  Where the radicand r >= 0, the root is
+        >= 0 and, non-linearly, squares to r: so sqrt(a) sqrt(b) = sqrt(ab) for
+        a, b >= 0.  The root of a positive number also gets exact rational
+        bounds (1.414213 < sqrt(2) < 1.414214), so sqrt(2) > 1 is arithmetic."""
+        if radicand_expr.is_Rational and radicand_expr > 0:
+            facts = [value > 0]
+            lo, hi = _root_bounds(sp.Rational(radicand_expr))
+            facts += [value > self.num(lo), value < self.num(hi)]
+            if not self.linear:
+                facts.append(value * value == self.num(radicand_expr))
+            return facts
+        try:
+            radicand = self.expr(radicand_expr)
+        except Exception:  # noqa: BLE001
+            return []
+        facts = [z3.Implies(radicand >= 0, value >= 0)]  # type: ignore[operator]
+        if not self.linear:
+            facts.append(z3.Implies(radicand >= 0, value * value == radicand))  # type: ignore[operator]
+        return facts
 
     def num(self, expr) -> z3.ExprRef:
         r = sp.Rational(expr)
@@ -244,6 +265,10 @@ class _Z3:
             return out
         if isinstance(e, sp.Pow):
             base, exp = e.args
+            if not self.linear and exp.is_Rational and exp.q == 2 and exp != sp.S.Half:
+                # SymPy writes 1/sqrt(x) as x^(-1/2): read b^(k/2) as sqrt(b)^k,
+                # so it is the same atom as sqrt(b), with the same facts.
+                return self.expr(sp.Pow(sp.sqrt(base), exp.p, evaluate=False))
             if self.linear or not exp.is_Integer:
                 return self.atom(e)
             k = int(exp)
@@ -281,6 +306,22 @@ class _Z3:
             a, b = (self.prop(x) for x in p.args)
             return {"and": z3.And, "or": z3.Or, "=>": z3.Implies}.get(p.op, lambda x, y: x == y)(a, b)
         raise TypeError(p)
+
+
+#: The root bounds' resolution: sqrt(c) is pinned between two multiples of this.
+_ROOT_STEP = 10**6
+
+
+def _root_bounds(c: sp.Rational) -> tuple[sp.Rational, sp.Rational]:
+    """Rationals lo < sqrt(c) < hi, a millionth apart, checked exactly."""
+    from math import isqrt
+
+    n = isqrt(int(c * _ROOT_STEP**2))  # floor(sqrt(c) * STEP), exactly
+    lo, hi = sp.Rational(n, _ROOT_STEP), sp.Rational(n + 1, _ROOT_STEP)
+    if lo * lo == c:  # a perfect square SymPy did not already simplify
+        lo = lo - sp.Rational(1, _ROOT_STEP)
+    assert lo * lo < c < hi * hi
+    return lo, hi
 
 
 def _z3_proves(goal: Prop, premises: list[Prop], linear: bool) -> bool:

@@ -4,15 +4,20 @@
 
 For every chain link and deduction in the course packs and the proofs in the
 tests, with the kernel at scratch: what the engine said, and which core tactic
-(if any) proves the line from the premises it could see.  Two lists matter:
+(if any) proves the line from the premises it could see.  Inside the core the
+tactics decide (stage 3), so two lists matter:
 
 - the tactics prove what the engine refused: a soundness alarm unless the
   engine refused for a reason that is not mathematics (an unknown label);
-- the engine proves, inside the core, what no tactic does: what the core
-  would lose if it decided rather than labelled.
+- the gap: the engine proves, inside the core and from premises the core can
+  all read, what no tactic does.  Each is a line a student would see as
+  "checked by the solver only".
 
-Exits 1 if the first list holds a mathematical disagreement.  Not part of
-pytest (tests/test_kernel_shadow.py runs the trap entries, the cheap half).
+A line whose premises the core cannot read (a group's axioms, `Bounded(h)`)
+is neither: the engine's verdict stands there, labelled so.
+
+Exits 1 on a mathematical alarm or a gap.  Not part of pytest
+(tests/test_kernel_shadow.py runs the trap entries, the cheap half).
 """
 import ast
 import json
@@ -52,7 +57,9 @@ def run(item):
         el = core.elaborate(goal, ctx)
         verdict = None
         if el is not None:
-            verdict = tactics.weakest(el.prop, review._core_premises(ctx, allowed, self._chain, goal)) or "none"
+            verdict = tactics.weakest(el.prop, review._core_premises(ctx, allowed, self._chain, goal))
+            if verdict is None:
+                verdict = "premises outside" if review._unread_premises(ctx, allowed, self._chain, goal) else "none"
         rows.append((key, result.line, result.status.value, result.backend, verdict, str(goal)[:100], result.message[:120]))
         return original(self, result, obligation, kind, cited, allowed, ctx, before, after, witnessed)
 
@@ -77,11 +84,13 @@ if __name__ == "__main__":
     for key, line, status, backend, verdict, goal, msg in rows:
         if verdict is None:
             c["outside the core"] += 1
+        elif verdict == "premises outside":
+            c["premises outside the core"] += 1
         elif status == "INVALID" and verdict != "none":
             c["engine INVALID, tactic proves"] += 1
             stronger.append((key, line, verdict, goal, msg))
         elif status != "INVALID" and verdict == "none":
-            c["engine valid, no tactic"] += 1
+            c["gap: engine valid, no tactic"] += 1
             weaker.append((key, line, backend, goal))
         else:
             c["agree"] += 1
@@ -89,10 +98,13 @@ if __name__ == "__main__":
     print("\n== the tactics prove what the engine refused ==")
     for s in stronger:
         print("  ", s)
-    print("\n== the engine proves, inside the core, what no tactic does (first 40) ==")
+    print("\n== the gap: the engine proves, inside the core, what no tactic does (first 40) ==")
     for w in weaker[:40]:
         print("  ", w)
     alarms = [s for s in stronger if not s[4].startswith(NOT_MATHEMATICS)]
     if alarms:
         print(f"\n{len(alarms)} line(s) the tactics prove but the engine refused on the mathematics: check the tactics.")
+    if weaker:
+        print(f"\n{len(weaker)} line(s) only the solver checks: students would see them as warnings.")
+    if alarms or weaker:
         sys.exit(1)
