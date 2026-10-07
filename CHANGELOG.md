@@ -15,6 +15,12 @@ What changed between releases of Lemmata, newest first. The engine is the `aethe
 ### Calculus by named rules
 
 - **At a level, a derivative or a definite integral is checked by the kernel's own rules,** and the badge names them: `Kernel: power rule`, `product rule`, `quotient rule`, `chain rule`, `FTC`. The kernel differentiates by those rules itself, never by asking SymPy. For an integral, SymPy may *propose* an antiderivative, but the kernel checks it (its derivative is the integrand, and the integrand is continuous on the interval) before using F(b) − F(a). 37 of the course packs' derivative and integral lines are now checked this way.
+- **Limits and finite sums too.**
+  - **Limits:** a limit goes by substitution, by cancelling a common factor, by the algebra of limits, by L'Hôpital's rule (with the kernel's own derivatives), by dominant terms at infinity, or by the squeeze.
+  - **Finite sums:** a sum is added up, telescoped, has its last term peeled off, or is replaced by a closed form that SymPy proposes and the kernel checks by induction.
+  - **The traps stay refused:** the packs' limit traps, the two-sided `1/x → ∞` and `sin(1/x) → 0`, are still refused.
+  - **Coverage:** 63 of the packs' and tests' limit and sum lines are now checked this way.
+  - **Still the solver's:** infinite series and `ρⁿ → 0` need a convergence or |ρ| < 1 premise, so they stay with the solver.
 - A line the rules do not reach (an integral up to a symbolic bound of a function like log) keeps the solver's verdict, as before. No verdict changes.
 
 ### Honest counterexamples
