@@ -12,6 +12,11 @@ What changed between releases of Lemmata, newest first. The engine is the `aethe
 - A line resting on facts the rules cannot read (a group's axioms, `Bounded(h)`) keeps the solver's verdict, and says so.
 - *Off* is unchanged.
 
+### Honest counterexamples
+
+- **A counterexample is shown only when it is one.** The solver knows only what it is told about functions like `sin` or `arctan`, so it could call x = 2 a counterexample to `sin²x + cos²x ≥ 1`. Now the line is checked at those values with each function's real meaning first; if it holds there, the step says it could not be verified and that the solver's values are not a counterexample.
+- **`floor`, `ceiling` and `n!` are understood:** `floor(x) ≤ x`, `ceiling(x) ≥ x`, `n! ≥ 1` and `n! ≥ n` are proved, where before they were refused with counterexamples that were wrong (x = −1, n = 0).
+
 ## 0.3.0 (2026-10-06)
 
 The proof kernel release. Lemmata used to check whether each line was true; now it can check whether each line *follows*. A line that is true but skips the argument is refused as too big a step, with what to write instead. Underneath, a typed core and named tactics say what each line needed. You can also see what each line was proved from, as a graph, and what the checker did, as a log.
