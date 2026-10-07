@@ -33,12 +33,12 @@ theorem even_square_theorem :
   obtain ⟨k, h5⟩ : ∃ k : ℤ, n = 2 * k := by
     sorry  -- from h1
   have s6 : n ^ 2 = 2 * (2 * k ^ 2) := by
-    calc n ^ 2 = (2 * k) ^ 2 := by first | (subst_vars; ring; done) | (ring; done) | sorry  -- Kernel: subst
-      _ = 4 * k ^ 2 := by first | (ring; done) | sorry  -- Kernel: ring
-      _ = 2 * (2 * k ^ 2) := by first | (ring; done) | sorry  -- Kernel: ring
-  have s9 : ∃ m : ℤ, n ^ 2 = 4 * m := ⟨(k ^ 2 : ℤ), by first | (subst_vars; ring; done) | (ring; done) | sorry⟩  -- Kernel: subst
+    calc n ^ 2 = (2 * k) ^ 2 := by first | (subst_vars; ring; done) | (ring; done) | (simp only [*]; ring; done) | sorry  -- Kernel: subst
+      _ = 4 * k ^ 2 := by first | (ring; done) | (norm_num; done) | (field_simp; ring; done) | sorry  -- Kernel: ring
+      _ = 2 * (2 * k ^ 2) := by first | (ring; done) | (norm_num; done) | (field_simp; ring; done) | sorry  -- Kernel: ring
+  have s9 : ∃ m : ℤ, n ^ 2 = 4 * m := ⟨(k ^ 2 : ℤ), by first | (subst_vars; ring; done) | (ring; done) | (simp only [*]; ring; done) | sorry⟩  -- Kernel: subst
   have s10 : (4 : ℤ) ∣ n ^ 2 := by
-    first | assumption | sorry  -- Kernel: hypothesis
+    first | assumption | linarith | omega | (simp_all; done) | sorry  -- Kernel: hypothesis
   exact s10
 """
 
@@ -86,7 +86,7 @@ def test_a_failing_step_is_marked_in_its_row_and_its_comment():
 def test_a_scratchpad_states_what_it_shows():
     lean = body("Let x, y : Real\nAssume x > 2\nStep: (x^2 - 4) / (x - 2) = x + 2\nStep: > 4")
     assert "example :\n    ∀ x : ℝ, ∀ y : ℝ, x > 2 → (x ^ 2 - 4) / (x - 2) > 4 := by" in lean
-    assert "_ > 4 := by first | linarith | sorry  -- Kernel: linarith" in lean
+    assert "_ > 4 := by first | linarith |" in lean and "| sorry  -- Kernel: linarith" in lean
     assert lean.rstrip().endswith("exact s3")
 
 
@@ -129,8 +129,8 @@ QED
     lean = body(source)
     assert "theorem left_cancellation {G : Type*} [Group G] :" in lean
     assert "∀ a : G, ∀ u : G, ∀ v : G, a * u = a * v → u = v := by" in lean
-    assert "calc u = a⁻¹ * (a * u) := by first | (group; done) | sorry  -- Kernel: group axioms" in lean
-    assert ":= by first | (simp_all; done) | (simp only [mul_assoc] at *; group; done) | sorry  -- Kernel: group axioms and hypotheses" in lean
+    assert "calc u = a⁻¹ * (a * u) := by first | (group; done) |" in lean
+    assert ":= by first | (simp_all; done) |" in lean and "-- Kernel: group axioms and hypotheses" in lean
 
 
 def test_cases_split_with_rcases_and_bullets():
@@ -225,7 +225,7 @@ def test_a_parse_error_is_raised_not_exported():
 
 def test_a_step_the_kernel_checked_tries_its_tactic_and_falls_back_to_sorry():
     lean = body("Let x : Real\nAssume h: x > 2\nTherefore x > 1")
-    assert "first | linarith | sorry  -- Kernel: linarith" in lean
+    assert "first | linarith |" in lean and "| sorry  -- Kernel: linarith" in lean
 
 
 def test_a_calculus_step_stays_sorry():

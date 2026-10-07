@@ -105,9 +105,12 @@ def explain(log_path: str) -> int:
         print(f"{owner}: line {line}: {match.group(3)}")
         print(f"    {generated[line - 1].strip()}")
     print(f"{errors} error(s)")
+    # A fallback Lean never reached is one its linter calls unused: the tactic
+    # before it proved the step.  Counted once per fallback.
     attempted = sum(1 for line in generated if f'(trace "{OPEN}"; sorry)' in line)
-    left_open = len(re.findall(rf"info.*{OPEN}", Path(log_path).read_text(encoding="utf-8")))
-    print(f"steps Lean was asked to prove: {attempted}; proved by Lean: {attempted - left_open}; left as sorry: {left_open}")
+    unused = set(re.findall(rf'(Generated\.lean:\d+:\d+): warning: Unused tactic linter: `\(trace "{OPEN}"; sorry\)`', Path(log_path).read_text(encoding="utf-8")))
+    proved = len(unused)
+    print(f"steps Lean was asked to prove: {attempted}; proved by Lean: {proved}; left as sorry: {attempted - proved}")
     return 1 if errors else 0
 
 
