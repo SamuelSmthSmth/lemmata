@@ -120,6 +120,15 @@ against the Mathlib pinned in `lean/lakefile.toml` (there is no local Lean
 toolchain to rely on; push a `lean/**` branch to iterate). Raise Mathlib's
 `rev` and `lean/lean-toolchain` together. The CI log also reports how many steps Lean proved (`--explain`: a fallback Lean's linter calls unused is a step its tactic proved); raise that number, never lower it.
 
+### Paste LaTeX
+
+`aether.core.latex_import.latex_to_lemmata(text)` returns a `LatexImport`
+(`source`, `comments`, `to_dict()`): a proof written in LaTeX as a Lemmata
+draft, by fixed rules (theorem/proof environments, sentences read by their
+opening words, `align*` rows as `Step:` chains, maths normalised to what the
+parser reads). What it cannot place, and any line the parser refuses, is left
+as a `#` comment with the reason in `comments`, so the draft always parses.
+
 ### Data Structures Returned by `checker.check_source(source_text)`
 
 #### `ProofReport`
