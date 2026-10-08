@@ -1397,7 +1397,7 @@ class LeanExporter:
             text = expr.prop(s.rhs)
             name = self._fact_name(line)
             self.emit(f"{indent}have {name} : {text} := by", line)
-            self.emit(f"{indent}  {self._attempt(s, line)}{self._hint(s, line)}", line)
+            self.emit(f"{indent}  {self._attempt(s, line, s.rhs, expr)}{self._hint(s, line)}", line)
             return _Fact(name, text)
         if isinstance(s, SubProofNode):
             return self._subproof(s, scope, indent)
@@ -1489,7 +1489,7 @@ class LeanExporter:
             self.emit(f"{indent}have {name} : {text} := ⟨({w} : {t}), by {self._attempt(s, line)}⟩{self._hint(s, line)}", line)
         else:
             self.emit(f"{indent}have {name} : {text} := by", line)
-            self.emit(f"{indent}  {self._attempt(s, line)}{self._hint(s, line)}", line)
+            self.emit(f"{indent}  {self._attempt(s, line, s.claim, expr)}{self._hint(s, line)}", line)
         return _Fact(name, text)
 
     def _hyp_name(self, label: Optional[str], line: Optional[int]) -> str:
@@ -1529,10 +1529,11 @@ class LeanExporter:
             left = head
             for rel, right, s in links:
                 node = RelationNode(op=_lemmata_rel(rel), left=left, right=right)
-                text = _Expr(scope, self.untranslated, s.line).prop(node)
+                link = _Expr(scope, self.untranslated, s.line)
+                text = link.prop(node)
                 name = self._fact_name(s.line)
                 self.emit(f"{indent}have {name} : {text} := by", s.line)
-                self.emit(f"{indent}  {self._attempt(s, s.line)}{self._hint(s, s.line)}", s.line)
+                self.emit(f"{indent}  {self._attempt(s, s.line, node, link)}{self._hint(s, s.line)}", s.line)
                 fact = _Fact(name, text)
                 left = right
             return fact, _Chain(links[-1][1])
@@ -1540,13 +1541,16 @@ class LeanExporter:
         whole_text = expr.prop(whole)
         name = self._fact_name(first.line)
         self.emit(f"{indent}have {name} : {whole_text} := by", first.line)
+        left = head
         for k, (rel, right, s) in enumerate(links):
             e = _Expr(scope, self.untranslated, s.line)
             rhs = e.term(right, _P_REL + 1)
+            goal = RelationNode(op=_lemmata_rel(rel), left=left, right=right)
+            left = right
             if k == 0:
-                self.emit(f"{indent}  calc {e.term(head, _P_REL + 1)} {rel} {rhs} := by {self._attempt(s, s.line)}{self._hint(s, s.line)}", s.line)
+                self.emit(f"{indent}  calc {e.term(head, _P_REL + 1)} {rel} {rhs} := by {self._attempt(s, s.line, goal, e)}{self._hint(s, s.line)}", s.line)
             else:
-                self.emit(f"{indent}    _ {rel} {rhs} := by {self._attempt(s, s.line)}{self._hint(s, s.line)}", s.line)
+                self.emit(f"{indent}    _ {rel} {rhs} := by {self._attempt(s, s.line, goal, e)}{self._hint(s, s.line)}", s.line)
         return _Fact(name, whole_text), _Chain(links[-1][1])
 
     # -- blocks -----------------------------------------------------------------
@@ -1667,14 +1671,19 @@ class LeanExporter:
 
     # -- step proofs ------------------------------------------------------------
 
-    def _attempt(self, s: StatementNode, line: Optional[int]) -> str:
+    def _attempt(self, s: StatementNode, line: Optional[int], goal: Optional[ExprNode] = None, expr: Optional["_Expr"] = None) -> str:
         """The step's proof: the Lean tactic for the rule the kernel checked it
         by, falling back to `sorry` (``first | ring | sorry``), or `sorry` alone
         when the step did not check or no one tactic does what the rule did."""
         result = self.results.get(line) if line is not None else None
         if result is None or getattr(result.status, "value", str(result.status)) == "INVALID":
             return "sorry"
-        attempts = _lean_attempts(result.backend, s, self.algebra)
+        shape = _Shape()
+        if goal is not None and expr is not None:
+            quiet = _Expr(expr.scope, [], None)  # rendering here must not report anything
+            shape.abs_terms = list(dict.fromkeys(quiet.term(a) for a in _abs_args(goal)))[:3]
+            shape.conjunction = isinstance(goal, BinaryOpNode) and goal.op in _AND
+        attempts = _lean_attempts(result.backend, s, self.algebra, shape)
         return "first | " + " | ".join(attempts) + " | sorry" if attempts else "sorry"
 
     # -- hints ------------------------------------------------------------------
@@ -1852,8 +1861,33 @@ _LEAN_TACTICS: dict[str, tuple[str, ...]] = {
 _INTROS = ("∀-intro", "⇒-intro", "∧-intro")
 
 
-def _lean_attempts(backend: str, s: StatementNode, algebra: Optional[str]) -> list[str]:
+@dataclass
+class _Shape:
+    """What the goal looks like, for the tactics that need to know."""
+
+    #: The arguments of the absolute values in it, as Lean terms (at most 3).
+    abs_terms: list[str] = field(default_factory=list)
+    #: Whether it is a conjunction (`A ∧ B`).
+    conjunction: bool = False
+
+
+def _abs_args(node: Any) -> list[ExprNode]:
+    out: list[ExprNode] = []
+    if isinstance(node, FunctionCallNode) and node.func.lower() in ("abs", "\\abs") and len(node.args) == 1:
+        out.append(node.args[0])
+    if isinstance(node, ExprNode):
+        for value in vars(node).values():
+            if isinstance(value, ExprNode):
+                out.extend(_abs_args(value))
+            elif isinstance(value, list):
+                for v in value:
+                    out.extend(_abs_args(v))
+    return out
+
+
+def _lean_attempts(backend: str, s: StatementNode, algebra: Optional[str], shape: Optional[_Shape] = None) -> list[str]:
     """What to try for a step the kernel checked by *backend*."""
+    shape = shape or _Shape()
     if not backend.startswith("Kernel: "):
         return []
     rules = backend[len("Kernel: ") :].split(", ")
@@ -1862,6 +1896,14 @@ def _lean_attempts(backend: str, s: StatementNode, algebra: Optional[str]) -> li
         return []
     if algebra in ("Group", "CommGroup") and rules[-1] in ("ring", "subst"):
         tactics = ["group"]
+    if rules[-1] in ("linarith", "nlinarith"):
+        if shape.abs_terms:
+            # Lemmata's solver splits |t| into its two cases itself; Lean's
+            # linarith sees |t| as an atom.  Split each one, then linarith.
+            splits = " <;> ".join(f"rcases abs_cases ({t}) with ⟨_, _⟩ | ⟨_, _⟩" for t in shape.abs_terms)
+            tactics = [f"({splits} <;> {rules[-1]})"] + tactics
+        if shape.conjunction:
+            tactics = [f"(refine ⟨?_, ?_⟩ <;> {rules[-1]})"] + tactics
     if any(r in _INTROS for r in rules):
         # ∀/⇒-introduction: take the binders and hypotheses apart, then the leaf.
         tactics = [f"(intros; {t})" for t in tactics]
@@ -1872,10 +1914,12 @@ def _lean_attempts(backend: str, s: StatementNode, algebra: Optional[str]) -> li
 #: goal still open (`ring` falls back to `ring_nf`, `field_simp` and `simp`
 #: make progress), which `first` would take as done: they get `; done`.
 _CLOSES = frozenset({"linarith", "nlinarith", "positivity", "omega", "decide", "assumption"})
+#: Tactic texts ending in one of these close or fail too (`… <;> linarith`).
+_CLOSING_TAILS = ("<;> linarith)", "<;> nlinarith)")
 
 
 def _closing(tactic: str) -> str:
-    if tactic in _CLOSES:
+    if tactic in _CLOSES or tactic.endswith(_CLOSING_TAILS):
         return tactic
     inner = tactic[1:-1] if tactic.startswith("(") and tactic.endswith(")") else tactic
     return f"({inner}; done)"
