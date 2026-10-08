@@ -864,13 +864,13 @@ def _power_atom(base: z3.ExprRef, exponent: z3.ExprRef) -> z3.ExprRef:
 
 def _worth_a_second_try(result, solver: z3.Solver, claim: ExprNode, ctx: ProofContext) -> bool:
     """A claim about powers gets a second try with the growth fact only when the
-    first said nothing useful: unknown, or a model that is not a counterexample
-    (3^n >= 3 from n >= 1, "refuted" at n = 2).  A real counterexample needs no
-    second try, and paying for one doubled the time of every false claim."""
-    if result == z3.unsat or "^" not in str(claim) or _POWER_GROWTH.get():
+    first answered with a model that is not a counterexample (3^n >= 3 from
+    n >= 1, "refuted" at n = 2).  A real counterexample needs no second try,
+    and an unknown is usually a timeout, which a second query would only
+    repeat: either way the retry doubled the time of a false claim, and put a
+    capability probe over its budget."""
+    if result != z3.sat or "^" not in str(claim) or _POWER_GROWTH.get():
         return False
-    if result != z3.sat:
-        return True
     model = extract_z3_model_dict(solver.model(), ctx)
     return bool(model) and _not_a_counterexample(claim, model, ctx) is not None
 
