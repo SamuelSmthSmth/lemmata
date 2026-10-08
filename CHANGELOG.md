@@ -2,58 +2,52 @@
 
 What changed between releases of Lemmata, newest first. The engine is the `aether` Python package; its public API (`ProofChecker`, `ProofReport`, `StepResult`, `StepStatus`, `ParseError`) stays backward compatible within these releases.
 
-## Unreleased
+## 0.4.0 (2026-10-08)
+
+The kernel decides. In 0.3, Lemmata's proof kernel labelled each line with the rule it would take; now, at a level, a line passes because a named rule proved it, and the solver is the second checker. The rules reach far past algebra: derivatives, integrals, limits and sums, groups, rings and quantified statements. And *Show in Lean* hands those rules to Lean, which now proves most steps itself.
 
 ### The kernel decides
 
-- **At the Exam, Course and Scratch levels, a line passes because a named rule proved it,** not because the solver agreed. The badge names the rule (`Kernel: ring`, `linarith`, `nlinarith`, …), and the solver now checks the rule's answer: any refusal it makes still stands.
-- **A true line no rule can show is passed with a warning,** "Checked by the solver only", with advice to split it or cite what it uses. No pinned proof has one.
-- **Square roots are understood:** `√a·√b = √(ab)` for a, b ≥ 0, the root of a difference written as a quotient, and bounds such as `√2 > 1` are now proved by the rules, so the lecture notes' density and continuity proofs are checked step by step.
-- A line resting on facts the rules cannot read (a group's axioms, `Bounded(h)`) keeps the solver's verdict, and says so.
-- *Off* is unchanged.
+- **At the Exam, Course and Scratch levels, a line passes because a named rule proved it,** not because the solver agreed. The badge names the rule (`Kernel: ring`, `linarith`, `product rule`, `group axioms`, …). The solver checks the rule's answer, and any refusal it makes still stands.
+- **A true line no rule can show passes with a warning,** "Checked by the solver only", with advice to split it or cite what it uses. No pinned proof has one.
+- **A line resting on facts the rules cannot read** (a definition's predicate such as `Bounded(h)`) keeps the solver's verdict, and says so.
+- **Rules check their own conditions.** A rule never uses a line's own conclusion as a premise, and a step under a quantifier proves its own denominators non-zero first.
+- *Off* is unchanged, and no pinned verdict changed in this release.
 
-### Calculus by named rules
+### Named rules, by area
 
-- **At a level, a derivative or a definite integral is checked by the kernel's own rules,** and the badge names them: `Kernel: power rule`, `product rule`, `quotient rule`, `chain rule`, `FTC`. The kernel differentiates by those rules itself, never by asking SymPy. For an integral, SymPy may *propose* an antiderivative, but the kernel checks it (its derivative is the integrand, and the integrand is continuous on the interval) before using F(b) − F(a). 37 of the course packs' derivative and integral lines are now checked this way.
-- **Limits and finite sums too.**
-  - **Limits:** a limit goes by substitution, by cancelling a common factor, by the algebra of limits, by L'Hôpital's rule (with the kernel's own derivatives), by dominant terms at infinity, or by the squeeze.
-  - **Finite sums:** a sum is added up, telescoped, has its last term peeled off, or is replaced by a closed form that SymPy proposes and the kernel checks by induction.
-  - **The traps stay refused:** the packs' limit traps, the two-sided `1/x → ∞` and `sin(1/x) → 0`, are still refused.
-  - **Coverage:** 63 of the packs' and tests' limit and sum lines are now checked this way.
-  - **Still the solver's:** infinite series and `ρⁿ → 0` need a convergence or |ρ| < 1 premise, so they stay with the solver.
-- A line the rules do not reach (an integral up to a symbolic bound of a function like log) keeps the solver's verdict, as before. No verdict changes.
+- **Algebra:** `ring`, `field`, `subst`, `simp`, `linarith`, `nlinarith`, now with square roots understood: `√a·√b = √(ab)` for a, b ≥ 0, and bounds such as `√2 > 1`.
+- **Derivatives:** the power, product, quotient and chain rules and the standard functions. The kernel differentiates by these rules itself, never by asking SymPy.
+- **Integrals:** the Fundamental Theorem. SymPy may *propose* an antiderivative; the kernel checks that its derivative is the integrand and that the integrand is continuous on the interval.
+- **Limits:** substitution, cancelling a common factor, the algebra of limits, L'Hôpital's rule, dominant terms at infinity, the squeeze, and one-sided signs.
+- **Finite sums:** added up, telescoped, the last term peeled off, or a closed form checked by induction. The geometric series formula is used only where `r ≠ 1` is assumed: the notes' own trap is the formula without it.
+- **Groups, subgroups and rings:**
+  - **Groups:** identities by reducing words the way the group axioms allow, in either notation (`op(a, b)` or `a * b`, `a^-1`). Hypotheses join in for cancellation, uniqueness of the identity, and the image-and-kernel proofs.
+  - **Subgroups:** closure and normal subgroups.
+  - **Rings and fields:** their axioms.
+- **Quantified statements:** natural deduction, ∧-, ∀- and ⇒-introduction with a rule at each leaf (`Kernel: ∀-intro, ⇒-intro, nlinarith`). An `exists` without a witness is left to the proof.
+- **Traps stay refused:** "a group is abelian", `(ab)⁻¹ = a⁻¹b⁻¹`, `a²b² = (ab)²`, the two-sided `1/x → ∞`, `sin(1/x) → 0`, and the rest.
+- **Coverage:** across the course packs and tests, 240 lines are now shown by these named rules, beside the ones the core's tactics decide.
 
 ### Show in Lean proves steps
 
-- **Each step now tries the Lean tactic for the rule Lemmata's kernel checked it by,** falling back to `sorry` only where that tactic can't finish it: `first | (ring; done) | … | sorry  -- Kernel: ring`.
-- **On every pinned proof, Lean itself proves 337 of the 462 steps it is asked to try. A step about absolute values splits each `|t|` into its two cases first, as Lemmata's solver does.** The rest stay `sorry`, as before.
+- **Each step tries the Lean tactic for the rule Lemmata checked it by,** and falls back to `sorry` only where that tactic can't finish it: `first | (ring; done) | … | sorry  -- Kernel: ring`.
+- **Across every pinned proof, Lean itself proves 337 of the 462 steps it is asked to try.**
+  - **Absolute values:** split into their cases first, as Lemmata's solver does.
+  - **Divisions:** denominators are shown non-zero before simplifying.
+  - **Also tried:** derivatives, definite integrals, 2 × 2 matrices and vectors.
+- **Stays `sorry`:** limits, and steps that did not check.
 - **Every skeleton still compiles** against the pinned Mathlib.
-- **Derivatives, definite integrals, 2 × 2 matrices and vectors are tried too,** with Mathlib's simp set and power rules. Limits and steps that did not check stay `sorry`.
-
-### Quantified statements by natural deduction
-
-- **A quantified line is taken apart as a written proof would:** ∧-introduction (each part), ∀-introduction (a fresh variable), ⇒-introduction (assume the left, prove the right). Each leaf goes to a core tactic.
-- **The badge shows the whole argument,** for example `Kernel: ∀-intro, ⇒-intro, nlinarith`.
-- **An `exists` without a witness is left to the proof,** since choosing one isn't a rule's job.
-- **Levels behave as before:** at *Course* a whole ∀-statement in one line is still refused as too big a step.
-
-### Groups, subgroups and rings by named rules
-
-- **Group identities by word reduction:** `Kernel: group axioms`.
-  - An element built from `op`, `inv` and the identity, in either notation (`op(a, b)` or `a * b`, `a^-1`), is reduced the way the group axioms allow. Two sides that reduce to the same word are equal in every group.
-  - No solver is asked.
-- **Hypotheses join in:** `Kernel: group axioms and hypotheses`.
-  - Equations, and ∀-statements such as a homomorphism's `f(op(x, y)) = star(f(x), f(y))`, count only at elements known to lie in the group.
-  - This covers cancellation, uniqueness of the identity, and the image-and-kernel proofs.
-- **Subgroup membership:** `Kernel: subgroup closure` or `normal subgroup`. A product of members, an inverse, the identity, or a conjugate in a normal subgroup.
-- **Rings and fields:** `Kernel: ring axioms` or `field axioms`. A field's `inv(x)` counts only where `x ≠ zero` is assumed.
-- **Traps stay refused:** "a group is abelian", `(ab)⁻¹ = a⁻¹b⁻¹` and `a²b² = (ab)²`, outside an abelian group.
 
 ### Honest counterexamples
 
-- **A counterexample is shown only when it is one.** The solver knows only what it is told about functions like `sin` or `arctan`, so it could call x = 2 a counterexample to `sin²x + cos²x ≥ 1`. Now the line is checked at those values with each function's real meaning first; if it holds there, the step says it could not be verified and that the solver's values are not a counterexample.
-- **Two more true lines are proved:** `3ⁿ ≥ 3` from `n ≥ 1` (a claim about powers gets a second try with the fact that a base of at least 1 only grows), and `∀x, x ≥ 0 ⇒ sqrt(x)² = x`, which was refused with the false counterexample x = 0.
-- **`floor`, `ceiling` and `n!` are understood:** `floor(x) ≤ x`, `ceiling(x) ≥ x`, `n! ≥ 1` and `n! ≥ n` are proved, where before they were refused with counterexamples that were wrong (x = −1, n = 0).
+- **A counterexample is shown only when it is one.** The solver knows only what it is told about functions like `sin` or `arctan`, so it could call x = 2 a counterexample to `sin²x + cos²x ≥ 1`. Now the line is checked at those values with each function's real meaning first. If it holds there, the step says it could not be verified, and that the solver's values are not a counterexample.
+- **True lines that were refused are now proved:**
+  - `floor(x) ≤ x`, `ceiling(x) ≥ x`, `n! ≥ 1` and `n! ≥ n`;
+  - `3ⁿ ≥ 3` from `n ≥ 1`;
+  - `∀x, x ≥ 0 ⇒ sqrt(x)² = x`.
+
+  Several of these had been refused with counterexamples that were wrong (x = −1, n = 0).
 
 ## 0.3.0 (2026-10-06)
 
