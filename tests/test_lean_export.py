@@ -228,10 +228,15 @@ def test_a_step_the_kernel_checked_tries_its_tactic_and_falls_back_to_sorry():
     assert "first | linarith |" in lean and "| sorry  -- Kernel: linarith" in lean
 
 
-def test_a_calculus_step_stays_sorry():
-    # Lean's deriv goal needs lemmas, not one tactic: the rule is named, not tried.
+def test_a_derivative_tries_mathlibs_simp_set():
+    # Chosen by the goal's shape (deriv), whatever rule decided it.
     lean = body("Let x : Real\nStep: diff(x^3, x) = 3*x^2")
-    assert "sorry  -- Kernel: power rule" in lean
+    assert "first | (simp; ring; done) |" in lean
+    assert "| sorry  -- Kernel: power rule" in lean
+
+
+def test_a_limit_stays_sorry():
+    lean = body("Let x : Real\nStep: lim(x + 1, x, 2) = 3")
     assert "first |" not in lean
 
 

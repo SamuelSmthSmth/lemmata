@@ -1862,6 +1862,19 @@ _LEAN_TACTICS: dict[str, tuple[str, ...]] = {
 }
 _INTROS = ("∀-intro", "⇒-intro", "∧-intro")
 
+#: Attempts chosen by the Lean goal's shape: derivatives and integrals (by
+#: Mathlib's simp set and its power rules), and 2 × 2 matrices and vectors
+#: (their `set` definitions unfolded by `simp [*]`, then entry by entry).
+_BY_SHAPE: tuple[tuple[str, tuple[str, ...]], ...] = (
+    ("deriv", ("(simp; ring)", "(simp)", "(norm_num [deriv_pow, deriv_const_mul, deriv_mul, deriv_sub, deriv_add]; ring)")),
+    ("intervalIntegral", ("(norm_num [integral_pow, integral_const_mul])", "(simp [integral_pow]; norm_num)")),
+    ("Matrix", (
+        "(simp [*, Matrix.det_fin_two, Matrix.trace_fin_two]; norm_num)",
+        "(ext i j; fin_cases i <;> fin_cases j <;> simp [*, Matrix.mul_apply, Fin.sum_univ_two] <;> norm_num)",
+    )),
+    ("⬝ᵥ", ("(simp [*, dotProduct, Fin.sum_univ_succ]; norm_num)",)),
+)
+
 
 @dataclass
 class _Shape:
@@ -1912,6 +1925,10 @@ def _lean_attempts(backend: str, s: StatementNode, algebra: Optional[str], shape
         return []
     rules = backend[len("Kernel: ") :].split(", ")
     tactics = list(_LEAN_TACTICS.get(rules[-1], ()))
+    # Goals whose Lean shape says what Mathlib needs, whatever rule decided them.
+    for marker, attempts in _BY_SHAPE:
+        if marker in shape.text:
+            tactics += list(attempts)
     if not tactics:
         return []
     if algebra in ("Group", "CommGroup") and rules[-1] in ("ring", "subst"):
