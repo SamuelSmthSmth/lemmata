@@ -862,6 +862,19 @@ def _power_atom(base: z3.ExprRef, exponent: z3.ExprRef) -> z3.ExprRef:
     return z3.Real(f"pow!{base.sexpr()}!{z3.simplify(exponent).sexpr()}")
 
 
+def _worth_a_second_try(result, solver: z3.Solver, claim: ExprNode, ctx: ProofContext) -> bool:
+    """A claim about powers gets a second try with the growth fact only when the
+    first answered with a model that is not a counterexample (3^n >= 3 from
+    n >= 1, "refuted" at n = 2).  A real counterexample needs no second try,
+    and an unknown is usually a timeout, which a second query would only
+    repeat: either way the retry doubled the time of a false claim, and put a
+    capability probe over its budget."""
+    if result != z3.sat or "^" not in str(claim) or _POWER_GROWTH.get():
+        return False
+    model = extract_z3_model_dict(solver.model(), ctx)
+    return bool(model) and _not_a_counterexample(claim, model, ctx) is not None
+
+
 #: Set for a second try at a claim about powers: see ``_symbolic_power``.
 _POWER_GROWTH: ContextVar[bool] = ContextVar("_POWER_GROWTH", default=False)
 
@@ -2085,7 +2098,7 @@ def verify_entailment(
     solver.add(z3.Not(z3_claim))
     result = check_solver(solver)
 
-    if result != z3.unsat and "^" in str(claim) and not _POWER_GROWTH.get():
+    if _worth_a_second_try(result, solver, claim, ctx):
         # A claim about powers the solver could not settle: once more, with the
         # growth fact b^e >= b (e >= 1, b >= 1) on every power.
         token = _POWER_GROWTH.set(True)
