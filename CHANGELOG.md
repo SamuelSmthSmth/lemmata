@@ -26,7 +26,7 @@ What changed between releases of Lemmata, newest first. The engine is the `aethe
 ### Show in Lean proves steps
 
 - **Each step now tries the Lean tactic for the rule Lemmata's kernel checked it by,** falling back to `sorry` only where that tactic can't finish it: `first | (ring; done) | … | sorry  -- Kernel: ring`.
-- **On every pinned proof, Lean itself proves 290 of the 440 steps it is asked to try. A step about absolute values splits each `|t|` into its two cases first, as Lemmata's solver does.** The rest stay `sorry`, as before.
+- **On every pinned proof, Lean itself proves 320 of the 440 steps it is asked to try. A step about absolute values splits each `|t|` into its two cases first, as Lemmata's solver does.** The rest stay `sorry`, as before.
 - **Every skeleton still compiles** against the pinned Mathlib.
 - **Stays `sorry`:** calculus steps (Lean's `deriv` and `Tendsto` goals need lemmas, not one tactic) and steps that did not check.
 
