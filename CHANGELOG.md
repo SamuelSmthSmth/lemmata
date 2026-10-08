@@ -2,6 +2,18 @@
 
 What changed between releases of Lemmata, newest first. The engine is the `aether` Python package; its public API (`ProofChecker`, `ProofReport`, `StepResult`, `StepStatus`, `ParseError`) stays backward compatible within these releases.
 
+## Unreleased
+
+### Paste LaTeX (engine)
+
+- **A proof written in LaTeX becomes a Lemmata draft** by fixed rules, so the same input always gives the same draft, offline: `aether.core.latex_import.latex_to_lemmata`.
+  - **Structure:** `\begin{theorem}[Name]` and `\begin{proof}` become `Theorem:`, `Proof:` and `QED`.
+  - **Sentences:** each is read by its opening words (*Let*, *Take*, *Suppose*, *Since*, *Then*, *Therefore*), and "for some integer $k$" declares `k`.
+  - **Displays:** `align*` rows become a chain of `Step:` lines.
+  - **Maths:** written as the parser reads it: `\frac`, `x^{2}`, `\sqrt`, `2k`, `3|x|`, `\mathbb{R}`.
+- **Anything it can't place stays as a `#` comment saying why,** and a line the parser refuses is commented out the same way, so the draft always parses.
+- **Comments can stand on their own line anywhere:** first in a proof, between `Theorem:` and `Proof:`, after a blank line. Before, a comment line inside a proof was a parse error, and one between `Theorem:` and `Proof:` emptied the theorem.
+
 ## 0.4.0 (2026-10-08)
 
 The kernel decides. In 0.3, Lemmata's proof kernel labelled each line with the rule it would take; now, at a level, a line passes because a named rule proved it, and the solver is the second checker. The rules reach far past algebra: derivatives, integrals, limits and sums, groups, rings and quantified statements. And *Show in Lean* hands those rules to Lean, which now proves most steps itself.
