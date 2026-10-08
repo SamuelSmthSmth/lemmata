@@ -1930,9 +1930,10 @@ def _lean_attempts(backend: str, s: StatementNode, algebra: Optional[str], shape
             splits = " <;> ".join(f"rcases abs_cases ({t}) with ⟨_, _⟩ | ⟨_, _⟩" for t in shape.abs_terms)
             tactics += [f"({splits} <;> linarith)", f"({splits} <;> nlinarith)", "(simp only [← abs_mul]; congr 1; ring)", "(rw [abs_sub_comm])"]
         if shape.denominators:
-            # field_simp needs each denominator known non-zero: show it first.
+            # field_simp needs each denominator known non-zero: show it first.  The
+            # inner proof is a term `(by …)`: a bare `by` would swallow the rest.
             nonzero = "; ".join(
-                f"have hd{i} : ({d}) ≠ 0 := by first | positivity | (intro h; nlinarith)" for i, d in enumerate(shape.denominators)
+                f"have hd{i} : ({d}) ≠ 0 := (by first | positivity | (intro h; nlinarith))" for i, d in enumerate(shape.denominators)
             )
             tactics = [f"({nonzero}; field_simp; ring)"] + tactics
         if "Nat.factorial" in shape.text:
