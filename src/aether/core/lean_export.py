@@ -1683,6 +1683,8 @@ class LeanExporter:
             quiet = _Expr(expr.scope, [], None)  # rendering here must not report anything
             shape.abs_terms = list(dict.fromkeys(quiet.term(a) for a in _abs_args(goal)))[:3]
             shape.conjunction = isinstance(goal, BinaryOpNode) and goal.op in _AND
+            shape.denominators = list(dict.fromkeys(quiet.term(d) for d in _denominators(goal)))[:2]
+            shape.text = quiet.prop(goal)
         attempts = _lean_attempts(result.backend, s, self.algebra, shape)
         return "first | " + " | ".join(attempts) + " | sorry" if attempts else "sorry"
 
@@ -1844,10 +1846,10 @@ def _alpha_normal(text: str) -> str:
 #: redo are here: the calculus rules (Lean's ``deriv`` and ``Tendsto`` goals
 #: need lemmas), "solver only" and "outside the core" stay ``sorry``.
 _LEAN_TACTICS: dict[str, tuple[str, ...]] = {
-    "ring": ("ring", "norm_num", "(field_simp; ring)"),
-    "subst": ("(subst_vars; ring)", "ring", "(simp only [*]; ring)"),
-    "field": ("(field_simp; ring)", "field_simp", "ring", "norm_num"),
-    "simp": ("simp", "norm_num", "(simp; ring)"),
+    "ring": ("ring", "norm_num", "(field_simp; ring)", "linarith", "rfl", "decide"),
+    "subst": ("(subst_vars; ring)", "ring", "(simp only [*]; ring)", "linarith"),
+    "field": ("(field_simp; ring)", "field_simp", "ring", "norm_num", "linarith", "rfl"),
+    "simp": ("simp", "norm_num", "(simp; ring)", "linarith"),
     "linarith": ("linarith", "nlinarith", "positivity", "norm_num"),
     "nlinarith": ("nlinarith", "positivity", "norm_num", "(norm_num; nlinarith)"),
     "residues": ("omega", "decide"),
@@ -1869,6 +1871,10 @@ class _Shape:
     abs_terms: list[str] = field(default_factory=list)
     #: Whether it is a conjunction (`A ∧ B`).
     conjunction: bool = False
+    #: The denominators in it, as Lean terms (at most 2).
+    denominators: list[str] = field(default_factory=list)
+    #: The goal as Lean shows it (to recognise a factorial).
+    text: str = ""
 
 
 def _abs_args(node: Any) -> list[ExprNode]:
@@ -1882,6 +1888,20 @@ def _abs_args(node: Any) -> list[ExprNode]:
             elif isinstance(value, list):
                 for v in value:
                     out.extend(_abs_args(v))
+    return out
+
+
+def _denominators(node: Any) -> list[ExprNode]:
+    out: list[ExprNode] = []
+    if isinstance(node, BinaryOpNode) and node.op == "/" and not isinstance(node.right, NumberNode):
+        out.append(node.right)
+    if isinstance(node, ExprNode):
+        for value in vars(node).values():
+            if isinstance(value, ExprNode):
+                out.extend(_denominators(value))
+            elif isinstance(value, list):
+                for v in value:
+                    out.extend(_denominators(v))
     return out
 
 
@@ -1904,6 +1924,20 @@ def _lean_attempts(backend: str, s: StatementNode, algebra: Optional[str], shape
             tactics = [f"({splits} <;> {rules[-1]})"] + tactics
         if shape.conjunction:
             tactics = [f"(refine ⟨?_, ?_⟩ <;> {rules[-1]})"] + tactics
+    if rules[-1] in ("ring", "subst", "field", "simp"):
+        if shape.abs_terms:
+            # An identity between absolute values: by cases, or by |a| |b| = |a b|.
+            splits = " <;> ".join(f"rcases abs_cases ({t}) with ⟨_, _⟩ | ⟨_, _⟩" for t in shape.abs_terms)
+            tactics += [f"({splits} <;> linarith)", f"({splits} <;> nlinarith)", "(simp only [← abs_mul]; congr 1; ring)", "(rw [abs_sub_comm])"]
+        if shape.denominators:
+            # field_simp needs each denominator known non-zero: show it first.  The
+            # inner proof is a term `(by …)`: a bare `by` would swallow the rest.
+            nonzero = "; ".join(
+                f"have hd{i} : ({d}) ≠ 0 := (by first | positivity | (intro h; nlinarith))" for i, d in enumerate(shape.denominators)
+            )
+            tactics = [f"({nonzero}; field_simp; ring)"] + tactics
+        if "Nat.factorial" in shape.text:
+            tactics += ["(rw [Nat.mul_factorial_pred (by omega)])", "(exact (Nat.mul_factorial_pred (by omega)).symm)"]
     if any(r in _INTROS for r in rules):
         # ∀/⇒-introduction: take the binders and hypotheses apart, then the leaf.
         tactics = [f"(intros; {t})" for t in tactics]

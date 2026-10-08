@@ -33,10 +33,10 @@ theorem even_square_theorem :
   obtain ⟨k, h5⟩ : ∃ k : ℤ, n = 2 * k := by
     sorry  -- from h1
   have s6 : n ^ 2 = 2 * (2 * k ^ 2) := by
-    calc n ^ 2 = (2 * k) ^ 2 := by first | (subst_vars; ring; done) | (ring; done) | (simp only [*]; ring; done) | sorry  -- Kernel: subst
-      _ = 4 * k ^ 2 := by first | (ring; done) | (norm_num; done) | (field_simp; ring; done) | sorry  -- Kernel: ring
-      _ = 2 * (2 * k ^ 2) := by first | (ring; done) | (norm_num; done) | (field_simp; ring; done) | sorry  -- Kernel: ring
-  have s9 : ∃ m : ℤ, n ^ 2 = 4 * m := ⟨(k ^ 2 : ℤ), by first | (subst_vars; ring; done) | (ring; done) | (simp only [*]; ring; done) | sorry⟩  -- Kernel: subst
+    calc n ^ 2 = (2 * k) ^ 2 := by first | (subst_vars; ring; done) | (ring; done) | (simp only [*]; ring; done) | linarith | sorry  -- Kernel: subst
+      _ = 4 * k ^ 2 := by first | (ring; done) | (norm_num; done) | (field_simp; ring; done) | linarith | (rfl; done) | decide | sorry  -- Kernel: ring
+      _ = 2 * (2 * k ^ 2) := by first | (ring; done) | (norm_num; done) | (field_simp; ring; done) | linarith | (rfl; done) | decide | sorry  -- Kernel: ring
+  have s9 : ∃ m : ℤ, n ^ 2 = 4 * m := ⟨(k ^ 2 : ℤ), by first | (subst_vars; ring; done) | (ring; done) | (simp only [*]; ring; done) | linarith | sorry⟩  -- Kernel: subst
   have s10 : (4 : ℤ) ∣ n ^ 2 := by
     first | assumption | linarith | omega | (simp_all; done) | sorry  -- Kernel: hypothesis
   exact s10
